@@ -16,6 +16,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <Image src="/logo.png" alt="Aupa" width={60} height={30} className="object-contain" />
           <Link href="/ingredients" className="text-sm text-gray-600 hover:text-yellow-400 transition-colors">Ingrédients</Link>
           <Link href="/recettes" className="text-sm text-gray-600 hover:text-yellow-400 transition-colors">Recettes</Link>
+          <Link href="/menus" className="text-sm text-gray-600 hover:text-yellow-400 transition-colors">Menus</Link>
           <Link href="/rentabilite" className="text-sm text-gray-600 hover:text-yellow-400 transition-colors">Rentabilité</Link>
           <Link href="/performance" className="text-sm text-gray-600 hover:text-yellow-400 transition-colors">Performance</Link>
           <Link href="/ecarts" className="text-sm text-gray-600 hover:text-yellow-400 transition-colors">Écarts</Link>

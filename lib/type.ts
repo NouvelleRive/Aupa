@@ -2,13 +2,19 @@ export type Unite = 'kg' | 'g' | 'L' | 'cL' | 'pièce' | 'lot';
 
 export type Categorie = 'viande' | 'poisson' | 'légume' | 'fruit' | 'laitage' | 'épicerie' | 'boisson' | 'autre';
 
+export type Saison = 'été' | 'hiver';
+
+export type Carte = 'ETE26' | 'HIVER25' | 'ETE25' | 'HIVER24' | 'ETE24';
+
+export type CategorieRecette = 'Croger' | 'Mini Croger' | 'Entrées' | 'Sides' | 'Desserts' | 'Bols' | 'Wine/Beer' | 'Cocktails' | 'Apéro' | 'Softs chaud' | 'Softs froid' | 'Sodas';
+
 export interface Ingredient {
   id: string;
   nom: string;
   prix: number;
   unite: Unite;
   categorie: Categorie;
-  rendement: number; // ex: 0.85 = 15% de perte
+  rendement: number;
   historiquesPrix: { date: string; prix: number }[];
   updatedAt: string;
 }
@@ -39,14 +45,12 @@ export interface RecetteOption {
   prixSupp: number;
 }
 
-export type Saison = 'été' | 'hiver' | 'toute_année' | 'printemps' | 'automne';
-export type CategorieRecette = 'Croger' | 'Mini Croger' | 'Entrées' | 'Sides' | 'Desserts' | 'Bols' | 'Wine/Beer' | 'Cocktails' | 'Apéro' | 'Softs chaud' | 'Softs froid' | 'Sodas';
-
 export interface Recette {
   id: string;
   nom: string;
   categorie: CategorieRecette;
   saisons: Saison[];
+  carte: Carte;
   actif: boolean;
   prixVente: number;
   ingredients: RecetteIngredient[];
