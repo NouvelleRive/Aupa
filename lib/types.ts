@@ -6,7 +6,8 @@ export type Saison = 'été' | 'hiver';
 
 export type Menu = 'ETE23' | 'HIVER23' | 'ETE24' | 'HIVER24' | 'ETE25' | 'HIVER25' | 'ETE26';
 
-export type { CategorieRecette } from '@/lib/categories';
+import { CATEGORIES } from '@/lib/categories';
+export type CategorieRecette = typeof CATEGORIES[number];
 
 export interface Ingredient {
   id: string;
