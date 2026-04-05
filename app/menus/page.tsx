@@ -221,7 +221,7 @@ export default function MenusPage() {
           <button key={m.id} onClick={() => { setMenuActif(m.id); setMoisActif('all'); setMenuEdit(''); }}
             className={`px-4 py-2 rounded-lg text-sm font-semibold border transition-colors ${menuActif === m.id ? 'bg-yellow-400 border-yellow-400 text-black' : 'border-gray-200 text-gray-600 hover:border-yellow-300'}`}>
             {m.nom}
-            {m.dateDebut && <span className="text-xs font-normal ml-1 opacity-60">{m.dateDebut.slice(0, 7)} → {m.dateFin?.slice(0, 7)}</span>}
+            {m.dateDebut && <span className="text-xs font-normal ml-1 opacity-60">{m.dateDebut} → {m.dateFin}</span>}
           </button>
         ))}
       </div>
