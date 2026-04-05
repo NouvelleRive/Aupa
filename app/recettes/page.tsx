@@ -15,7 +15,7 @@ const SHEET_TO_CAT: Record<string, CategorieRecette> = {
   'Softs maison chaud': 'Softs chaud', 'Softs maison froid': 'Softs froid', 'Sodas': 'Sodas',
 };
 
-const emptyForm = { nom: '', categorie: 'Croger' as CategorieRecette, prixVente: '', saisons: ['été'] as Saison[], actif: true };
+const emptyForm = { nom: '', categorie: 'Croger' as CategorieRecette, saisons: ['été'] as Saison[], actif: true };
 
 export default function RecettesPage() {
   const [recettes, setRecettes] = useState<Recette[]>([]);
@@ -67,9 +67,7 @@ export default function RecettesPage() {
       const rows: any[][] = XLSX.utils.sheet_to_json(ws, { header: 1 });
 
       const row0 = rows[1] || [];
-      const row2 = rows[3] || [];
-
-      const platCols: { colPrix: number; colGrammage: number; nom: string; prix: number }[] = [];
+      const platCols: { colGrammage: number; nom: string }[] = [];
       const nomsVus = new Map<string, number>();
 
       for (let c = 4; c < row0.length; c++) {
@@ -79,9 +77,7 @@ export default function RecettesPage() {
         if (!nomsVus.has(nomClean)) {
           nomsVus.set(nomClean, c);
         } else {
-          const colPrix = nomsVus.get(nomClean)!;
-          const prix = typeof row2[colPrix] === 'number' ? row2[colPrix] : 0;
-          platCols.push({ colPrix, colGrammage: c, nom: nomClean, prix });
+          platCols.push({ colGrammage: c, nom: nomClean });
         }
       }
 
@@ -110,7 +106,7 @@ export default function RecettesPage() {
         }, 0);
 
         await addDoc(collection(db, 'recettes'), {
-          nom: plat.nom, categorie: cat, prixVente: plat.prix,
+          nom: plat.nom, categorie: cat,
           saisons: ['été'], actif: true,
           ingredients: lignesRecette, options: [], coutCalcule: cout,
           updatedAt: new Date().toISOString(),
@@ -141,10 +137,10 @@ export default function RecettesPage() {
   };
 
   const handleSubmit = async () => {
-    if (!form.nom || !form.prixVente) return;
+    if (!form.nom) return;
     const cout = calculerCout();
     const data = {
-      nom: form.nom, categorie: form.categorie, prixVente: parseFloat(form.prixVente),
+      nom: form.nom, categorie: form.categorie,
       saisons: form.saisons, actif: form.actif,
       ingredients: lignes.filter(l => l.type === 'ingredient').map(l => ({ ingredientId: l.id, grammage: parseFloat(l.grammage) })),
       options: [], coutCalcule: cout, updatedAt: new Date().toISOString(),
@@ -156,7 +152,7 @@ export default function RecettesPage() {
 
   const handleEdit = (r: Recette) => {
     setEditId(r.id);
-    setForm({ nom: r.nom, categorie: r.categorie, prixVente: String(r.prixVente), saisons: r.saisons, actif: r.actif });
+    setForm({ nom: r.nom, categorie: r.categorie, saisons: r.saisons, actif: r.actif });
     setLignes(r.ingredients.map(i => ({ type: 'ingredient' as const, id: i.ingredientId!, grammage: String(i.grammage) })));
     setShowForm(true);
     window.scrollTo(0, 0);
@@ -178,9 +174,6 @@ export default function RecettesPage() {
   );
 
   const coutPreview = calculerCout();
-  const prixHT = parseFloat(form.prixVente) / 1.1 || 0;
-  const marge = prixHT > 0 ? ((prixHT - coutPreview) / prixHT) * 100 : 0;
-  const foodCost = prixHT > 0 ? (coutPreview / prixHT) * 100 : 0;
 
   return (
     <div className="max-w-6xl mx-auto">
@@ -200,12 +193,11 @@ export default function RecettesPage() {
       {showForm && (
         <div className="bg-white rounded-xl border border-yellow-100 p-6 mb-6">
           <h2 className="font-semibold text-gray-700 mb-4">{editId ? 'Modifier la recette' : 'Nouvelle recette'}</h2>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-4">
             <input className="border border-yellow-200 focus:border-yellow-400 focus:outline-none rounded-lg px-3 py-2 text-sm col-span-2" placeholder="Nom de la recette" value={form.nom} onChange={e => setForm({ ...form, nom: e.target.value })} />
             <select className="border border-yellow-200 focus:border-yellow-400 focus:outline-none rounded-lg px-3 py-2 text-sm" value={form.categorie} onChange={e => setForm({ ...form, categorie: e.target.value as CategorieRecette })}>
               {CATEGORIES.map(c => <option key={c}>{c}</option>)}
             </select>
-            <input className="border border-yellow-200 focus:border-yellow-400 focus:outline-none rounded-lg px-3 py-2 text-sm" placeholder="Prix vente TTC (€)" type="number" value={form.prixVente} onChange={e => setForm({ ...form, prixVente: e.target.value })} />
           </div>
 
           <div className="flex gap-2 mb-4">
@@ -240,12 +232,9 @@ export default function RecettesPage() {
             </div>
           </div>
 
-          {form.prixVente && (
+          {lignes.length > 0 && (
             <div className="bg-yellow-50 rounded-lg p-4 mb-4 flex gap-6 text-sm">
               <div><span className="text-gray-500">Coût matière</span><br /><span className="font-bold">{coutPreview.toFixed(2)} €</span></div>
-              <div><span className="text-gray-500">Food cost</span><br /><span className={`font-bold ${foodCost > 32 ? 'text-yellow-600' : 'text-black'}`}>{foodCost.toFixed(1)}%</span></div>
-              <div><span className="text-gray-500">Marge</span><br /><span className="font-bold">{marge.toFixed(1)}%</span></div>
-              <div><span className="text-gray-500">Bénéfice HT</span><br /><span className="font-bold">{(prixHT - coutPreview).toFixed(2)} €</span></div>
             </div>
           )}
 
@@ -275,37 +264,26 @@ export default function RecettesPage() {
                 <th className="px-4 py-3 text-left">Recette</th>
                 <th className="px-4 py-3 text-left">Catégorie</th>
                 <th className="px-4 py-3 text-left">Saisons</th>
-                <th className="px-4 py-3 text-right">Prix vente</th>
-                <th className="px-4 py-3 text-right">Coût</th>
-                <th className="px-4 py-3 text-right">Food cost</th>
-                <th className="px-4 py-3 text-right">Marge</th>
+                <th className="px-4 py-3 text-right">Coût matière</th>
                 <th className="px-4 py-3 text-center">Statut</th>
                 <th className="px-4 py-3"></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-yellow-50">
-              {filtered.map(r => {
-                const pHT = r.prixVente / 1.1;
-                const fc = pHT > 0 ? (r.coutCalcule / pHT) * 100 : 0;
-                const mg = pHT > 0 ? ((pHT - r.coutCalcule) / pHT) * 100 : 0;
-                return (
-                  <tr key={r.id} className="hover:bg-yellow-50 transition-colors">
-                    <td className="px-4 py-3 font-medium">{r.nom}</td>
-                    <td className="px-4 py-3 text-gray-500">{r.categorie}</td>
-                    <td className="px-4 py-3 text-gray-500">{r.saisons.join(', ')}</td>
-                    <td className="px-4 py-3 text-right">{r.prixVente.toFixed(2)} €</td>
-                    <td className="px-4 py-3 text-right">{r.coutCalcule.toFixed(2)} €</td>
-                    <td className="px-4 py-3 text-right"><span className={`font-semibold ${fc > 32 ? 'text-yellow-600' : ''}`}>{fc.toFixed(1)}%</span></td>
-                    <td className="px-4 py-3 text-right font-semibold">{mg.toFixed(1)}%</td>
-                    <td className="px-4 py-3 text-center"><span className={`px-2 py-1 rounded-full text-xs ${r.actif ? 'bg-yellow-100 text-yellow-700' : 'bg-gray-100 text-gray-400'}`}>{r.actif ? 'Actif' : 'Inactif'}</span></td>
-                    <td className="px-4 py-3 flex gap-2 justify-end">
-                      <button onClick={() => handleEdit(r)} className="text-xs text-gray-400 hover:text-yellow-500">Modifier</button>
-                      <button onClick={() => handleDelete(r.id)} className="text-xs text-gray-400 hover:text-yellow-500">Supprimer</button>
-                    </td>
-                  </tr>
-                );
-              })}
-              {filtered.length === 0 && <tr><td colSpan={9} className="px-4 py-8 text-center text-gray-400">Aucune recette</td></tr>}
+              {filtered.map(r => (
+                <tr key={r.id} className="hover:bg-yellow-50 transition-colors">
+                  <td className="px-4 py-3 font-medium">{r.nom}</td>
+                  <td className="px-4 py-3 text-gray-500">{r.categorie}</td>
+                  <td className="px-4 py-3 text-gray-500">{r.saisons.join(', ')}</td>
+                  <td className="px-4 py-3 text-right">{r.coutCalcule.toFixed(2)} €</td>
+                  <td className="px-4 py-3 text-center"><span className={`px-2 py-1 rounded-full text-xs ${r.actif ? 'bg-yellow-100 text-yellow-700' : 'bg-gray-100 text-gray-400'}`}>{r.actif ? 'Actif' : 'Inactif'}</span></td>
+                  <td className="px-4 py-3 flex gap-2 justify-end">
+                    <button onClick={() => handleEdit(r)} className="text-xs text-gray-400 hover:text-yellow-500">Modifier</button>
+                    <button onClick={() => handleDelete(r.id)} className="text-xs text-gray-400 hover:text-yellow-500">Supprimer</button>
+                  </td>
+                </tr>
+              ))}
+              {filtered.length === 0 && <tr><td colSpan={6} className="px-4 py-8 text-center text-gray-400">Aucune recette</td></tr>}
             </tbody>
           </table>
         </div>

@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { collection, getDocs, addDoc, updateDoc, doc, query, where, deleteDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Recette } from '@/lib/types';
-import { MenuDoc, MenuCategorie } from '@/lib/menuTypes';
+import { MenuDoc, MenuCategorie, MenuRecette } from '@/lib/menuTypes';
 
 interface VenteLine {
   nom: string;
@@ -39,7 +39,7 @@ export default function MenusPage() {
 
   const [menuEdit, setMenuEdit] = useState<string>('');
   const [catNom, setCatNom] = useState('Croger');
-  const [catRecetteIds, setCatRecetteIds] = useState<Set<string>>(new Set());
+  const [catRecettes, setCatRecettes] = useState<Map<string, string>>(new Map()); // id -> prixVente string
   const [filterCatEdit, setFilterCatEdit] = useState('all');
   const [editingCatIdx, setEditingCatIdx] = useState<number | null>(null);
 
@@ -85,7 +85,10 @@ export default function MenusPage() {
   const handleSauvegarderCategorie = async () => {
     const menu = menus.find(m => m.id === menuEdit);
     if (!menu) return;
-    const newCat: MenuCategorie = { nom: catNom, recetteIds: [...catRecetteIds] };
+    const recettesArray: MenuRecette[] = [...catRecettes.entries()].map(([id, prix]) => ({
+      id, prixVente: parseFloat(prix) || 0
+    }));
+    const newCat: MenuCategorie = { nom: catNom, recettes: recettesArray };
     let newCats = [...menu.categories];
     if (editingCatIdx !== null) {
       newCats[editingCatIdx] = newCat;
@@ -94,7 +97,7 @@ export default function MenusPage() {
     }
     await updateDoc(doc(db, 'menus', menuEdit), { categories: newCats });
     setMenuEdit('');
-    setCatRecetteIds(new Set());
+    setCatRecettes(new Map());
     setEditingCatIdx(null);
     await fetchAll();
   };
@@ -114,9 +117,7 @@ export default function MenusPage() {
 
     const dateMatch = file.name.match(/(\d{4})(\d{2})(\d{2})/);
     let mois = '';
-    if (dateMatch) {
-      mois = `${dateMatch[1]}-${dateMatch[2]}`;
-    }
+    if (dateMatch) mois = `${dateMatch[1]}-${dateMatch[2]}`;
 
     const menuTrouve = menus.find(m => {
       if (!m.dateDebut || !m.dateFin || !mois) return false;
@@ -144,7 +145,7 @@ export default function MenusPage() {
     for (const row of rows) {
       const nom = row['name'] || '';
       const quantity = row['quantity'] || 0;
-      const ttc = row['TTC'] || 0;
+      const ttc = row['total ttc'] || row['TTC'] || 0;
       if (!nom || quantity <= 0) continue;
       await addDoc(collection(db, 'ventes'), { nom, quantity, ttc, menuNom: menuTrouve.nom, mois });
       count++;
@@ -168,14 +169,20 @@ export default function MenusPage() {
     );
   };
 
-  const tousLesIds = menuCourant?.categories.flatMap(c => c.recetteIds) || [];
+  const tousLesIds = menuCourant?.categories.flatMap(c => c.recettes.map(r => r.id)) || [];
   const toutesRecettesCarte = recettes.filter(r => tousLesIds.includes(r.id));
 
   const ventesMenuActuel = ventes.filter(v => v.menuNom === menuCourant?.nom && (moisActif === 'all' || v.mois === moisActif));
   const caReel = ventesMenuActuel.reduce((s, v) => s + v.ttc, 0);
   const totalVendus = ventesMenuActuel.reduce((s, v) => s + v.quantity, 0);
-  const foodCostMoyen = toutesRecettesCarte.filter(r => r.prixVente > 0).length > 0
-    ? toutesRecettesCarte.filter(r => r.prixVente > 0).reduce((s, r) => s + (r.coutCalcule / (r.prixVente / 1.1)) * 100, 0) / toutesRecettesCarte.filter(r => r.prixVente > 0).length
+
+  const allMenuRecettes = menuCourant?.categories.flatMap(c => c.recettes) || [];
+  const foodCostMoyen = allMenuRecettes.filter(mr => mr.prixVente > 0).length > 0
+    ? allMenuRecettes.filter(mr => mr.prixVente > 0).reduce((s, mr) => {
+        const r = recettes.find(x => x.id === mr.id);
+        if (!r) return s;
+        return s + (r.coutCalcule / (mr.prixVente / 1.1)) * 100;
+      }, 0) / allMenuRecettes.filter(mr => mr.prixVente > 0).length
     : 0;
 
   const recettesFiltrees = recettes.filter(r => filterCatEdit === 'all' || r.categorie === filterCatEdit);
@@ -215,13 +222,12 @@ export default function MenusPage() {
         </div>
       )}
 
-      {/* Onglets menus */}
       <div className="flex gap-2 mb-6 flex-wrap">
         {menus.map(m => (
           <button key={m.id} onClick={() => { setMenuActif(m.id); setMoisActif('all'); setMenuEdit(''); }}
             className={`px-4 py-2 rounded-lg text-sm font-semibold border transition-colors ${menuActif === m.id ? 'bg-yellow-400 border-yellow-400 text-black' : 'border-gray-200 text-gray-600 hover:border-yellow-300'}`}>
-            {m.nom}
-            {m.dateDebut && <span className="text-xs font-normal ml-1 opacity-60">{m.dateDebut} → {m.dateFin}</span>}
+            <div>{m.nom}</div>
+            {m.dateDebut && <div className="text-xs font-normal opacity-60">{m.dateDebut} → {m.dateFin}</div>}
           </button>
         ))}
       </div>
@@ -266,12 +272,17 @@ export default function MenusPage() {
 
           <div className="space-y-4 mb-6">
             {menuCourant.categories.map((cat, idx) => {
-              const platsCategorie = recettes.filter(r => cat.recetteIds.includes(r.id));
+              const platsCategorie = cat.recettes.map(mr => {
+                const r = recettes.find(x => x.id === mr.id);
+                return r ? { ...r, prixVente: mr.prixVente } : null;
+              }).filter(Boolean) as (Recette & { prixVente: number })[];
+
               const ventsCat = platsCategorie.map(p => {
                 const v = getVentesPourPlat(p.nom);
                 return { ...p, vendus: v.reduce((s, x) => s + x.quantity, 0), caReel: v.reduce((s, x) => s + x.ttc, 0) };
               });
               const totalVendusCat = ventsCat.reduce((s, p) => s + p.vendus, 0);
+
               return (
                 <div key={idx} className="bg-white rounded-xl border border-yellow-100 overflow-hidden">
                   <div className="bg-yellow-50 px-4 py-3 flex items-center justify-between">
@@ -281,7 +292,9 @@ export default function MenusPage() {
                       <button onClick={() => {
                         setMenuEdit(menuCourant.id);
                         setCatNom(cat.nom);
-                        setCatRecetteIds(new Set(cat.recetteIds));
+                        const m = new Map<string, string>();
+                        cat.recettes.forEach(r => m.set(r.id, String(r.prixVente)));
+                        setCatRecettes(m);
                         setEditingCatIdx(idx);
                         setFilterCatEdit('all');
                       }} className="text-xs text-gray-400 hover:text-yellow-500">Modifier</button>
@@ -338,28 +351,41 @@ export default function MenusPage() {
                   <option value="all">Toutes catégories</option>
                   {CATEGORIES.map(c => <option key={c}>{c}</option>)}
                 </select>
-                <span className="text-sm text-gray-400 self-center">{catRecetteIds.size} recettes sélectionnées</span>
+                <span className="text-sm text-gray-400 self-center">{catRecettes.size} recettes sélectionnées</span>
                 <button onClick={handleSauvegarderCategorie} className="bg-yellow-400 hover:bg-yellow-500 text-black font-semibold rounded-lg px-4 py-2 text-sm">Enregistrer</button>
-                <button onClick={() => { setMenuEdit(''); setCatRecetteIds(new Set()); setEditingCatIdx(null); }} className="border border-gray-200 rounded-lg px-4 py-2 text-sm text-gray-500">Annuler</button>
+                <button onClick={() => { setMenuEdit(''); setCatRecettes(new Map()); setEditingCatIdx(null); }} className="border border-gray-200 rounded-lg px-4 py-2 text-sm text-gray-500">Annuler</button>
               </div>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-2 max-h-96 overflow-y-auto">
+              <div className="space-y-2 max-h-96 overflow-y-auto">
                 {recettesFiltrees.map(r => (
-                  <label key={r.id} className={`flex items-center gap-2 p-2 rounded-lg border cursor-pointer transition-colors ${catRecetteIds.has(r.id) ? 'border-yellow-400 bg-yellow-50' : 'border-gray-100 hover:border-yellow-200'}`}>
-                    <input type="checkbox" checked={catRecetteIds.has(r.id)} onChange={e => {
-                      const s = new Set(catRecetteIds);
-                      e.target.checked ? s.add(r.id) : s.delete(r.id);
-                      setCatRecetteIds(s);
+                  <div key={r.id} className={`flex items-center gap-3 p-2 rounded-lg border transition-colors ${catRecettes.has(r.id) ? 'border-yellow-400 bg-yellow-50' : 'border-gray-100 hover:border-yellow-200'}`}>
+                    <input type="checkbox" checked={catRecettes.has(r.id)} onChange={e => {
+                      const m = new Map(catRecettes);
+                      if (e.target.checked) { m.set(r.id, ''); } else { m.delete(r.id); }
+                      setCatRecettes(m);
                     }} className="accent-yellow-400" />
-                    <div>
+                    <div className="flex-1">
                       <p className="text-sm font-medium">{r.nom}</p>
-                      <p className="text-xs text-gray-400">{r.categorie} · {r.prixVente?.toFixed(2)} €</p>
+                      <p className="text-xs text-gray-400">{r.categorie}</p>
                     </div>
-                  </label>
+                    {catRecettes.has(r.id) && (
+                      <input
+                        type="number"
+                        placeholder="Prix €"
+                        className="border border-yellow-200 rounded-lg px-2 py-1 text-sm w-24 focus:border-yellow-400 focus:outline-none"
+                        value={catRecettes.get(r.id) || ''}
+                        onChange={e => {
+                          const m = new Map(catRecettes);
+                          m.set(r.id, e.target.value);
+                          setCatRecettes(m);
+                        }}
+                      />
+                    )}
+                  </div>
                 ))}
               </div>
             </div>
           ) : (
-            <button onClick={() => { setMenuEdit(menuCourant.id); setCatNom('Croger'); setCatRecetteIds(new Set()); setEditingCatIdx(null); setFilterCatEdit('all'); }}
+            <button onClick={() => { setMenuEdit(menuCourant.id); setCatNom('Croger'); setCatRecettes(new Map()); setEditingCatIdx(null); setFilterCatEdit('all'); }}
               className="w-full border-2 border-dashed border-yellow-200 rounded-xl py-4 text-yellow-400 hover:border-yellow-400 font-semibold text-sm transition-colors">
               + Ajouter une catégorie
             </button>

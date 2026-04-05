@@ -1,6 +1,11 @@
+export interface MenuRecette {
+  id: string;
+  prixVente: number;
+}
+
 export interface MenuCategorie {
   nom: string;
-  recetteIds: string[];
+  recettes: MenuRecette[];
 }
 
 export interface MenuDoc {
@@ -8,8 +13,8 @@ export interface MenuDoc {
   nom: string;
   saison: 'été' | 'hiver';
   annee: number;
-  dateDebut: string; // ex: '2024-11-01'
-  dateFin: string;   // ex: '2025-04-30'
+  dateDebut: string;
+  dateFin: string;
   categories: MenuCategorie[];
   actif: boolean;
   createdAt: string;
