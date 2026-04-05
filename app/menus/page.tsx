@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { collection, getDocs, addDoc, updateDoc, doc, query, where, deleteDoc, setDoc } from 'firebase/firestore';
+import { collection, getDocs, addDoc, updateDoc, doc, query, where, deleteDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Recette } from '@/lib/types';
 import { MenuDoc, MenuCategorie } from '@/lib/menuTypes';
@@ -14,7 +14,6 @@ interface VenteLine {
   mois: string;
 }
 
-const MENUS_ORDER = ['HIVER25', 'ETE25', 'HIVER24', 'ETE24', 'HIVER23', 'ETE23'];
 const CATEGORIES = ['Croger', 'Mini Croger', 'Entrées', 'Sides', 'Desserts', 'Bols', 'Wine/Beer', 'Cocktails', 'Apéro', 'Softs chaud', 'Softs froid', 'Sodas'];
 
 const matchPlat = (nomPopina: string, nomMenu: string): boolean => {
@@ -33,12 +32,12 @@ export default function MenusPage() {
   const [loading, setLoading] = useState(true);
   const [importing, setImporting] = useState(false);
 
-  // Création menu
   const [showCreerMenu, setShowCreerMenu] = useState(false);
-  const [nouveauNom, setNouveauNom] = useState('ETE26');
+  const [nouveauNom, setNouveauNom] = useState('');
+  const [nouveauDateDebut, setNouveauDateDebut] = useState('');
+  const [nouveauDateFin, setNouveauDateFin] = useState('');
 
-  // Édition catégorie dans un menu
-  const [menuEdit, setMenuEdit] = useState<string>(''); // id du menu en cours d'édition
+  const [menuEdit, setMenuEdit] = useState<string>('');
   const [catNom, setCatNom] = useState('Croger');
   const [catRecetteIds, setCatRecetteIds] = useState<Set<string>>(new Set());
   const [filterCatEdit, setFilterCatEdit] = useState('all');
@@ -53,6 +52,7 @@ export default function MenusPage() {
       getDocs(collection(db, 'ventes')),
     ]);
     const ms = mSnap.docs.map(d => ({ id: d.id, ...d.data() } as MenuDoc));
+    ms.sort((a, b) => (b.dateDebut || '').localeCompare(a.dateDebut || ''));
     setMenus(ms);
     setRecettes(rSnap.docs.map(d => ({ id: d.id, ...d.data() } as Recette)));
     setVentes(vSnap.docs.map(d => d.data() as VenteLine));
@@ -62,36 +62,36 @@ export default function MenusPage() {
 
   useEffect(() => { fetchAll(); }, []);
 
-  // Créer un nouveau menu
   const handleCreerMenu = async () => {
     if (!nouveauNom.trim()) return;
     const nom = nouveauNom.toUpperCase().trim();
     const saison = nom.startsWith('ETE') ? 'été' : 'hiver';
     const annee = parseInt('20' + nom.replace('ETE', '').replace('HIVER', ''));
     const newDoc = await addDoc(collection(db, 'menus'), {
-      nom, saison, annee, categories: [], actif: true,
+      nom, saison, annee,
+      dateDebut: nouveauDateDebut,
+      dateFin: nouveauDateFin,
+      categories: [], actif: true,
       createdAt: new Date().toISOString(),
     });
     setShowCreerMenu(false);
-    setNouveauNom('ETE26');
+    setNouveauNom('');
+    setNouveauDateDebut('');
+    setNouveauDateFin('');
     await fetchAll();
     setMenuActif(newDoc.id);
   };
 
-  // Sauvegarder une catégorie dans un menu
   const handleSauvegarderCategorie = async () => {
     const menu = menus.find(m => m.id === menuEdit);
     if (!menu) return;
-
     const newCat: MenuCategorie = { nom: catNom, recetteIds: [...catRecetteIds] };
     let newCats = [...menu.categories];
-
     if (editingCatIdx !== null) {
       newCats[editingCatIdx] = newCat;
     } else {
       newCats.push(newCat);
     }
-
     await updateDoc(doc(db, 'menus', menuEdit), { categories: newCats });
     setMenuEdit('');
     setCatRecetteIds(new Set());
@@ -99,7 +99,6 @@ export default function MenusPage() {
     await fetchAll();
   };
 
-  // Supprimer une catégorie
   const handleSupprimerCategorie = async (menuId: string, idx: number) => {
     const menu = menus.find(m => m.id === menuId);
     if (!menu) return;
@@ -108,21 +107,28 @@ export default function MenusPage() {
     await fetchAll();
   };
 
-  // Import Popina
   const handleImportPopina = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     setImporting(true);
 
-    const dateMatch = file.name.match(/(\d{4})(\d{2})\d{2}/);
-    let mois = '2025-01';
-    let menuNom = 'HIVER25';
+    const dateMatch = file.name.match(/(\d{4})(\d{2})(\d{2})/);
+    let mois = '';
     if (dateMatch) {
-      const annee = dateMatch[1];
-      const moisNum = parseInt(dateMatch[2]);
-      mois = `${annee}-${String(moisNum).padStart(2, '0')}`;
-      const saison = moisNum >= 5 && moisNum <= 10 ? 'ETE' : 'HIVER';
-      menuNom = `${saison}${annee.slice(2)}`;
+      mois = `${dateMatch[1]}-${dateMatch[2]}`;
+    }
+
+    const menuTrouve = menus.find(m => {
+      if (!m.dateDebut || !m.dateFin || !mois) return false;
+      const d = mois + '-01';
+      return d >= m.dateDebut && d <= m.dateFin;
+    });
+
+    if (!menuTrouve) {
+      alert(`❌ Aucun menu ne correspond au mois ${mois}. Crée d'abord le menu avec les bonnes dates.`);
+      setImporting(false);
+      e.target.value = '';
+      return;
     }
 
     const XLSX = await import('xlsx');
@@ -140,12 +146,12 @@ export default function MenusPage() {
       const quantity = row['quantity'] || 0;
       const ttc = row['TTC'] || 0;
       if (!nom || quantity <= 0) continue;
-      await addDoc(collection(db, 'ventes'), { nom, quantity, ttc, menuNom, mois });
+      await addDoc(collection(db, 'ventes'), { nom, quantity, ttc, menuNom: menuTrouve.nom, mois });
       count++;
     }
 
     setImporting(false);
-    alert(`✅ ${count} lignes importées → ${menuNom} / ${mois}`);
+    alert(`✅ ${count} lignes importées → ${menuTrouve.nom} / ${mois}`);
     const vSnap = await getDocs(collection(db, 'ventes'));
     setVentes(vSnap.docs.map(d => d.data() as VenteLine));
     e.target.value = '';
@@ -165,8 +171,9 @@ export default function MenusPage() {
   const tousLesIds = menuCourant?.categories.flatMap(c => c.recetteIds) || [];
   const toutesRecettesCarte = recettes.filter(r => tousLesIds.includes(r.id));
 
-  const caReel = ventes.filter(v => v.menuNom === menuCourant?.nom && (moisActif === 'all' || v.mois === moisActif)).reduce((s, v) => s + v.ttc, 0);
-  const totalVendus = ventes.filter(v => v.menuNom === menuCourant?.nom && (moisActif === 'all' || v.mois === moisActif)).reduce((s, v) => s + v.quantity, 0);
+  const ventesMenuActuel = ventes.filter(v => v.menuNom === menuCourant?.nom && (moisActif === 'all' || v.mois === moisActif));
+  const caReel = ventesMenuActuel.reduce((s, v) => s + v.ttc, 0);
+  const totalVendus = ventesMenuActuel.reduce((s, v) => s + v.quantity, 0);
   const foodCostMoyen = toutesRecettesCarte.filter(r => r.prixVente > 0).length > 0
     ? toutesRecettesCarte.filter(r => r.prixVente > 0).reduce((s, r) => s + (r.coutCalcule / (r.prixVente / 1.1)) * 100, 0) / toutesRecettesCarte.filter(r => r.prixVente > 0).length
     : 0;
@@ -192,12 +199,17 @@ export default function MenusPage() {
         </div>
       </div>
 
-      {/* Créer un menu */}
       {showCreerMenu && (
-        <div className="bg-white rounded-xl border border-yellow-100 p-4 mb-6 flex gap-3 items-center">
-          <input className="border border-yellow-200 focus:border-yellow-400 focus:outline-none rounded-lg px-3 py-2 text-sm w-40"
-            placeholder="Ex: ETE26" value={nouveauNom}
+        <div className="bg-white rounded-xl border border-yellow-100 p-4 mb-6 flex gap-3 items-center flex-wrap">
+          <input className="border border-yellow-200 focus:border-yellow-400 focus:outline-none rounded-lg px-3 py-2 text-sm w-32"
+            placeholder="Ex: HIVER24" value={nouveauNom}
             onChange={e => setNouveauNom(e.target.value.toUpperCase())} />
+          <input className="border border-yellow-200 focus:border-yellow-400 focus:outline-none rounded-lg px-3 py-2 text-sm w-36"
+            placeholder="Début (2024-11-01)" value={nouveauDateDebut}
+            onChange={e => setNouveauDateDebut(e.target.value)} />
+          <input className="border border-yellow-200 focus:border-yellow-400 focus:outline-none rounded-lg px-3 py-2 text-sm w-36"
+            placeholder="Fin (2025-04-30)" value={nouveauDateFin}
+            onChange={e => setNouveauDateFin(e.target.value)} />
           <button onClick={handleCreerMenu} className="bg-yellow-400 hover:bg-yellow-500 text-black font-semibold rounded-lg px-4 py-2 text-sm">Créer</button>
           <button onClick={() => setShowCreerMenu(false)} className="text-sm text-gray-400 hover:text-gray-600">Annuler</button>
         </div>
@@ -205,10 +217,11 @@ export default function MenusPage() {
 
       {/* Onglets menus */}
       <div className="flex gap-2 mb-6 flex-wrap">
-        {menus.sort((a, b) => b.annee - a.annee || (b.saison === 'hiver' ? 1 : -1)).map(m => (
+        {menus.map(m => (
           <button key={m.id} onClick={() => { setMenuActif(m.id); setMoisActif('all'); setMenuEdit(''); }}
             className={`px-4 py-2 rounded-lg text-sm font-semibold border transition-colors ${menuActif === m.id ? 'bg-yellow-400 border-yellow-400 text-black' : 'border-gray-200 text-gray-600 hover:border-yellow-300'}`}>
             {m.nom}
+            {m.dateDebut && <span className="text-xs font-normal ml-1 opacity-60">{m.dateDebut.slice(0, 7)} → {m.dateFin?.slice(0, 7)}</span>}
           </button>
         ))}
       </div>
@@ -217,7 +230,6 @@ export default function MenusPage() {
         <p className="text-gray-400 text-center py-12">Crée un menu pour commencer.</p>
       ) : (
         <>
-          {/* Filtre mois */}
           {moisDisponibles.length > 0 && (
             <div className="flex gap-2 mb-6 flex-wrap">
               <button onClick={() => setMoisActif('all')}
@@ -233,7 +245,6 @@ export default function MenusPage() {
             </div>
           )}
 
-          {/* KPIs */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
             <div className="bg-white rounded-xl border border-yellow-100 p-4">
               <p className="text-xs text-gray-500 mb-1">Plats sur le menu</p>
@@ -253,7 +264,6 @@ export default function MenusPage() {
             </div>
           </div>
 
-          {/* Catégories du menu */}
           <div className="space-y-4 mb-6">
             {menuCourant.categories.map((cat, idx) => {
               const platsCategorie = recettes.filter(r => cat.recetteIds.includes(r.id));
@@ -315,7 +325,6 @@ export default function MenusPage() {
             })}
           </div>
 
-          {/* Ajouter une catégorie */}
           {menuEdit === menuCourant.id ? (
             <div className="bg-white rounded-xl border border-yellow-100 p-6">
               <h2 className="font-semibold text-gray-700 mb-4">{editingCatIdx !== null ? 'Modifier la catégorie' : 'Ajouter une catégorie'}</h2>
