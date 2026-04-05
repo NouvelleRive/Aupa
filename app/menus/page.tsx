@@ -14,7 +14,7 @@
     mois: string;
     }
 
-    const CATEGORIES = ['Croger', 'Mini Croger', 'Entrées', 'Sides', 'Desserts', 'Bols', 'Wine/Beer', 'Cocktails', 'Apéro', 'Softs chaud', 'Softs froid', 'Sodas'];
+    const CATEGORIES = ['Croger', 'Mini Croger', 'Entrées', 'Sides', 'Desserts', 'Bols', 'Salade', 'Grignotage', 'Suppléments', 'Le Chaud', 'Les Iced', 'Le Detox', 'Les Sodas', 'Les Eaux', 'Les Binouz', 'Les Wines', 'Les Cocktailz', 'Les Apéritifs et Digestifs'];
 
     const matchPlat = (nomPopina: string, nomMenu: string): boolean => {
     const a = nomPopina.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
