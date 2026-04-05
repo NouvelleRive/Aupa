@@ -53,6 +53,14 @@ export default function MenusPage() {
     ]);
     const ms = mSnap.docs.map(d => ({ id: d.id, ...d.data() } as MenuDoc));
     ms.sort((a, b) => (b.dateDebut || '').localeCompare(a.dateDebut || ''));
+    ms.forEach(m => {
+        m.categories = (m.categories || []).map((c: any) => {
+            if (c.recetteIds && !c.recettes) {
+            return { nom: c.nom, recettes: c.recetteIds.map((id: string) => ({ id, prixVente: 0 })) };
+            }
+            return c;
+        });
+        });
     setMenus(ms);
     setRecettes(rSnap.docs.map(d => ({ id: d.id, ...d.data() } as Recette)));
     setVentes(vSnap.docs.map(d => d.data() as VenteLine));
