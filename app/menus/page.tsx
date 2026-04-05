@@ -169,14 +169,14 @@ export default function MenusPage() {
     );
   };
 
-  const tousLesIds = menuCourant?.categories.flatMap(c => c.recettes.map(r => r.id)) || [];
+  const tousLesIds = menuCourant?.categories.flatMap(c => (c.recettes || []).map(r => r.id)) || [];
   const toutesRecettesCarte = recettes.filter(r => tousLesIds.includes(r.id));
 
   const ventesMenuActuel = ventes.filter(v => v.menuNom === menuCourant?.nom && (moisActif === 'all' || v.mois === moisActif));
   const caReel = ventesMenuActuel.reduce((s, v) => s + v.ttc, 0);
   const totalVendus = ventesMenuActuel.reduce((s, v) => s + v.quantity, 0);
 
-  const allMenuRecettes = menuCourant?.categories.flatMap(c => c.recettes) || [];
+  const allMenuRecettes = menuCourant?.categories.flatMap(c => c.recettes || []) || [];
   const foodCostMoyen = allMenuRecettes.filter(mr => mr.prixVente > 0).length > 0
     ? allMenuRecettes.filter(mr => mr.prixVente > 0).reduce((s, mr) => {
         const r = recettes.find(x => x.id === mr.id);
@@ -272,7 +272,7 @@ export default function MenusPage() {
 
           <div className="space-y-4 mb-6">
             {menuCourant.categories.map((cat, idx) => {
-              const platsCategorie = cat.recettes.map(mr => {
+              const platsCategorie = (cat.recettes || []).map(mr => {
                 const r = recettes.find(x => x.id === mr.id);
                 return r ? { ...r, prixVente: mr.prixVente } : null;
               }).filter(Boolean) as (Recette & { prixVente: number })[];
