@@ -4,7 +4,7 @@ export type Categorie = 'viande' | 'poisson' | 'légume' | 'fruit' | 'laitage' |
 
 export type Saison = 'été' | 'hiver';
 
-export type Carte = 'ETE23' | 'HIVER23' | 'ETE24' | 'HIVER24' | 'ETE25' | 'HIVER25' | 'ETE26';
+export type Menu = 'ETE23' | 'HIVER23' | 'ETE24' | 'HIVER24' | 'ETE25' | 'HIVER25' | 'ETE26';
 
 export type CategorieRecette = 'Croger' | 'Mini Croger' | 'Entrées' | 'Sides' | 'Desserts' | 'Bols' | 'Wine/Beer' | 'Cocktails' | 'Apéro' | 'Softs chaud' | 'Softs froid' | 'Sodas';
 
@@ -50,7 +50,7 @@ export interface Recette {
   nom: string;
   categorie: CategorieRecette;
   saisons: Saison[];
-  carte: Carte;
+  carte: string;
   actif: boolean;
   prixVente: number;
   ingredients: RecetteIngredient[];

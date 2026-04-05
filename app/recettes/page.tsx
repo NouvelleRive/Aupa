@@ -3,11 +3,10 @@
 import { useState, useEffect, useRef } from 'react';
 import { collection, getDocs, addDoc, deleteDoc, doc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { Recette, Ingredient, Preparation, CategorieRecette, Saison, Carte } from '@/lib/types';
+import { Recette, Ingredient, Preparation, CategorieRecette, Saison } from '@/lib/types';
 
 const CATEGORIES: CategorieRecette[] = ['Croger', 'Mini Croger', 'Entrées', 'Sides', 'Desserts', 'Bols', 'Wine/Beer', 'Cocktails', 'Apéro', 'Softs chaud', 'Softs froid', 'Sodas'];
 const SAISONS: Saison[] = ['été', 'hiver'];
-const CARTES: Carte[] = ['ETE26', 'HIVER25', 'ETE25', 'HIVER24', 'ETE24'];
 
 const SHEET_TO_CAT: Record<string, CategorieRecette> = {
   'Croger': 'Croger', 'Mini Croger': 'Mini Croger', 'Entrées': 'Entrées',
@@ -16,7 +15,7 @@ const SHEET_TO_CAT: Record<string, CategorieRecette> = {
   'Softs maison chaud': 'Softs chaud', 'Softs maison froid': 'Softs froid', 'Sodas': 'Sodas',
 };
 
-const emptyForm = { nom: '', categorie: 'Croger' as CategorieRecette, prixVente: '', saisons: ['été'] as Saison[], carte: 'ETE26' as Carte, actif: true };
+const emptyForm = { nom: '', categorie: 'Croger' as CategorieRecette, prixVente: '', saisons: ['été'] as Saison[], actif: true };
 
 export default function RecettesPage() {
   const [recettes, setRecettes] = useState<Recette[]>([]);
@@ -29,10 +28,7 @@ export default function RecettesPage() {
   const [editId, setEditId] = useState<string | null>(null);
   const [filterCat, setFilterCat] = useState<string>('all');
   const [filterSaison, setFilterSaison] = useState<string>('all');
-  const [filterCarte, setFilterCarte] = useState<string>('all');
   const [importing, setImporting] = useState(false);
-  const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [bulkCarte, setBulkCarte] = useState<Carte>('ETE26');
   const xlRef = useRef<HTMLInputElement>(null);
 
   const fetchAll = async () => {
@@ -49,15 +45,6 @@ export default function RecettesPage() {
 
   useEffect(() => { fetchAll(); }, []);
 
-  const handleBulkUpdate = async () => {
-    if (selected.size === 0) return;
-    for (const id of selected) {
-      await updateDoc(doc(db, 'recettes', id), { carte: bulkCarte });
-    }
-    setSelected(new Set());
-    fetchAll();
-  };
-
   const handleImportXL = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -68,7 +55,7 @@ export default function RecettesPage() {
     const wb = XLSX.read(buffer);
 
     const ingSnap = await getDocs(collection(db, 'ingredients'));
-    const allIngredients = ingSnap.docs.map(d => ({ id: d.id, ...d.data() } as Ingredient & { foodflowCode?: string }));
+    const allIngredients = ingSnap.docs.map(d => ({ id: d.id, ...d.data() } as Ingredient));
 
     let created = 0;
 
@@ -105,7 +92,6 @@ export default function RecettesPage() {
           const row = rows[r];
           const nomIng = row[0];
           const grammage = row[plat.colGrammage];
-
           if (typeof nomIng !== 'string' || !nomIng.trim()) continue;
           if (typeof grammage !== 'number' || grammage <= 0) continue;
 
@@ -125,7 +111,7 @@ export default function RecettesPage() {
 
         await addDoc(collection(db, 'recettes'), {
           nom: plat.nom, categorie: cat, prixVente: plat.prix,
-          saisons: ['été'], carte: 'ETE26', actif: true,
+          saisons: ['été'], actif: true,
           ingredients: lignesRecette, options: [], coutCalcule: cout,
           updatedAt: new Date().toISOString(),
         });
@@ -159,7 +145,7 @@ export default function RecettesPage() {
     const cout = calculerCout();
     const data = {
       nom: form.nom, categorie: form.categorie, prixVente: parseFloat(form.prixVente),
-      saisons: form.saisons, carte: form.carte, actif: form.actif,
+      saisons: form.saisons, actif: form.actif,
       ingredients: lignes.filter(l => l.type === 'ingredient').map(l => ({ ingredientId: l.id, grammage: parseFloat(l.grammage) })),
       options: [], coutCalcule: cout, updatedAt: new Date().toISOString(),
     };
@@ -170,7 +156,7 @@ export default function RecettesPage() {
 
   const handleEdit = (r: Recette) => {
     setEditId(r.id);
-    setForm({ nom: r.nom, categorie: r.categorie, prixVente: String(r.prixVente), saisons: r.saisons, carte: r.carte, actif: r.actif });
+    setForm({ nom: r.nom, categorie: r.categorie, prixVente: String(r.prixVente), saisons: r.saisons, actif: r.actif });
     setLignes(r.ingredients.map(i => ({ type: 'ingredient' as const, id: i.ingredientId!, grammage: String(i.grammage) })));
     setShowForm(true);
     window.scrollTo(0, 0);
@@ -188,8 +174,7 @@ export default function RecettesPage() {
 
   const filtered = recettes.filter(r =>
     (filterCat === 'all' || r.categorie === filterCat) &&
-    (filterSaison === 'all' || r.saisons.includes(filterSaison as Saison)) &&
-    (filterCarte === 'all' || r.carte === filterCarte)
+    (filterSaison === 'all' || r.saisons.includes(filterSaison as Saison))
   );
 
   const coutPreview = calculerCout();
@@ -215,13 +200,10 @@ export default function RecettesPage() {
       {showForm && (
         <div className="bg-white rounded-xl border border-yellow-100 p-6 mb-6">
           <h2 className="font-semibold text-gray-700 mb-4">{editId ? 'Modifier la recette' : 'Nouvelle recette'}</h2>
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
             <input className="border border-yellow-200 focus:border-yellow-400 focus:outline-none rounded-lg px-3 py-2 text-sm col-span-2" placeholder="Nom de la recette" value={form.nom} onChange={e => setForm({ ...form, nom: e.target.value })} />
             <select className="border border-yellow-200 focus:border-yellow-400 focus:outline-none rounded-lg px-3 py-2 text-sm" value={form.categorie} onChange={e => setForm({ ...form, categorie: e.target.value as CategorieRecette })}>
               {CATEGORIES.map(c => <option key={c}>{c}</option>)}
-            </select>
-            <select className="border border-yellow-200 focus:border-yellow-400 focus:outline-none rounded-lg px-3 py-2 text-sm" value={form.carte} onChange={e => setForm({ ...form, carte: e.target.value as Carte })}>
-              {CARTES.map(c => <option key={c}>{c}</option>)}
             </select>
             <input className="border border-yellow-200 focus:border-yellow-400 focus:outline-none rounded-lg px-3 py-2 text-sm" placeholder="Prix vente TTC (€)" type="number" value={form.prixVente} onChange={e => setForm({ ...form, prixVente: e.target.value })} />
           </div>
@@ -274,17 +256,6 @@ export default function RecettesPage() {
         </div>
       )}
 
-      {selected.size > 0 && (
-        <div className="flex items-center gap-3 mb-4 bg-yellow-50 border border-yellow-200 rounded-lg px-4 py-2">
-          <span className="text-sm font-medium">{selected.size} recette(s) sélectionnée(s)</span>
-          <select className="border border-yellow-200 rounded-lg px-3 py-1 text-sm" value={bulkCarte} onChange={e => setBulkCarte(e.target.value as Carte)}>
-            {CARTES.map(c => <option key={c}>{c}</option>)}
-          </select>
-          <button onClick={handleBulkUpdate} className="bg-yellow-400 hover:bg-yellow-500 text-black font-semibold rounded-lg px-4 py-1 text-sm">Appliquer la carte</button>
-          <button onClick={() => setSelected(new Set())} className="text-sm text-gray-400 hover:text-gray-600">Annuler</button>
-        </div>
-      )}
-
       <div className="flex gap-3 mb-4">
         <select className="border border-yellow-200 focus:border-yellow-400 focus:outline-none rounded-lg px-3 py-2 text-sm" value={filterCat} onChange={e => setFilterCat(e.target.value)}>
           <option value="all">Toutes catégories</option>
@@ -294,10 +265,6 @@ export default function RecettesPage() {
           <option value="all">Toutes saisons</option>
           {SAISONS.map(s => <option key={s}>{s}</option>)}
         </select>
-        <select className="border border-yellow-200 focus:border-yellow-400 focus:outline-none rounded-lg px-3 py-2 text-sm" value={filterCarte} onChange={e => setFilterCarte(e.target.value)}>
-          <option value="all">Toutes les cartes</option>
-          {CARTES.map(c => <option key={c}>{c}</option>)}
-        </select>
       </div>
 
       {loading ? <p className="text-gray-400">Chargement...</p> : (
@@ -305,12 +272,8 @@ export default function RecettesPage() {
           <table className="w-full text-sm">
             <thead className="bg-yellow-50 text-gray-500 text-xs uppercase">
               <tr>
-                <th className="px-4 py-3">
-                  <input type="checkbox" onChange={e => setSelected(e.target.checked ? new Set(filtered.map(r => r.id)) : new Set())} />
-                </th>
                 <th className="px-4 py-3 text-left">Recette</th>
                 <th className="px-4 py-3 text-left">Catégorie</th>
-                <th className="px-4 py-3 text-left">Carte</th>
                 <th className="px-4 py-3 text-left">Saisons</th>
                 <th className="px-4 py-3 text-right">Prix vente</th>
                 <th className="px-4 py-3 text-right">Coût</th>
@@ -327,16 +290,8 @@ export default function RecettesPage() {
                 const mg = pHT > 0 ? ((pHT - r.coutCalcule) / pHT) * 100 : 0;
                 return (
                   <tr key={r.id} className="hover:bg-yellow-50 transition-colors">
-                    <td className="px-4 py-3">
-                      <input type="checkbox" checked={selected.has(r.id)} onChange={e => {
-                        const s = new Set(selected);
-                        e.target.checked ? s.add(r.id) : s.delete(r.id);
-                        setSelected(s);
-                      }} />
-                    </td>
                     <td className="px-4 py-3 font-medium">{r.nom}</td>
                     <td className="px-4 py-3 text-gray-500">{r.categorie}</td>
-                    <td className="px-4 py-3 text-gray-500">{r.carte}</td>
                     <td className="px-4 py-3 text-gray-500">{r.saisons.join(', ')}</td>
                     <td className="px-4 py-3 text-right">{r.prixVente.toFixed(2)} €</td>
                     <td className="px-4 py-3 text-right">{r.coutCalcule.toFixed(2)} €</td>
@@ -350,7 +305,7 @@ export default function RecettesPage() {
                   </tr>
                 );
               })}
-              {filtered.length === 0 && <tr><td colSpan={11} className="px-4 py-8 text-center text-gray-400">Aucune recette</td></tr>}
+              {filtered.length === 0 && <tr><td colSpan={9} className="px-4 py-8 text-center text-gray-400">Aucune recette</td></tr>}
             </tbody>
           </table>
         </div>
