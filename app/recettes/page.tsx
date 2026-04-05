@@ -4,15 +4,14 @@ import { useState, useEffect, useRef } from 'react';
 import { collection, getDocs, addDoc, deleteDoc, doc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Recette, Ingredient, Preparation, CategorieRecette, Saison } from '@/lib/types';
-
-const CATEGORIES: CategorieRecette[] = ['Croger', 'Mini Croger', 'Entrées', 'Sides', 'Desserts', 'Bols', 'Wine/Beer', 'Cocktails', 'Apéro', 'Softs chaud', 'Softs froid', 'Sodas'];
+import { CATEGORIES } from '@/lib/categories';
 const SAISONS: Saison[] = ['été', 'hiver'];
 
 const SHEET_TO_CAT: Record<string, CategorieRecette> = {
   'Croger': 'Croger', 'Mini Croger': 'Mini Croger', 'Entrées': 'Entrées',
   'Sides': 'Sides', 'Desserts': 'Desserts', 'Bols': 'Bols',
-  'Wine beer': 'Wine/Beer', 'Cocktails': 'Cocktails', 'Apero': 'Apéro',
-  'Softs maison chaud': 'Softs chaud', 'Softs maison froid': 'Softs froid', 'Sodas': 'Sodas',
+  'Wine beer': 'Les Wines', 'Cocktails': 'Les Cocktailz', 'Apero': 'Les Apéritifs et Digestifs',
+  'Softs maison chaud': 'Le Chaud', 'Softs maison froid': 'Les Iced', 'Sodas': 'Les Sodas',
 };
 
 const emptyForm = { nom: '', categorie: 'Croger' as CategorieRecette, saisons: ['été'] as Saison[], actif: true };
