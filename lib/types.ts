@@ -6,7 +6,7 @@ export type Saison = 'été' | 'hiver';
 
 export type Menu = 'ETE23' | 'HIVER23' | 'ETE24' | 'HIVER24' | 'ETE25' | 'HIVER25' | 'ETE26';
 
-export type CategorieRecette = 'Croger' | 'Mini Croger' | 'Entrées' | 'Sides' | 'Desserts' | 'Bols' | 'Wine/Beer' | 'Cocktails' | 'Apéro' | 'Softs chaud' | 'Softs froid' | 'Sodas';
+export type CategorieRecette = 'Croger' | 'Mini Croger' | 'Entrées' | 'Sides' | 'Desserts' | 'Bols' | 'Salade' | 'Grignotage' | 'Suppléments' | 'Le Chaud' | 'Les Iced' | 'Le Detox' | 'Les Sodas' | 'Les Eaux' | 'Les Binouz' | 'Les Wines' | 'Les Cocktailz' | 'Les Apéritifs et Digestifs';
 
 export interface Ingredient {
   id: string;
