@@ -4,7 +4,7 @@ export type Categorie = 'viande' | 'poisson' | 'légume' | 'fruit' | 'laitage' |
 
 export type Saison = 'été' | 'hiver';
 
-export type Carte = 'ETE26' | 'HIVER25' | 'ETE25' | 'HIVER24' | 'ETE24';
+export type Carte = 'ETE23' | 'HIVER23' | 'ETE24' | 'HIVER24' | 'ETE25' | 'HIVER25' | 'ETE26';
 
 export type CategorieRecette = 'Croger' | 'Mini Croger' | 'Entrées' | 'Sides' | 'Desserts' | 'Bols' | 'Wine/Beer' | 'Cocktails' | 'Apéro' | 'Softs chaud' | 'Softs froid' | 'Sodas';
 
