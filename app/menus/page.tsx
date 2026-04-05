@@ -42,6 +42,7 @@
     const [catRecettes, setCatRecettes] = useState<Map<string, string>>(new Map()); // id -> prixVente string
     const [filterCatEdit, setFilterCatEdit] = useState('all');
     const [editingCatIdx, setEditingCatIdx] = useState<number | null>(null);
+    const [showAddCat, setShowAddCat] = useState(false);
 
     const fileRef = useRef<HTMLInputElement>(null);
 
@@ -388,10 +389,51 @@
                 })}
             </div>
 
-            <button onClick={() => { setMenuEdit(menuCourant.id); setCatNom('Croger'); setCatRecettes(new Map()); setEditingCatIdx(null); setFilterCatEdit('all'); }}
-                className="w-full border-2 border-dashed border-yellow-200 rounded-xl py-4 text-yellow-400 hover:border-yellow-400 font-semibold text-sm transition-colors">
-                + Ajouter une catégorie
-            </button>
+            {showAddCat ? (
+                <div className="bg-white rounded-xl border border-yellow-100 p-4">
+                    <div className="flex gap-3 mb-4 flex-wrap items-center">
+                        <select className="border border-yellow-200 focus:border-yellow-400 focus:outline-none rounded-lg px-3 py-2 text-sm"
+                            value={catNom} onChange={e => setCatNom(e.target.value)}>
+                            {CATEGORIES.map(c => <option key={c}>{c}</option>)}
+                        </select>
+                        <select className="border border-yellow-200 focus:border-yellow-400 focus:outline-none rounded-lg px-3 py-2 text-sm"
+                            value={filterCatEdit} onChange={e => setFilterCatEdit(e.target.value)}>
+                            <option value="all">Toutes catégories</option>
+                            {CATEGORIES.map(c => <option key={c}>{c}</option>)}
+                        </select>
+                        <span className="text-sm text-gray-400">{catRecettes.size} sélectionnées</span>
+                        <button onClick={async () => { await handleSauvegarderCategorie(); setShowAddCat(false); }} className="bg-yellow-400 hover:bg-yellow-500 text-black font-semibold rounded-lg px-4 py-2 text-sm">Enregistrer</button>
+                        <button onClick={() => { setShowAddCat(false); setCatRecettes(new Map()); }} className="border border-gray-200 rounded-lg px-4 py-2 text-sm text-gray-500">Annuler</button>
+                    </div>
+                    <div className="space-y-2 max-h-80 overflow-y-auto">
+                        {recettesFiltrees.map(r => (
+                            <div key={r.id} className={`flex items-center gap-3 p-2 rounded-lg border transition-colors ${catRecettes.has(r.id) ? 'border-yellow-400 bg-yellow-50' : 'border-gray-100 hover:border-yellow-200'}`}>
+                                <input type="checkbox" checked={catRecettes.has(r.id)} onChange={e => {
+                                    const m = new Map(catRecettes);
+                                    if (e.target.checked) { m.set(r.id, ''); } else { m.delete(r.id); }
+                                    setCatRecettes(m);
+                                }} className="accent-yellow-400" />
+                                <div className="flex-1">
+                                    <p className="text-sm font-medium">{r.nom}</p>
+                                    <p className="text-xs text-gray-400">{r.categorie}</p>
+                                </div>
+                                {catRecettes.has(r.id) && (
+                                    <input type="number" placeholder="Prix €"
+                                        className="border border-yellow-200 rounded-lg px-2 py-1 text-sm w-24 focus:border-yellow-400 focus:outline-none"
+                                        value={catRecettes.get(r.id) || ''}
+                                        onChange={e => { const m = new Map(catRecettes); m.set(r.id, e.target.value); setCatRecettes(m); }}
+                                    />
+                                )}
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            ) : (
+                <button onClick={() => { setShowAddCat(true); setMenuEdit(menuCourant.id); setCatNom('Croger'); setCatRecettes(new Map()); setEditingCatIdx(null); setFilterCatEdit('all'); }}
+                    className="w-full border-2 border-dashed border-yellow-200 rounded-xl py-4 text-yellow-400 hover:border-yellow-400 font-semibold text-sm transition-colors">
+                    + Ajouter une catégorie
+                </button>
+            )}
             </>
         )}
         </div>
