@@ -3,9 +3,9 @@
 import { useState, useEffect, useRef } from 'react';
 import { collection, getDocs, addDoc, deleteDoc, doc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { Recette, Ingredient, Preparation, CategorieRecette, Saison } from '@/lib/types';
+import { Recette, Ingredient, Preparation, CategorieRecette, TypePlat } from '@/lib/types';
 import { CATEGORIES } from '@/lib/categories';
-const SAISONS: Saison[] = ['été', 'hiver'];
+const TYPES_PLAT = ['food', 'boisson'] as const;
 
 const SHEET_TO_CAT: Record<string, CategorieRecette> = {
   'Croger': 'Croger', 'Mini Croger': 'Mini Croger', 'Entrées': 'Entrées',
@@ -14,7 +14,7 @@ const SHEET_TO_CAT: Record<string, CategorieRecette> = {
   'Softs maison chaud': 'Le Chaud', 'Softs maison froid': 'Les Iced', 'Sodas': 'Les Sodas',
 };
 
-const emptyForm = { nom: '', categorie: 'Croger' as CategorieRecette, saisons: ['été'] as Saison[], actif: true };
+const emptyForm = { nom: '', categorie: 'Croger' as CategorieRecette, type: 'food' as TypePlat, actif: true };
 
 export default function RecettesPage() {
   const [recettes, setRecettes] = useState<Recette[]>([]);
@@ -26,9 +26,12 @@ export default function RecettesPage() {
   const [lignes, setLignes] = useState<{ type: 'ingredient' | 'preparation'; id: string; grammage: string }[]>([]);
   const [editId, setEditId] = useState<string | null>(null);
   const [filterCat, setFilterCat] = useState<string>('all');
-  const [filterSaison, setFilterSaison] = useState<string>('all');
   const [importing, setImporting] = useState(false);
   const xlRef = useRef<HTMLInputElement>(null);
+  const [filterType, setFilterType] = useState<string>('all');
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [bulkType, setBulkType] = useState<TypePlat>('food');
+  const [showBulk, setShowBulk] = useState(false);
 
   const fetchAll = async () => {
     const [rSnap, iSnap, pSnap] = await Promise.all([
@@ -140,7 +143,7 @@ export default function RecettesPage() {
     const cout = calculerCout();
     const data = {
       nom: form.nom, categorie: form.categorie,
-      saisons: form.saisons, actif: form.actif,
+      type: form.type, actif: form.actif,
       ingredients: lignes.filter(l => l.type === 'ingredient').map(l => ({ ingredientId: l.id, grammage: parseFloat(l.grammage) })),
       options: [], coutCalcule: cout, updatedAt: new Date().toISOString(),
     };
@@ -151,7 +154,7 @@ export default function RecettesPage() {
 
   const handleEdit = (r: Recette) => {
     setEditId(r.id);
-    setForm({ nom: r.nom, categorie: r.categorie, saisons: r.saisons, actif: r.actif });
+    setForm({ nom: r.nom, categorie: r.categorie, type: r.type || 'food', actif: r.actif });
     setLignes(r.ingredients.map(i => ({ type: 'ingredient' as const, id: i.ingredientId!, grammage: String(i.grammage) })));
     setShowForm(true);
     window.scrollTo(0, 0);
@@ -163,13 +166,18 @@ export default function RecettesPage() {
     fetchAll();
   };
 
-  const toggleSaison = (s: Saison) => {
-    setForm(f => ({ ...f, saisons: f.saisons.includes(s) ? f.saisons.filter(x => x !== s) : [...f.saisons, s] }));
+  const handleBulkType = async () => {
+    for (const id of selected) {
+      await updateDoc(doc(db, 'recettes', id), { type: bulkType });
+    }
+    setSelected(new Set());
+    setShowBulk(false);
+    fetchAll();
   };
 
   const filtered = recettes.filter(r =>
     (filterCat === 'all' || r.categorie === filterCat) &&
-    (filterSaison === 'all' || r.saisons.includes(filterSaison as Saison))
+    (filterType === 'all' || r.type === filterType)
   );
 
   const coutPreview = calculerCout();
@@ -200,9 +208,10 @@ export default function RecettesPage() {
           </div>
 
           <div className="flex gap-2 mb-4">
-            {SAISONS.map(s => (
-              <button key={s} onClick={() => toggleSaison(s)} className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${form.saisons.includes(s) ? 'bg-yellow-400 border-yellow-400 text-black' : 'border-yellow-200 text-gray-500 hover:border-yellow-400'}`}>
-                {s}
+            {TYPES_PLAT.map(t => (
+              <button key={t} onClick={() => setForm(f => ({ ...f, type: t }))}
+                className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${form.type === t ? 'bg-yellow-400 border-yellow-400 text-black' : 'border-yellow-200 text-gray-500 hover:border-yellow-400'}`}>
+                {t === 'food' ? 'Food' : 'Boisson'}
               </button>
             ))}
           </div>
@@ -244,15 +253,27 @@ export default function RecettesPage() {
         </div>
       )}
 
-      <div className="flex gap-3 mb-4">
+      <div className="flex gap-3 mb-4 flex-wrap items-center">
         <select className="border border-yellow-200 focus:border-yellow-400 focus:outline-none rounded-lg px-3 py-2 text-sm" value={filterCat} onChange={e => setFilterCat(e.target.value)}>
           <option value="all">Toutes catégories</option>
           {CATEGORIES.map(c => <option key={c}>{c}</option>)}
         </select>
-        <select className="border border-yellow-200 focus:border-yellow-400 focus:outline-none rounded-lg px-3 py-2 text-sm" value={filterSaison} onChange={e => setFilterSaison(e.target.value)}>
-          <option value="all">Toutes saisons</option>
-          {SAISONS.map(s => <option key={s}>{s}</option>)}
+        <select className="border border-yellow-200 focus:border-yellow-400 focus:outline-none rounded-lg px-3 py-2 text-sm" value={filterType} onChange={e => setFilterType(e.target.value)}>
+          <option value="all">Food & Boisson</option>
+          <option value="food">Food</option>
+          <option value="boisson">Boisson</option>
         </select>
+        {selected.size > 0 && (
+          <div className="flex items-center gap-2 ml-auto">
+            <span className="text-sm text-gray-500">{selected.size} sélectionnées</span>
+            <select className="border border-yellow-200 rounded-lg px-3 py-2 text-sm" value={bulkType} onChange={e => setBulkType(e.target.value as TypePlat)}>
+              <option value="food">Food</option>
+              <option value="boisson">Boisson</option>
+            </select>
+            <button onClick={handleBulkType} className="bg-yellow-400 hover:bg-yellow-500 text-black font-semibold rounded-lg px-3 py-2 text-sm">Appliquer</button>
+            <button onClick={() => setSelected(new Set())} className="text-sm text-gray-400 hover:text-gray-600">Annuler</button>
+          </div>
+        )}
       </div>
 
       {loading ? <p className="text-gray-400">Chargement...</p> : (
@@ -262,7 +283,8 @@ export default function RecettesPage() {
               <tr>
                 <th className="px-4 py-3 text-left">Recette</th>
                 <th className="px-4 py-3 text-left">Catégorie</th>
-                <th className="px-4 py-3 text-left">Saisons</th>
+                <th className="px-4 py-3 text-center">Type</th>
+                <th className="px-4 py-3 text-center w-8"></th>
                 <th className="px-4 py-3 text-right">Coût matière</th>
                 <th className="px-4 py-3 text-center">Statut</th>
                 <th className="px-4 py-3"></th>
@@ -270,10 +292,18 @@ export default function RecettesPage() {
             </thead>
             <tbody className="divide-y divide-yellow-50">
               {filtered.map(r => (
-                <tr key={r.id} className="hover:bg-yellow-50 transition-colors">
+                <tr key={r.id} className={`hover:bg-yellow-50 transition-colors ${selected.has(r.id) ? 'bg-yellow-50' : ''}`}>
                   <td className="px-4 py-3 font-medium">{r.nom}</td>
                   <td className="px-4 py-3 text-gray-500">{r.categorie}</td>
-                  <td className="px-4 py-3 text-gray-500">{r.saisons.join(', ')}</td>
+                  <td className="px-4 py-3 text-center">
+                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${r.type === 'boisson' ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700'}`}>
+                      {r.type === 'boisson' ? 'B' : 'F'}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 text-center">
+                    <input type="checkbox" checked={selected.has(r.id)} className="accent-yellow-400"
+                      onChange={e => { const s = new Set(selected); e.target.checked ? s.add(r.id) : s.delete(r.id); setSelected(s); }} />
+                  </td>
                   <td className="px-4 py-3 text-right">{r.coutCalcule.toFixed(2)} €</td>
                   <td className="px-4 py-3 text-center"><span className={`px-2 py-1 rounded-full text-xs ${r.actif ? 'bg-yellow-100 text-yellow-700' : 'bg-gray-100 text-gray-400'}`}>{r.actif ? 'Actif' : 'Inactif'}</span></td>
                   <td className="px-4 py-3 flex gap-2 justify-end">

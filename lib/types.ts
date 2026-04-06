@@ -3,6 +3,7 @@ export type Unite = 'kg' | 'g' | 'L' | 'cL' | 'pièce' | 'lot';
 export type Categorie = 'viande' | 'poisson' | 'légume' | 'fruit' | 'laitage' | 'épicerie' | 'boisson' | 'autre';
 
 export type Saison = 'été' | 'hiver';
+export type TypePlat = 'food' | 'boisson';
 
 export type Menu = 'ETE23' | 'HIVER23' | 'ETE24' | 'HIVER24' | 'ETE25' | 'HIVER25' | 'ETE26';
 
@@ -53,6 +54,7 @@ export interface Recette {
   saisons: Saison[];
   carte: string;
   actif: boolean;
+  type: TypePlat;
   prixVente: number;
   ingredients: RecetteIngredient[];
   options: RecetteOption[];
