@@ -13,6 +13,7 @@ interface ImportPreviewItem {
   prix: number;
   recetteExistanteId: string | null;
   recetteExistanteNom: string | null;
+  recetteChoisieId: string | null;
   selected: boolean;
 }
 
@@ -100,7 +101,8 @@ export default function RecettesPage() {
         nomOriginal: nomRaw, nom, categorie, prix,
         recetteExistanteId: existante?.id || null,
         recetteExistanteNom: existante?.nom || null,
-        selected: !existante,
+        recetteChoisieId: existante?.id || null,
+        selected: true,
       });
     }
     setImportPreview(items);
@@ -108,7 +110,7 @@ export default function RecettesPage() {
   };
 
   const handleConfirmImportFood = async () => {
-    const aCreer = importPreview.filter(i => i.selected && !i.recetteExistanteId);
+    const aCreer = importPreview.filter(i => i.selected && !i.recetteChoisieId);
     let created = 0;
     for (const item of aCreer) {
       await addDoc(collection(db, 'recettes'), {
@@ -147,8 +149,9 @@ export default function RecettesPage() {
 
     // Détection format Popina (colonne "Famille")
     if (headers[1] === 'Famille') {
-      const famille0 = String((rows[1] || [])[1] || '');
-      if (['Boissons chaudes', 'Boissons Froides'].includes(famille0)) {
+      const toutesLesFamilles = rows.slice(1).map((r: any[]) => String(r[1] || '').trim());
+      const hasFoodFamille = toutesLesFamilles.some((f: string) => ['Plats', 'Entrées', 'Sides et Tapas', 'Desserts'].includes(f));
+      if (!hasFoodFamille) {
         const seen = new Set<string>();
         let created = 0;
         for (const row of rows.slice(1)) {
@@ -294,14 +297,15 @@ export default function RecettesPage() {
   const coutPreview = calculerCout();
 
   if (showImportPreview) {
-    const nouveau = importPreview.filter(i => !i.recetteExistanteId);
-    const existant = importPreview.filter(i => i.recetteExistanteId);
+    const aCreerCount = importPreview.filter(i => i.selected && !i.recetteChoisieId).length;
+    const matchesCount = importPreview.filter(i => i.recetteChoisieId).length;
+    const ignoresCount = importPreview.filter(i => !i.selected && !i.recetteChoisieId).length;
     return (
       <div className="max-w-6xl mx-auto">
         <div className="flex items-center justify-between mb-6">
           <div>
             <h1 className="text-2xl font-bold">Validation import Popina</h1>
-            <p className="text-sm text-gray-400 mt-1">{nouveau.length} nouveaux · {existant.length} déjà existants</p>
+            <p className="text-sm text-gray-400 mt-1">{aCreerCount} à créer · {matchesCount} matchés · {ignoresCount} ignorés</p>
           </div>
           <div className="flex gap-3">
             <button onClick={() => { setShowImportPreview(false); setImportPreview([]); }}
@@ -310,80 +314,73 @@ export default function RecettesPage() {
             </button>
             <button onClick={handleConfirmImportFood}
               className="bg-yellow-400 hover:bg-yellow-500 text-black font-semibold rounded-lg px-4 py-2 text-sm">
-              Créer {importPreview.filter(i => i.selected && !i.recetteExistanteId).length} recettes
+              Valider
             </button>
           </div>
         </div>
-        {nouveau.length > 0 && (
-          <div className="bg-white rounded-xl border border-yellow-100 overflow-hidden mb-6">
-            <div className="bg-yellow-50 px-4 py-3 flex items-center justify-between">
-              <h2 className="font-semibold text-gray-700">Nouveaux produits</h2>
-              <div className="flex gap-2">
-                <button onClick={() => setImportPreview(p => p.map(i => i.recetteExistanteId ? i : { ...i, selected: true }))}
-                  className="text-xs text-gray-400 hover:text-yellow-500">Tout sélectionner</button>
-                <button onClick={() => setImportPreview(p => p.map(i => i.recetteExistanteId ? i : { ...i, selected: false }))}
-                  className="text-xs text-gray-400 hover:text-yellow-500">Tout désélectionner</button>
-              </div>
-            </div>
-            <table className="w-full text-sm">
-              <thead className="text-gray-400 text-xs uppercase border-b border-yellow-50">
-                <tr>
-                  <th className="px-4 py-2 w-8"></th>
-                  <th className="px-4 py-2 text-left">Nom caisse</th>
-                  <th className="px-4 py-2 text-left">Catégorie</th>
-                  <th className="px-4 py-2 text-right">Prix</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-yellow-50">
-                {nouveau.map((item, i) => {
-                  const globalIdx = importPreview.indexOf(item);
-                  return (
-                    <tr key={i} className={`transition-colors ${item.selected ? 'bg-yellow-50' : 'hover:bg-gray-50'}`}>
-                      <td className="px-4 py-2 text-center">
-                        <input type="checkbox" checked={item.selected} className="accent-yellow-400"
-                          onChange={e => setImportPreview(p => p.map((x, j) => j === globalIdx ? { ...x, selected: e.target.checked } : x))} />
-                      </td>
-                      <td className="px-4 py-2 font-medium">{item.nom}</td>
-                      <td className="px-4 py-2">
-                        <select className="border border-yellow-200 rounded-lg px-2 py-1 text-xs"
-                          value={item.categorie}
-                          onChange={e => setImportPreview(p => p.map((x, j) => j === globalIdx ? { ...x, categorie: e.target.value as CategorieRecette } : x))}>
-                          {CATEGORIES.map(c => <option key={c}>{c}</option>)}
-                        </select>
-                      </td>
-                      <td className="px-4 py-2 text-right text-gray-500">{item.prix} €</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
-        {existant.length > 0 && (
-          <div className="bg-white rounded-xl border border-gray-100 overflow-hidden">
-            <div className="bg-gray-50 px-4 py-3">
-              <h2 className="font-semibold text-gray-500">Déjà dans les recettes (ignorés)</h2>
-            </div>
-            <table className="w-full text-sm">
-              <thead className="text-gray-400 text-xs uppercase border-b border-gray-50">
-                <tr>
-                  <th className="px-4 py-2 text-left">Nom caisse</th>
-                  <th className="px-4 py-2 text-left">Recette matchée</th>
-                  <th className="px-4 py-2 text-right">Prix</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-50">
-                {existant.map((item, i) => (
-                  <tr key={i} className="hover:bg-gray-50">
-                    <td className="px-4 py-2 text-gray-500">{item.nom}</td>
-                    <td className="px-4 py-2 text-green-600 font-medium">{item.recetteExistanteNom}</td>
-                    <td className="px-4 py-2 text-right text-gray-400">{item.prix} €</td>
+        <div className="bg-white rounded-xl border border-yellow-100 overflow-hidden">
+          <table className="w-full text-sm">
+            <thead className="text-gray-400 text-xs uppercase border-b border-yellow-50 bg-yellow-50">
+              <tr>
+                <th className="px-4 py-2 text-left">Nom caisse</th>
+                <th className="px-4 py-2 text-left">Nom recette (éditable)</th>
+                <th className="px-4 py-2 text-left">Ou choisir parmi existantes</th>
+                <th className="px-4 py-2 text-right">Prix</th>
+                <th className="px-4 py-2 text-center">Action</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-yellow-50">
+              {importPreview.map((item, globalIdx) => {
+                const isIgnored = !item.selected && !item.recetteChoisieId;
+                const isMatched = !!item.recetteChoisieId;
+                const isNew = item.selected && !item.recetteChoisieId;
+                return (
+                  <tr key={globalIdx} className={`transition-colors ${isIgnored ? 'opacity-40 bg-gray-50' : isMatched ? 'bg-green-50' : 'bg-yellow-50'}`}>
+                    <td className="px-4 py-2 text-gray-500 text-xs max-w-[180px] truncate">{item.nomOriginal}</td>
+                    <td className="px-4 py-2">
+                      {isMatched ? (
+                        <span className="text-green-700 font-medium text-xs">{recettes.find(r => r.id === item.recetteChoisieId)?.nom}</span>
+                      ) : isNew ? (
+                        <input className="border border-yellow-200 rounded-lg px-2 py-1 text-sm w-full focus:border-yellow-400 focus:outline-none"
+                          value={item.nom}
+                          onChange={e => setImportPreview(p => p.map((x, j) => j === globalIdx ? { ...x, nom: e.target.value } : x))} />
+                      ) : (
+                        <span className="text-gray-400 text-xs italic">ignoré</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-2">
+                      <select className="border border-gray-200 rounded-lg px-2 py-1 text-xs w-full"
+                        value={item.recetteChoisieId || ''}
+                        onChange={e => setImportPreview(p => p.map((x, j) => j === globalIdx ? { ...x, recetteChoisieId: e.target.value || null, selected: true } : x))}>
+                        <option value="">— Créer nouveau —</option>
+                        {recettes.filter(r => r.type === 'food').map(r => <option key={r.id} value={r.id}>{r.nom}</option>)}
+                      </select>
+                    </td>
+                    <td className="px-4 py-2 text-right text-gray-500">{item.prix} €</td>
+                    <td className="px-4 py-2 text-center">
+                      {isMatched ? (
+                        <button onClick={() => setImportPreview(p => p.map((x, j) => j === globalIdx ? { ...x, recetteChoisieId: null, selected: true } : x))}
+                          className="text-xs font-medium px-3 py-1 rounded-full border bg-green-100 text-green-700 border-green-200">
+                          ✓ Matchée
+                        </button>
+                      ) : isNew ? (
+                        <button onClick={() => setImportPreview(p => p.map((x, j) => j === globalIdx ? { ...x, selected: false } : x))}
+                          className="text-xs font-medium px-3 py-1 rounded-full border bg-yellow-400 text-black border-yellow-400">
+                          ✓ Créer
+                        </button>
+                      ) : (
+                        <button onClick={() => setImportPreview(p => p.map((x, j) => j === globalIdx ? { ...x, selected: true } : x))}
+                          className="text-xs font-medium px-3 py-1 rounded-full border bg-gray-100 text-gray-400 border-gray-200">
+                          Ignoré
+                        </button>
+                      )}
+                    </td>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
       </div>
     );
   }
@@ -476,7 +473,8 @@ export default function RecettesPage() {
               <option value="food">Food</option>
               <option value="boisson">Boisson</option>
             </select>
-            <button onClick={handleBulkType} className="bg-yellow-400 hover:bg-yellow-500 text-black font-semibold rounded-lg px-3 py-2 text-sm">Appliquer</button>
+            <button onClick={handleBulkType} className="bg-yellow-400 hover:bg-yellow-500 text-black font-semibold rounded-lg px-3 py-2 text-sm">Appliquer type</button>
+            <button onClick={async () => { if (!confirm(`Supprimer ${selected.size} recettes ?`)) return; for (const id of selected) await deleteDoc(doc(db, 'recettes', id)); setSelected(new Set()); fetchAll(); }} className="bg-red-100 text-red-600 hover:bg-red-200 font-semibold rounded-lg px-3 py-2 text-sm">Supprimer</button>
             <button onClick={() => setSelected(new Set())} className="text-sm text-gray-400 hover:text-gray-600">Annuler</button>
           </div>
         )}
