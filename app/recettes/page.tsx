@@ -47,6 +47,17 @@ export default function RecettesPage() {
 
   useEffect(() => { fetchAll(); }, []);
 
+  const cleanNom = (nom: string) => nom.replace(/[^\u0000-\u024F\u1E00-\u1EFF\s]/gu, '').replace(/\s+/g, ' ').trim();
+
+  const POPINA_CAT_MAP: Record<string, CategorieRecette> = {
+    '🧊 Maison & Iced ': 'Les Iced', 'Cocktail': 'Les Cocktailz',
+    'Apéritifs/Digestifs': 'Les Apéritifs et Digestifs', '💧Soft & eau': 'Les Eaux',
+    'Crazy hot drinks': 'Le Chaud', 'Binouz': 'Les Binouz',
+  };
+  const POPINA_FAMILLE_MAP: Record<string, CategorieRecette> = {
+    'Boissons chaudes': 'Le Chaud', 'Boissons Froides': 'Les Iced',
+  };
+
   const handleImportXL = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -55,68 +66,86 @@ export default function RecettesPage() {
     const XLSX = await import('xlsx');
     const buffer = await file.arrayBuffer();
     const wb = XLSX.read(buffer);
+    const ws = wb.Sheets[wb.SheetNames[0]];
+    const rows: any[][] = XLSX.utils.sheet_to_json(ws, { header: 1 });
+    const headers = rows[0] || [];
 
+    // Détection format Popina (colonne "Famille")
+    if (headers[1] === 'Famille') {
+      const seen = new Set<string>();
+      let created = 0;
+      for (const row of rows.slice(1)) {
+        const nomRaw = String(row[0] || '').trim();
+        const famille = String(row[1] || '').trim();
+        const catPopina = String(row[2] || '').trim();
+        const prix = row[5];
+        if (!nomRaw || !famille) continue;
+        if (!['Boissons chaudes', 'Boissons Froides'].includes(famille)) continue;
+        if (typeof prix !== 'number' || prix <= 0 || prix > 50) continue;
+        const nom = cleanNom(nomRaw);
+        if (!nom || seen.has(nom)) continue;
+        seen.add(nom);
+        const categorie: CategorieRecette = POPINA_CAT_MAP[catPopina] || POPINA_FAMILLE_MAP[famille] || 'Les Iced';
+        await addDoc(collection(db, 'recettes'), {
+          nom, categorie, type: 'boisson', actif: true,
+          prixVente: prix, ingredients: [], options: [], coutCalcule: 0,
+          updatedAt: new Date().toISOString(),
+        });
+        created++;
+      }
+      setImporting(false);
+      alert(`✅ ${created} boissons importées !`);
+      fetchAll();
+      e.target.value = '';
+      return;
+    }
+
+    // Format recettes cuisine (ancien format)
     const ingSnap = await getDocs(collection(db, 'ingredients'));
     const allIngredients = ingSnap.docs.map(d => ({ id: d.id, ...d.data() } as Ingredient));
-
     let created = 0;
-
     for (const sheetName of wb.SheetNames) {
       const cat = SHEET_TO_CAT[sheetName];
       if (!cat) continue;
-
-      const ws = wb.Sheets[sheetName];
-      const rows: any[][] = XLSX.utils.sheet_to_json(ws, { header: 1 });
-
-      const row0 = rows[1] || [];
+      const ws2 = wb.Sheets[sheetName];
+      const rows2: any[][] = XLSX.utils.sheet_to_json(ws2, { header: 1 });
+      const row0 = rows2[1] || [];
       const platCols: { colGrammage: number; nom: string }[] = [];
       const nomsVus = new Map<string, number>();
-
       for (let c = 4; c < row0.length; c++) {
         const nom = row0[c];
         if (typeof nom !== 'string' || !nom.trim()) continue;
         const nomClean = nom.trim();
-        if (!nomsVus.has(nomClean)) {
-          nomsVus.set(nomClean, c);
-        } else {
-          platCols.push({ colGrammage: c, nom: nomClean });
-        }
+        if (!nomsVus.has(nomClean)) { nomsVus.set(nomClean, c); }
+        else { platCols.push({ colGrammage: c, nom: nomClean }); }
       }
-
       for (const plat of platCols) {
         const lignesRecette: { ingredientId: string; grammage: number }[] = [];
-
-        for (let r = 9; r < rows.length; r++) {
-          const row = rows[r];
+        for (let r = 9; r < rows2.length; r++) {
+          const row = rows2[r];
           const nomIng = row[0];
           const grammage = row[plat.colGrammage];
           if (typeof nomIng !== 'string' || !nomIng.trim()) continue;
           if (typeof grammage !== 'number' || grammage <= 0) continue;
-
           const nomNorm = nomIng.trim().toLowerCase();
           const match = allIngredients.find(i =>
-            i.nom.toLowerCase().includes(nomNorm) ||
-            nomNorm.includes(i.nom.toLowerCase().split(' ')[0])
+            i.nom.toLowerCase().includes(nomNorm) || nomNorm.includes(i.nom.toLowerCase().split(' ')[0])
           );
           if (match) lignesRecette.push({ ingredientId: match.id, grammage });
         }
-
         const cout = lignesRecette.reduce((total, l) => {
           const ing = allIngredients.find(i => i.id === l.ingredientId);
           if (!ing) return total;
           return total + (ing.prix / ing.rendement) * l.grammage;
         }, 0);
-
         await addDoc(collection(db, 'recettes'), {
-          nom: plat.nom, categorie: cat,
-          saisons: ['été'], actif: true,
+          nom: plat.nom, categorie: cat, type: 'food', actif: true,
           ingredients: lignesRecette, options: [], coutCalcule: cout,
           updatedAt: new Date().toISOString(),
         });
         created++;
       }
     }
-
     setImporting(false);
     alert(`✅ ${created} recettes importées !`);
     fetchAll();
