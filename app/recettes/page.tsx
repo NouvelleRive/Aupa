@@ -31,10 +31,15 @@ const POPINA_FAMILLE_FOOD: Record<string, CategorieRecette> = {
 };
 
 const matchExistant = (nomCaisse: string, nomRecette: string): boolean => {
-  const a = nomCaisse.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-  const b = nomRecette.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-  const mots = b.split(' ').filter(m => m.length > 3);
-  return a === b || mots.some(m => a.includes(m)) || a.includes(b.split(' ')[0]);
+  const normalize = (s: string) => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^\w\s]/g, '').trim();
+  const a = normalize(nomCaisse);
+  const b = normalize(nomRecette);
+  if (a === b) return true;
+  const STOP = new Set(['croger', 'bowl', 'plat', 'entree', 'avec']);
+  const motsCaisse = a.split(' ').filter(m => m.length > 3 && !STOP.has(m));
+  const motsRecette = b.split(' ').filter(m => m.length > 3 && !STOP.has(m));
+  if (motsCaisse.length === 0 || motsRecette.length === 0) return false;
+  return motsCaisse.every(m => b.includes(m)) && motsRecette.every(m => a.includes(m));
 };
 
 const SHEET_TO_CAT: Record<string, CategorieRecette> = {
