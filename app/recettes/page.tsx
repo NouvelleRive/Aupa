@@ -487,7 +487,11 @@ export default function RecettesPage() {
               <tr>
                 <th className="px-4 py-3 text-left">Recette</th>
                 <th className="px-4 py-3 text-left">Catégorie</th>
-                <th className="px-4 py-3 text-center w-8"></th>
+                <th className="px-4 py-3 text-center w-8">
+                  <input type="checkbox" className="accent-yellow-400"
+                    checked={filtered.length > 0 && filtered.every(r => selected.has(r.id))}
+                    onChange={e => { const s = new Set(selected); filtered.forEach(r => e.target.checked ? s.add(r.id) : s.delete(r.id)); setSelected(s); }} />
+                </th>
                 <th className="px-4 py-3 text-center">Type</th>
                 <th className="px-4 py-3 text-right">Coût matière</th>
                 <th className="px-4 py-3 text-center">Statut</th>
