@@ -6,6 +6,35 @@ import { db } from '@/lib/firebase';
 import { Recette, Ingredient, Preparation, CategorieRecette, TypePlat } from '@/lib/types';
 import { CATEGORIES } from '@/lib/categories';
 const TYPES_PLAT = ['food', 'boisson'] as const;
+interface ImportPreviewItem {
+  nomOriginal: string;
+  nom: string;
+  categorie: CategorieRecette;
+  prix: number;
+  recetteExistanteId: string | null;
+  recetteExistanteNom: string | null;
+  selected: boolean;
+}
+
+const POPINA_FOOD_CAT: Record<string, CategorieRecette> = {
+  'Croger  🍔': 'Croger', 'Croger': 'Croger',
+  'Bowl 🍛': 'Bols', 'Bowl': 'Bols',
+  'Side': 'Sides', 'Entrees ': 'Entrées', 'Entrees': 'Entrées',
+  'Grignotte': 'Grignotage', 'Saisonnier': 'Croger',
+  'Tous': 'Desserts', 'Desserts': 'Desserts',
+};
+
+const POPINA_FAMILLE_FOOD: Record<string, CategorieRecette> = {
+  'Plats': 'Croger', 'Entrées': 'Entrées',
+  'Sides et Tapas': 'Sides', 'Desserts': 'Desserts',
+};
+
+const matchExistant = (nomCaisse: string, nomRecette: string): boolean => {
+  const a = nomCaisse.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  const b = nomRecette.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  const mots = b.split(' ').filter(m => m.length > 3);
+  return a === b || mots.some(m => a.includes(m)) || a.includes(b.split(' ')[0]);
+};
 
 const SHEET_TO_CAT: Record<string, CategorieRecette> = {
   'Croger': 'Croger', 'Mini Croger': 'Mini Croger', 'Entrées': 'Entrées',
@@ -32,6 +61,8 @@ export default function RecettesPage() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkType, setBulkType] = useState<TypePlat>('food');
   const [showBulk, setShowBulk] = useState(false);
+  const [importPreview, setImportPreview] = useState<ImportPreviewItem[]>([]);
+  const [showImportPreview, setShowImportPreview] = useState(false);
 
   const fetchAll = async () => {
     const [rSnap, iSnap, pSnap] = await Promise.all([
@@ -48,6 +79,50 @@ export default function RecettesPage() {
   useEffect(() => { fetchAll(); }, []);
 
   const cleanNom = (nom: string) => nom.replace(/[^\u0000-\u024F\u1E00-\u1EFF\s]/gu, '').replace(/\s+/g, ' ').trim();
+
+  const handleImportFoodPopina = async (rows: any[][]) => {
+    const seen = new Set<string>();
+    const items: ImportPreviewItem[] = [];
+    for (const row of rows.slice(1)) {
+      const nomRaw = String(row[0] || '').trim();
+      const famille = String(row[1] || '').trim();
+      const catPopina = String(row[2] || '').trim();
+      const prix = row[5];
+      if (!nomRaw || !famille) continue;
+      if (!['Plats', 'Entrées', 'Sides et Tapas', 'Desserts'].includes(famille)) continue;
+      if (typeof prix !== 'number' || prix <= 0 || prix > 50) continue;
+      const nom = cleanNom(nomRaw);
+      if (!nom || seen.has(nom)) continue;
+      seen.add(nom);
+      const categorie: CategorieRecette = POPINA_FOOD_CAT[catPopina] || POPINA_FAMILLE_FOOD[famille] || 'Croger';
+      const existante = recettes.find(r => matchExistant(nom, r.nom));
+      items.push({
+        nomOriginal: nomRaw, nom, categorie, prix,
+        recetteExistanteId: existante?.id || null,
+        recetteExistanteNom: existante?.nom || null,
+        selected: !existante,
+      });
+    }
+    setImportPreview(items);
+    setShowImportPreview(true);
+  };
+
+  const handleConfirmImportFood = async () => {
+    const aCreer = importPreview.filter(i => i.selected && !i.recetteExistanteId);
+    let created = 0;
+    for (const item of aCreer) {
+      await addDoc(collection(db, 'recettes'), {
+        nom: item.nom, categorie: item.categorie, type: 'food', actif: true,
+        prixVente: item.prix, ingredients: [], options: [], coutCalcule: 0,
+        updatedAt: new Date().toISOString(),
+      });
+      created++;
+    }
+    setShowImportPreview(false);
+    setImportPreview([]);
+    alert(`✅ ${created} recettes créées !`);
+    fetchAll();
+  };
 
   const POPINA_CAT_MAP: Record<string, CategorieRecette> = {
     '🧊 Maison & Iced ': 'Les Iced', 'Cocktail': 'Les Cocktailz',
@@ -72,31 +147,38 @@ export default function RecettesPage() {
 
     // Détection format Popina (colonne "Famille")
     if (headers[1] === 'Famille') {
-      const seen = new Set<string>();
-      let created = 0;
-      for (const row of rows.slice(1)) {
-        const nomRaw = String(row[0] || '').trim();
-        const famille = String(row[1] || '').trim();
-        const catPopina = String(row[2] || '').trim();
-        const prix = row[5];
-        if (!nomRaw || !famille) continue;
-        if (!['Boissons chaudes', 'Boissons Froides'].includes(famille)) continue;
-        if (typeof prix !== 'number' || prix <= 0 || prix > 50) continue;
-        const nom = cleanNom(nomRaw);
-        if (!nom || seen.has(nom)) continue;
-        seen.add(nom);
-        const categorie: CategorieRecette = POPINA_CAT_MAP[catPopina] || POPINA_FAMILLE_MAP[famille] || 'Les Iced';
-        await addDoc(collection(db, 'recettes'), {
-          nom, categorie, type: 'boisson', actif: true,
-          prixVente: prix, ingredients: [], options: [], coutCalcule: 0,
-          updatedAt: new Date().toISOString(),
-        });
-        created++;
+      const famille0 = String((rows[1] || [])[1] || '');
+      if (['Boissons chaudes', 'Boissons Froides'].includes(famille0)) {
+        const seen = new Set<string>();
+        let created = 0;
+        for (const row of rows.slice(1)) {
+          const nomRaw = String(row[0] || '').trim();
+          const famille = String(row[1] || '').trim();
+          const catPopina = String(row[2] || '').trim();
+          const prix = row[5];
+          if (!nomRaw || !famille) continue;
+          if (!['Boissons chaudes', 'Boissons Froides'].includes(famille)) continue;
+          if (typeof prix !== 'number' || prix <= 0 || prix > 50) continue;
+          const nom = cleanNom(nomRaw);
+          if (!nom || seen.has(nom)) continue;
+          seen.add(nom);
+          const categorie: CategorieRecette = POPINA_CAT_MAP[catPopina] || POPINA_FAMILLE_MAP[famille] || 'Les Iced';
+          await addDoc(collection(db, 'recettes'), {
+            nom, categorie, type: 'boisson', actif: true,
+            prixVente: prix, ingredients: [], options: [], coutCalcule: 0,
+            updatedAt: new Date().toISOString(),
+          });
+          created++;
+        }
+        setImporting(false);
+        alert(`✅ ${created} boissons importées !`);
+        fetchAll();
+        e.target.value = '';
+      } else {
+        setImporting(false);
+        await handleImportFoodPopina(rows);
+        e.target.value = '';
       }
-      setImporting(false);
-      alert(`✅ ${created} boissons importées !`);
-      fetchAll();
-      e.target.value = '';
       return;
     }
 
@@ -211,6 +293,101 @@ export default function RecettesPage() {
 
   const coutPreview = calculerCout();
 
+  if (showImportPreview) {
+    const nouveau = importPreview.filter(i => !i.recetteExistanteId);
+    const existant = importPreview.filter(i => i.recetteExistanteId);
+    return (
+      <div className="max-w-6xl mx-auto">
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h1 className="text-2xl font-bold">Validation import Popina</h1>
+            <p className="text-sm text-gray-400 mt-1">{nouveau.length} nouveaux · {existant.length} déjà existants</p>
+          </div>
+          <div className="flex gap-3">
+            <button onClick={() => { setShowImportPreview(false); setImportPreview([]); }}
+              className="border border-gray-200 text-gray-600 hover:bg-gray-50 font-semibold rounded-lg px-4 py-2 text-sm">
+              Annuler
+            </button>
+            <button onClick={handleConfirmImportFood}
+              className="bg-yellow-400 hover:bg-yellow-500 text-black font-semibold rounded-lg px-4 py-2 text-sm">
+              Créer {importPreview.filter(i => i.selected && !i.recetteExistanteId).length} recettes
+            </button>
+          </div>
+        </div>
+        {nouveau.length > 0 && (
+          <div className="bg-white rounded-xl border border-yellow-100 overflow-hidden mb-6">
+            <div className="bg-yellow-50 px-4 py-3 flex items-center justify-between">
+              <h2 className="font-semibold text-gray-700">Nouveaux produits</h2>
+              <div className="flex gap-2">
+                <button onClick={() => setImportPreview(p => p.map(i => i.recetteExistanteId ? i : { ...i, selected: true }))}
+                  className="text-xs text-gray-400 hover:text-yellow-500">Tout sélectionner</button>
+                <button onClick={() => setImportPreview(p => p.map(i => i.recetteExistanteId ? i : { ...i, selected: false }))}
+                  className="text-xs text-gray-400 hover:text-yellow-500">Tout désélectionner</button>
+              </div>
+            </div>
+            <table className="w-full text-sm">
+              <thead className="text-gray-400 text-xs uppercase border-b border-yellow-50">
+                <tr>
+                  <th className="px-4 py-2 w-8"></th>
+                  <th className="px-4 py-2 text-left">Nom caisse</th>
+                  <th className="px-4 py-2 text-left">Catégorie</th>
+                  <th className="px-4 py-2 text-right">Prix</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-yellow-50">
+                {nouveau.map((item, i) => {
+                  const globalIdx = importPreview.indexOf(item);
+                  return (
+                    <tr key={i} className={`transition-colors ${item.selected ? 'bg-yellow-50' : 'hover:bg-gray-50'}`}>
+                      <td className="px-4 py-2 text-center">
+                        <input type="checkbox" checked={item.selected} className="accent-yellow-400"
+                          onChange={e => setImportPreview(p => p.map((x, j) => j === globalIdx ? { ...x, selected: e.target.checked } : x))} />
+                      </td>
+                      <td className="px-4 py-2 font-medium">{item.nom}</td>
+                      <td className="px-4 py-2">
+                        <select className="border border-yellow-200 rounded-lg px-2 py-1 text-xs"
+                          value={item.categorie}
+                          onChange={e => setImportPreview(p => p.map((x, j) => j === globalIdx ? { ...x, categorie: e.target.value as CategorieRecette } : x))}>
+                          {CATEGORIES.map(c => <option key={c}>{c}</option>)}
+                        </select>
+                      </td>
+                      <td className="px-4 py-2 text-right text-gray-500">{item.prix} €</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+        {existant.length > 0 && (
+          <div className="bg-white rounded-xl border border-gray-100 overflow-hidden">
+            <div className="bg-gray-50 px-4 py-3">
+              <h2 className="font-semibold text-gray-500">Déjà dans les recettes (ignorés)</h2>
+            </div>
+            <table className="w-full text-sm">
+              <thead className="text-gray-400 text-xs uppercase border-b border-gray-50">
+                <tr>
+                  <th className="px-4 py-2 text-left">Nom caisse</th>
+                  <th className="px-4 py-2 text-left">Recette matchée</th>
+                  <th className="px-4 py-2 text-right">Prix</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-50">
+                {existant.map((item, i) => (
+                  <tr key={i} className="hover:bg-gray-50">
+                    <td className="px-4 py-2 text-gray-500">{item.nom}</td>
+                    <td className="px-4 py-2 text-green-600 font-medium">{item.recetteExistanteNom}</td>
+                    <td className="px-4 py-2 text-right text-gray-400">{item.prix} €</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-6xl mx-auto">
       <div className="flex items-center justify-between mb-6">
@@ -312,8 +489,8 @@ export default function RecettesPage() {
               <tr>
                 <th className="px-4 py-3 text-left">Recette</th>
                 <th className="px-4 py-3 text-left">Catégorie</th>
-                <th className="px-4 py-3 text-center">Type</th>
                 <th className="px-4 py-3 text-center w-8"></th>
+                <th className="px-4 py-3 text-center">Type</th>
                 <th className="px-4 py-3 text-right">Coût matière</th>
                 <th className="px-4 py-3 text-center">Statut</th>
                 <th className="px-4 py-3"></th>
@@ -325,13 +502,13 @@ export default function RecettesPage() {
                   <td className="px-4 py-3 font-medium">{r.nom}</td>
                   <td className="px-4 py-3 text-gray-500">{r.categorie}</td>
                   <td className="px-4 py-3 text-center">
+                    <input type="checkbox" checked={selected.has(r.id)} className="accent-yellow-400"
+                      onChange={e => { const s = new Set(selected); e.target.checked ? s.add(r.id) : s.delete(r.id); setSelected(s); }} />
+                  </td>
+                  <td className="px-4 py-3 text-center">
                     <span className={`px-2 py-1 rounded-full text-xs font-medium ${r.type === 'boisson' ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700'}`}>
                       {r.type === 'boisson' ? 'B' : 'F'}
                     </span>
-                  </td>
-                  <td className="px-4 py-3 text-center">
-                    <input type="checkbox" checked={selected.has(r.id)} className="accent-yellow-400"
-                      onChange={e => { const s = new Set(selected); e.target.checked ? s.add(r.id) : s.delete(r.id); setSelected(s); }} />
                   </td>
                   <td className="px-4 py-3 text-right">{r.coutCalcule.toFixed(2)} €</td>
                   <td className="px-4 py-3 text-center"><span className={`px-2 py-1 rounded-full text-xs ${r.actif ? 'bg-yellow-100 text-yellow-700' : 'bg-gray-100 text-gray-400'}`}>{r.actif ? 'Actif' : 'Inactif'}</span></td>
