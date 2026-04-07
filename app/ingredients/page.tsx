@@ -45,7 +45,14 @@ export default function IngredientsPage() {
   const pdfRef = useRef<HTMLInputElement>(null);
   const [histoId, setHistoId] = useState<string | null>(null);
   const [showMatching, setShowMatching] = useState(false);
-  const [matchingItems, setMatchingItems] = useState<{nomIngredient: string; recetteIds: string[]; ingredientChoisId: string | null; done: boolean}[]>([]);
+  const [matchingItems, setMatchingItems] = useState<{
+    ingredientId: string;
+    ingredientNom: string;
+    nomXLChoisi: string;
+    recetteIds: string[];
+    done: boolean;
+  }[]>([]);
+  const [nomsXLMap, setNomsXLMap] = useState<Map<string, string[]>>(new Map());
 
   const fetchIngredients = async () => {
     const snap = await getDocs(collection(db, 'ingredients'));
@@ -67,10 +74,19 @@ export default function IngredientsPage() {
         }
       }
     }
+    setNomsXLMap(map);
     const normalize = (s: string) => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^\w\s]/g, '').trim();
-    const items = Array.from(map.entries()).map(([nom, ids]) => {
-      const match = ingredients.find(i => normalize(i.nom).includes(normalize(nom)) || normalize(nom).includes(normalize(i.nom.split(' ')[0])));
-      return { nomIngredient: nom, recetteIds: ids, ingredientChoisId: match?.id || null, done: false };
+    const nomsXL = Array.from(map.keys());
+    const items = ingredients.map(ing => {
+      const match = nomsXL.find(nom => normalize(ing.nom).includes(normalize(nom)) || normalize(nom).includes(normalize(ing.nom.split(' ')[0])));
+      return {
+        ingredientId: ing.id,
+        ingredientNom: ing.nom,
+        nomXLChoisi: match || '',
+        nomsXLDisponibles: nomsXL,
+        recetteIds: match ? (map.get(match) || []) : [],
+        done: false,
+      };
     });
     setMatchingItems(items);
     setShowMatching(true);
@@ -248,14 +264,14 @@ export default function IngredientsPage() {
 
   if (showMatching) {
     const total = matchingItems.length;
-    const matches = matchingItems.filter(i => i.ingredientChoisId).length;
+    const matches = matchingItems.filter(i => i.nomXLChoisi).length;
     const done = matchingItems.filter(i => i.done).length;
     return (
       <div className="max-w-6xl mx-auto">
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h1 className="text-2xl font-bold">Matching recettes ↔ ingrédients</h1>
-            <p className="text-sm text-gray-400 mt-1">{total} noms · {matches} matchés · {done} validés</p>
+            <h1 className="text-2xl font-bold">Matching ingrédients ↔ recettes</h1>
+            <p className="text-sm text-gray-400 mt-1">{total} ingrédients · {matches} matchés · {done} validés</p>
           </div>
           <button onClick={() => setShowMatching(false)} className="border border-gray-200 text-gray-600 hover:bg-gray-50 font-semibold rounded-lg px-4 py-2 text-sm">Fermer</button>
         </div>
@@ -263,42 +279,47 @@ export default function IngredientsPage() {
           <table className="w-full text-sm">
             <thead className="bg-yellow-50 text-gray-500 text-xs uppercase">
               <tr>
-                <th className="px-4 py-2 text-left">Nom recette (XL)</th>
                 <th className="px-4 py-2 text-left">Ingrédient Foodflow</th>
+                <th className="px-4 py-2 text-left">Nom dans recettes XL</th>
                 <th className="px-4 py-2 text-right">Recettes</th>
                 <th className="px-4 py-2 text-center">Action</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-yellow-50">
               {matchingItems.map((item, idx) => (
-                <tr key={idx} className={`transition-colors ${item.done ? 'bg-green-50 opacity-60' : item.ingredientChoisId ? 'bg-yellow-50' : 'bg-white'}`}>
-                  <td className="px-4 py-2 font-medium text-sm">{item.nomIngredient}</td>
+                <tr key={idx} className={`transition-colors ${item.done ? 'bg-green-50 opacity-60' : item.nomXLChoisi ? 'bg-yellow-50' : 'bg-white'}`}>
+                  <td className="px-4 py-2 font-medium text-sm">{item.ingredientNom}</td>
                   <td className="px-4 py-2">
                     <select className="border border-gray-200 rounded-lg px-2 py-1 text-xs w-full"
-                      value={item.ingredientChoisId || ''}
-                      onChange={e => { const n = [...matchingItems]; n[idx] = { ...n[idx], ingredientChoisId: e.target.value || null }; setMatchingItems(n); }}>
+                      value={item.nomXLChoisi}
+                      onChange={e => {
+                        const n = [...matchingItems];
+                        const nomChoisi = e.target.value;
+                        n[idx] = { ...n[idx], nomXLChoisi: nomChoisi, recetteIds: nomsXLMap.get(nomChoisi) || [] };
+                        setMatchingItems(n);
+                      }}>
                       <option value="">— Non lié —</option>
-                      {ingredients.sort((a, b) => a.nom.localeCompare(b.nom)).map(i => <option key={i.id} value={i.id}>{i.nom}</option>)}
+                      {Array.from(nomsXLMap.keys()).sort().map(nom => <option key={nom} value={nom}>{nom}</option>)}
                     </select>
                   </td>
                   <td className="px-4 py-2 text-right text-gray-400 text-xs">{item.recetteIds.length} recette{item.recetteIds.length > 1 ? 's' : ''}</td>
                   <td className="px-4 py-2 text-center">
-                    <button disabled={!item.ingredientChoisId || item.done} onClick={async () => {
-                      if (!item.ingredientChoisId || item.done) return;
+                    <button disabled={!item.nomXLChoisi || item.done} onClick={async () => {
+                      if (!item.nomXLChoisi || item.done) return;
                       const recSnap = await getDocs(collection(db, 'recettes'));
                       for (const recDoc of recSnap.docs) {
                         const data = recDoc.data();
                         const ings = data.ingredients || [];
-                        const hasMatch = ings.some((i: any) => i.nomIngredient === item.nomIngredient);
+                        const hasMatch = ings.some((i: any) => i.nomIngredient === item.nomXLChoisi);
                         if (!hasMatch) continue;
-                        const newIngs = ings.map((i: any) => i.nomIngredient === item.nomIngredient
-                          ? { ingredientId: item.ingredientChoisId, grammage: i.grammage }
+                        const newIngs = ings.map((i: any) => i.nomIngredient === item.nomXLChoisi
+                          ? { ingredientId: item.ingredientId, grammage: i.grammage }
                           : i);
                         await updateDoc(doc(db, 'recettes', recDoc.id), { ingredients: newIngs });
                       }
                       const n = [...matchingItems]; n[idx] = { ...n[idx], done: true }; setMatchingItems(n);
                     }}
-                      className={`w-7 h-7 rounded-full border-2 flex items-center justify-center transition-colors ${item.done ? 'bg-green-600 border-green-600 text-white' : item.ingredientChoisId ? 'bg-green-500 border-green-500 text-white hover:bg-green-600' : 'border-gray-200 text-gray-300'}`}>
+                      className={`w-7 h-7 rounded-full border-2 flex items-center justify-center transition-colors ${item.done ? 'bg-green-600 border-green-600 text-white' : item.nomXLChoisi ? 'bg-green-500 border-green-500 text-white hover:bg-green-600' : 'border-gray-200 text-gray-300'}`}>
                       ✓
                     </button>
                   </td>
