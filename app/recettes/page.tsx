@@ -116,7 +116,9 @@ export default function RecettesPage() {
 
   const handleConfirmImportFood = async () => {
     const aCreer = importPreview.filter(i => i.selected && !i.recetteChoisieId);
+    const aRenommer = importPreview.filter(i => i.selected && i.recetteChoisieId);
     let created = 0;
+    let renamed = 0;
     for (const item of aCreer) {
       await addDoc(collection(db, 'recettes'), {
         nom: item.nom, categorie: item.categorie, type: 'food', actif: true,
@@ -125,9 +127,18 @@ export default function RecettesPage() {
       });
       created++;
     }
+    for (const item of aRenommer) {
+      if (!item.recetteChoisieId) continue;
+      await updateDoc(doc(db, 'recettes', item.recetteChoisieId), {
+        nom: item.nom,
+        prixVente: item.prix,
+        updatedAt: new Date().toISOString(),
+      });
+      renamed++;
+    }
     setShowImportPreview(false);
     setImportPreview([]);
-    alert(`✅ ${created} recettes créées !`);
+    alert(`✅ ${created} recettes créées, ${renamed} renommées !`);
     fetchAll();
   };
 
