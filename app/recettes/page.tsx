@@ -498,25 +498,24 @@ export default function RecettesPage() {
           <table className="w-full text-sm">
             <thead className="bg-yellow-50 text-gray-500 text-xs uppercase">
               <tr>
-                <th className="px-4 py-3 text-left">Recette</th>
-                <th className="px-4 py-3 text-left">Catégorie</th>
                 <th className="px-4 py-3 text-center w-8">
                   <input type="checkbox" className="accent-yellow-400"
                     checked={filtered.length > 0 && filtered.every(r => selected.has(r.id))}
                     onChange={e => { const s = new Set(selected); filtered.forEach(r => e.target.checked ? s.add(r.id) : s.delete(r.id)); setSelected(s); }} />
                 </th>
                 <th className="px-4 py-3 text-center">Type</th>
-                <th className="px-4 py-3 text-right">Prix vente</th>
+                <th className="px-4 py-3 text-left">Recette</th>
+                <th className="px-4 py-3 text-left">Catégorie</th>
+                <th className="px-4 py-3 text-right">Prix TTC</th>
                 <th className="px-4 py-3 text-right">Coût matière</th>
-                <th className="px-4 py-3 text-center">Statut</th>
+                <th className="px-4 py-3 text-right">Food cost</th>
+                <th className="px-4 py-3 text-right">Marge</th>
                 <th className="px-4 py-3"></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-yellow-50">
               {filtered.map(r => (
                 <tr key={r.id} className={`hover:bg-yellow-50 transition-colors ${selected.has(r.id) ? 'bg-yellow-50' : ''}`}>
-                  <td className="px-4 py-3 font-medium">{r.nom}</td>
-                  <td className="px-4 py-3 text-gray-500">{r.categorie}</td>
                   <td className="px-4 py-3 text-center">
                     <input type="checkbox" checked={selected.has(r.id)} className="accent-yellow-400"
                       onChange={e => { const s = new Set(selected); e.target.checked ? s.add(r.id) : s.delete(r.id); setSelected(s); }} />
@@ -526,12 +525,25 @@ export default function RecettesPage() {
                       {r.type === 'boisson' ? 'B' : 'F'}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-right text-gray-500">{r.prixVente ? r.prixVente.toFixed(2) + ' €' : '—'}</td>
-                  <td className="px-4 py-3 text-right">{r.coutCalcule.toFixed(2)} €</td>
-                  <td className="px-4 py-3 text-center"><span className={`px-2 py-1 rounded-full text-xs ${r.actif ? 'bg-yellow-100 text-yellow-700' : 'bg-gray-100 text-gray-400'}`}>{r.actif ? 'Actif' : 'Inactif'}</span></td>
-                  <td className="px-4 py-3 flex gap-2 justify-end">
-                    <button onClick={() => handleEdit(r)} className="text-xs text-gray-400 hover:text-yellow-500">Modifier</button>
-                    <button onClick={() => handleDelete(r.id)} className="text-xs text-gray-400 hover:text-yellow-500">Supprimer</button>
+                  <td className="px-4 py-3 font-medium">{r.nom}</td>
+                  <td className="px-4 py-3 text-gray-500">{r.categorie}</td>
+                  <td className="px-4 py-3 text-right">
+                    {r.prixVente ? <><div>{r.prixVente.toFixed(2)} €</div><div className="text-xs text-gray-400">{(r.prixVente / 1.1).toFixed(2)} € HT</div></> : <span className="text-gray-300">—</span>}
+                  </td>
+                  <td className="px-4 py-3 text-right">
+                    {r.coutCalcule > 0 ? <><div>{r.coutCalcule.toFixed(2)} €</div><div className="text-xs text-gray-400">{(r.coutCalcule / (r.prixVente / 1.1) * 100).toFixed(0)}% du HT</div></> : <span className="text-gray-300">—</span>}
+                  </td>
+                  <td className="px-4 py-3 text-right">
+                    {r.prixVente && r.coutCalcule > 0 ? <span className={`font-semibold ${(r.coutCalcule / (r.prixVente / 1.1) * 100) > 32 ? 'text-red-500' : 'text-gray-700'}`}>{(r.coutCalcule / (r.prixVente / 1.1) * 100).toFixed(1)}%</span> : <span className="text-gray-300">—</span>}
+                  </td>
+                  <td className="px-4 py-3 text-right">
+                    {r.prixVente && r.coutCalcule > 0 ? <span className="text-green-600 font-semibold">{(r.prixVente / 1.1 - r.coutCalcule).toFixed(2)} €</span> : <span className="text-gray-300">—</span>}
+                  </td>
+                  <td className="px-4 py-3 text-right whitespace-nowrap">
+                    <div className="flex items-center justify-end gap-2">
+                      <button onClick={() => handleEdit(r)} className="text-gray-400 hover:text-yellow-500" title="Modifier">✏️</button>
+                      <button onClick={() => handleDelete(r.id)} className="text-gray-400 hover:text-red-500" title="Supprimer">🗑️</button>
+                    </div>
                   </td>
                 </tr>
               ))}
