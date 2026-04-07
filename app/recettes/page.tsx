@@ -365,11 +365,11 @@ export default function RecettesPage() {
                     <td className="px-4 py-2 text-center">
                       <div className="flex gap-1 justify-center">
                         <button onClick={() => setImportPreview(p => p.map((x, j) => j === globalIdx ? { ...x, selected: true } : x))}
-                          className={`text-xs font-medium px-2 py-1 rounded-full border transition-colors ${item.selected ? 'bg-green-400 text-white border-green-400' : 'bg-gray-100 text-gray-400 border-gray-200 hover:bg-green-50'}`}>
+                          className={`w-7 h-7 rounded-full border-2 transition-colors flex items-center justify-center ${item.selected ? 'bg-green-500 border-green-500 text-white' : 'border-gray-300 text-gray-300 hover:border-green-400 hover:text-green-400'}`}>
                           ✓
                         </button>
                         <button onClick={() => setImportPreview(p => p.map((x, j) => j === globalIdx ? { ...x, selected: false, recetteChoisieId: null } : x))}
-                          className={`text-xs font-medium px-2 py-1 rounded-full border transition-colors ${!item.selected ? 'bg-red-400 text-white border-red-400' : 'bg-gray-100 text-gray-400 border-gray-200 hover:bg-red-50'}`}>
+                          className={`w-7 h-7 rounded-full border-2 transition-colors flex items-center justify-center ${!item.selected ? 'bg-red-500 border-red-500 text-white' : 'border-gray-300 text-gray-300 hover:border-red-400 hover:text-red-400'}`}>
                           ✕
                         </button>
                       </div>
