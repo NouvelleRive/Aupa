@@ -223,27 +223,18 @@ export default function RecettesPage() {
         else { platCols.push({ colGrammage: c, nom: nomClean }); }
       }
       for (const plat of platCols) {
-        const lignesRecette: { ingredientId: string; grammage: number }[] = [];
+        const lignesRecette: { nomIngredient: string; grammage: number }[] = [];
         for (let r = 2; r < rows2.length; r++) {
           const row = rows2[r];
           const nomIng = row[0];
           const grammage = row[plat.colGrammage];
           if (typeof nomIng !== 'string' || !nomIng.trim()) continue;
           if (typeof grammage !== 'number' || grammage <= 0) continue;
-          const nomNorm = nomIng.trim().toLowerCase();
-          const match = allIngredients.find(i =>
-            i.nom.toLowerCase().includes(nomNorm) || nomNorm.includes(i.nom.toLowerCase().split(' ')[0])
-          );
-          if (match) lignesRecette.push({ ingredientId: match.id, grammage });
+          lignesRecette.push({ nomIngredient: nomIng.trim(), grammage });
         }
-        const cout = lignesRecette.reduce((total, l) => {
-          const ing = allIngredients.find(i => i.id === l.ingredientId);
-          if (!ing) return total;
-          return total + (ing.prix / ing.rendement) * l.grammage;
-        }, 0);
         await addDoc(collection(db, 'recettes'), {
           nom: plat.nom, categorie: cat, type: 'food', actif: true,
-          ingredients: lignesRecette, options: [], coutCalcule: cout,
+          ingredients: lignesRecette, options: [], coutCalcule: 0,
           updatedAt: new Date().toISOString(),
         });
         created++;
