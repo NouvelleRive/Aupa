@@ -476,7 +476,6 @@ export default function RecettesPage() {
                 ))}
               </div>
             )}
-          </div>
 
           {lignes.length > 0 && (
             <div className="bg-yellow-50 rounded-lg p-4 mb-4 flex gap-6 text-sm">
@@ -489,6 +488,7 @@ export default function RecettesPage() {
             <button onClick={() => { setShowForm(false); setEditId(null); setForm(emptyForm); setLignes([]); }} className="border border-yellow-200 rounded-lg px-4 py-2 text-sm text-gray-500 hover:bg-gray-50">Annuler</button>
           </div>
         </div>
+    
       )}
 
       <div className="flex gap-3 mb-4 flex-wrap items-center">
