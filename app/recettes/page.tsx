@@ -205,15 +205,53 @@ export default function RecettesPage() {
       return;
     }
 
-    // Format recettes cuisine (ancien format)
-    const ingSnap = await getDocs(collection(db, 'ingredients'));
-    const allIngredients = ingSnap.docs.map(d => ({ id: d.id, ...d.data() } as Ingredient));
     let created = 0;
     for (const sheetName of wb.SheetNames) {
       const cat = SHEET_TO_CAT[sheetName];
       if (!cat) continue;
       const ws2 = wb.Sheets[sheetName];
       const rows2: any[][] = XLSX.utils.sheet_to_json(ws2, { header: 1 });
+
+      if (cat === 'Préparations') {
+        // Format Prépas : nom prépa en col A avec col B vide, ingrédients en dessous
+        let currentNom: string | null = null;
+        let currentIngs: { nomIngredient: string; grammage: number; unite: string }[] = [];
+        for (let r = 1; r < rows2.length; r++) {
+          const row = rows2[r];
+          const colA = row[0];
+          const colB = row[1];
+          if (typeof colA === 'string' && colA.trim() && (colB === null || colB === undefined)) {
+            // Sauvegarder la prépa précédente
+            if (currentNom && currentIngs.length > 0) {
+              await addDoc(collection(db, 'recettes'), {
+                nom: currentNom, categorie: 'Préparations', type: 'food', actif: true,
+                ingredients: currentIngs, options: [], coutCalcule: 0,
+                updatedAt: new Date().toISOString(),
+              });
+              created++;
+            }
+            currentNom = colA.trim();
+            currentIngs = [];
+          } else if (currentNom && typeof colA === 'string' && colA.trim() && typeof colB === 'number') {
+            const grammage = row[4];
+            const unite = row[3];
+            if (typeof grammage === 'number' && grammage > 0) {
+              currentIngs.push({ nomIngredient: colA.trim(), grammage, unite: typeof unite === 'string' ? unite.trim() : 'kg' });
+            }
+          }
+        }
+        if (currentNom && currentIngs.length > 0) {
+          await addDoc(collection(db, 'recettes'), {
+            nom: currentNom, categorie: 'Préparations', type: 'food', actif: true,
+            ingredients: currentIngs, options: [], coutCalcule: 0,
+            updatedAt: new Date().toISOString(),
+          });
+          created++;
+        }
+        continue;
+      }
+
+      // Format standard (Croger, Sides, etc.)
       const row0 = rows2[1] || [];
       const platCols: { colGrammage: number; nom: string }[] = [];
       const nomsVus = new Map<string, number>();
