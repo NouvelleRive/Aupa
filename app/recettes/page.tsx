@@ -375,7 +375,16 @@ export default function RecettesPage() {
                     <td className="px-4 py-2 text-right text-gray-500">{item.prix} €</td>
                     <td className="px-4 py-2 text-center">
                       <div className="flex gap-1 justify-center">
-                        <button onClick={() => { const n = [...importPreview]; n[globalIdx] = { ...n[globalIdx], selected: true }; setImportPreview(n); }}
+                        <button onClick={async () => {
+                          const n = [...importPreview];
+                          n[globalIdx] = { ...n[globalIdx], selected: true };
+                          setImportPreview(n);
+                          if (item.recetteChoisieId) {
+                            await updateDoc(doc(db, 'recettes', item.recetteChoisieId), { nom: item.nom, prixVente: item.prix, updatedAt: new Date().toISOString() });
+                          } else {
+                            await addDoc(collection(db, 'recettes'), { nom: item.nom, categorie: item.categorie, type: 'food', actif: true, prixVente: item.prix, ingredients: [], options: [], coutCalcule: 0, updatedAt: new Date().toISOString() });
+                          }
+                        }}
                           className={`w-7 h-7 rounded-full border-2 transition-colors flex items-center justify-center ${item.selected ? 'bg-green-500 border-green-500 text-white' : 'border-gray-300 text-gray-300 hover:border-green-400 hover:text-green-400'}`}>
                           ✓
                         </button>
