@@ -506,6 +506,7 @@ export default function RecettesPage() {
                     onChange={e => { const s = new Set(selected); filtered.forEach(r => e.target.checked ? s.add(r.id) : s.delete(r.id)); setSelected(s); }} />
                 </th>
                 <th className="px-4 py-3 text-center">Type</th>
+                <th className="px-4 py-3 text-right">Prix vente</th>
                 <th className="px-4 py-3 text-right">Coût matière</th>
                 <th className="px-4 py-3 text-center">Statut</th>
                 <th className="px-4 py-3"></th>
@@ -525,6 +526,7 @@ export default function RecettesPage() {
                       {r.type === 'boisson' ? 'B' : 'F'}
                     </span>
                   </td>
+                  <td className="px-4 py-3 text-right text-gray-500">{r.prixVente ? r.prixVente.toFixed(2) + ' €' : '—'}</td>
                   <td className="px-4 py-3 text-right">{r.coutCalcule.toFixed(2)} €</td>
                   <td className="px-4 py-3 text-center"><span className={`px-2 py-1 rounded-full text-xs ${r.actif ? 'bg-yellow-100 text-yellow-700' : 'bg-gray-100 text-gray-400'}`}>{r.actif ? 'Actif' : 'Inactif'}</span></td>
                   <td className="px-4 py-3 flex gap-2 justify-end">
