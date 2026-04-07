@@ -472,7 +472,7 @@ export default function RecettesPage() {
                 {nomIngredients.map((n, i) => (
                   <div key={i} className="flex gap-2 text-xs text-gray-500 py-1">
                     <span className="flex-1">{n.nom}</span>
-                    <span>{n.grammage} kg</span>
+                    <span>{n.grammage} {n.unite || 'kg'}</span>
                   </div>
                 ))}
               </div>
