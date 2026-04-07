@@ -320,21 +320,21 @@ export default function IngredientsPage() {
                     <button onClick={() => handleEdit(ing)} className="text-gray-400 hover:text-yellow-500" title="Modifier">✏️</button><button onClick={() => handleDelete(ing.id)} className="text-gray-400 hover:text-red-500" title="Supprimer">🗑️</button>
                   </td>
                 </tr>
-                {histoId === ing.id && (
-                  <tr key={ing.id + '-histo'}>
-                    <td colSpan={8} className="px-4 py-3 bg-yellow-50">
-                      <p className="text-xs font-semibold text-gray-500 mb-2 uppercase">Historique des prix — {ing.nom}</p>
-                      <div className="flex gap-4 flex-wrap">
-                        {(ing.historiquesPrix || []).slice().sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime()).map((h: any, i: number) => (
-                          <div key={i} className="text-xs text-gray-600">
-                            <span className="text-gray-400">{new Date(h.date).toLocaleDateString('fr-FR')}</span> → <span className="font-semibold">{h.prix.toFixed(2)} €</span>
-                          </div>
-                        ))}
-                      </div>
-                    </td>
-                  </tr>
-                )}
               ))}
+              {histoId && filtered.find(i => i.id === histoId) && (
+                <tr key={histoId + '-histo'}>
+                  <td colSpan={8} className="px-4 py-3 bg-yellow-50">
+                    <p className="text-xs font-semibold text-gray-500 mb-2 uppercase">Historique des prix — {filtered.find(i => i.id === histoId)?.nom}</p>
+                    <div className="flex gap-4 flex-wrap">
+                      {(filtered.find(i => i.id === histoId)?.historiquesPrix || []).slice().sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime()).map((h: any, i: number) => (
+                        <div key={i} className="text-xs text-gray-600">
+                          <span className="text-gray-400">{new Date(h.date).toLocaleDateString('fr-FR')}</span> → <span className="font-semibold">{h.prix.toFixed(2)} €</span>
+                        </div>
+                      ))}
+                    </div>
+                  </td>
+                </tr>
+              )}
               {filtered.length === 0 && <tr><td colSpan={8} className="px-4 py-8 text-center text-gray-400">Aucun ingrédient</td></tr>}
             </tbody>
           </table>
