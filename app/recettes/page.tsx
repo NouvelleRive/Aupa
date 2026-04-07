@@ -46,6 +46,7 @@ const matchExistant = (nomCaisse: string, nomRecette: string): boolean => {
 const SHEET_TO_CAT: Record<string, CategorieRecette> = {
   'Croger': 'Croger', 'Mini Croger': 'Mini Croger', 'Entrées': 'Entrées',
   'Sides': 'Sides', 'Desserts': 'Desserts', 'Bols': 'Bols',
+  'Prépas': 'Préparations',
   'Wine beer': 'Les Wines', 'Cocktails': 'Les Cocktailz', 'Apero': 'Les Apéritifs et Digestifs',
   'Softs maison chaud': 'Le Chaud', 'Softs maison froid': 'Les Iced', 'Sodas': 'Les Sodas',
 };
@@ -440,7 +441,10 @@ export default function RecettesPage() {
               <span className="text-sm font-medium text-gray-700">Ingrédients & Préparations</span>
               <div className="flex gap-2">
                 <button onClick={() => setLignes([...lignes, { type: 'ingredient', id: ingredients[0]?.id || '', grammage: '' }])} className="text-xs border border-yellow-200 hover:bg-yellow-50 rounded px-2 py-1">+ Ingrédient</button>
-                <button onClick={() => setLignes([...lignes, { type: 'preparation', id: preparations[0]?.id || '', grammage: '' }])} className="text-xs border border-yellow-200 hover:bg-yellow-50 rounded px-2 py-1">+ Préparation</button>
+                <button onClick={() => {
+                  const preps = recettes.filter(r => r.categorie === 'Préparations');
+                  setLignes([...lignes, { type: 'preparation', id: preps[0]?.id || '', grammage: '' }]);
+                }} className="text-xs border border-yellow-200 hover:bg-yellow-50 rounded px-2 py-1">+ Préparation</button>
               </div>
             </div>
             <div className="space-y-2">
@@ -453,7 +457,7 @@ export default function RecettesPage() {
                     <select className="border border-yellow-200 rounded-lg px-3 py-2 text-sm flex-1" value={ligne.id} onChange={e => { const n = [...lignes]; n[i].id = e.target.value; setLignes(n); }}>
                       {ligne.type === 'ingredient'
                         ? ingredients.map(ing => <option key={ing.id} value={ing.id}>{ing.nom} ({ing.unite})</option>)
-                        : preparations.map(p => <option key={p.id} value={p.id}>{p.nom}</option>)
+                        : recettes.filter(r => r.categorie === 'Préparations').map(p => <option key={p.id} value={p.id}>{p.nom}</option>)
                       }
                     </select>
                     <input className="border border-yellow-200 rounded-lg px-3 py-2 text-sm w-24" placeholder="Qté" type="number" value={ligne.grammage} onChange={e => { const n = [...lignes]; n[i].grammage = e.target.value; setLignes(n); }} />
