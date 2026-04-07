@@ -477,7 +477,6 @@ export default function RecettesPage() {
               </div>
             )}
           </div>
-        </div>
 
           {lignes.length > 0 && (
             <div className="bg-yellow-50 rounded-lg p-4 mb-4 flex gap-6 text-sm">
