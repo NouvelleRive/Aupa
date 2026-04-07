@@ -68,7 +68,7 @@ export default function RecettesPage() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkType, setBulkType] = useState<TypePlat>('food');
   const [showBulk, setShowBulk] = useState(false);
-  const [nomIngredients, setNomIngredients] = useState<{nom: string, grammage: number}[]>([]);
+  const [nomIngredients, setNomIngredients] = useState<{nom: string, grammage: number, unite: string}[]>([]);
   const [importPreview, setImportPreview] = useState<ImportPreviewItem[]>([]);
   const [showImportPreview, setShowImportPreview] = useState(false);
 
@@ -281,7 +281,7 @@ export default function RecettesPage() {
     setEditId(r.id);
     setForm({ nom: r.nom, categorie: r.categorie, type: r.type || 'food', actif: r.actif });
     setLignes(r.ingredients.filter(i => i.ingredientId).map(i => ({ type: 'ingredient' as const, id: i.ingredientId!, grammage: String(i.grammage) })));
-    setNomIngredients((r.ingredients as any[]).filter(i => i.nomIngredient).map(i => ({ nom: i.nomIngredient, grammage: i.grammage })));
+    setNomIngredients((r.ingredients as any[]).filter(i => i.nomIngredient).map(i => ({ nom: i.nomIngredient, grammage: i.grammage, unite: i.unite || 'kg' })));
     setShowForm(true);
     window.scrollTo(0, 0);
   };
@@ -466,17 +466,16 @@ export default function RecettesPage() {
             </div>
           </div>
 
-          {nomIngredients.length > 0 && (
-              <div className="mt-2 border border-yellow-100 rounded-lg p-3 bg-yellow-50">
-                <p className="text-xs font-semibold text-gray-500 mb-2">Ingrédients à matcher :</p>
-                {nomIngredients.map((n, i) => (
-                  <div key={i} className="flex gap-2 text-xs text-gray-500 py-1">
-                    <span className="flex-1">{n.nom}</span>
-                    <span>{n.grammage} {n.unite || 'kg'}</span>
-                  </div>
-                ))}
-              </div>
-            )}
+          {nomIngredients.map((n, i) => (
+            <div key={'nom-' + i} className="flex gap-2 items-center mb-2">
+              <span className="flex-1 border border-yellow-100 bg-yellow-50 rounded-lg px-3 py-2 text-sm text-gray-400 italic">{n.nom}</span>
+              <input className="border border-yellow-200 rounded-lg px-3 py-2 text-sm w-24" type="number" value={n.grammage}
+                onChange={e => { const nn = [...nomIngredients]; nn[i] = { ...nn[i], grammage: parseFloat(e.target.value) || 0 }; setNomIngredients(nn); }} />
+              <span className="text-xs text-gray-400 w-20 text-right">— €/{n.unite}</span>
+              <span className="text-xs text-gray-300 w-16 text-right">non lié</span>
+              <button onClick={() => setNomIngredients(nomIngredients.filter((_, j) => j !== i))} className="text-gray-400 hover:text-yellow-500 text-sm">✕</button>
+            </div>
+          ))}
 
           {lignes.length > 0 && (
             <div className="bg-yellow-50 rounded-lg p-4 mb-4 flex gap-6 text-sm">
