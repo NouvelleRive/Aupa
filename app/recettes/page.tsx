@@ -224,7 +224,7 @@ export default function RecettesPage() {
         else { platCols.push({ colGrammage: c, nom: nomClean }); }
       }
       for (const plat of platCols) {
-        const lignesRecette: { nomIngredient: string; grammage: number }[] = [];
+        const lignesRecette: { nomIngredient: string; grammage: number; unite: string }[] = [];
         for (let r = 2; r < rows2.length; r++) {
           const row = rows2[r];
           const nomIng = row[0];
