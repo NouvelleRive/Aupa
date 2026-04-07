@@ -44,6 +44,8 @@ export default function IngredientsPage() {
   const fileRef = useRef<HTMLInputElement>(null);
   const pdfRef = useRef<HTMLInputElement>(null);
   const [histoId, setHistoId] = useState<string | null>(null);
+  const [showMatching, setShowMatching] = useState(false);
+  const [matchingItems, setMatchingItems] = useState<{nomIngredient: string; recetteIds: string[]; ingredientChoisId: string | null; done: boolean}[]>([]);
 
   const fetchIngredients = async () => {
     const snap = await getDocs(collection(db, 'ingredients'));
@@ -52,6 +54,27 @@ export default function IngredientsPage() {
   };
 
   useEffect(() => { fetchIngredients(); }, []);
+
+  const handleOpenMatching = async () => {
+    const recSnap = await getDocs(collection(db, 'recettes'));
+    const recettes = recSnap.docs.map(d => ({ id: d.id, ...d.data() } as any));
+    const map = new Map<string, string[]>();
+    for (const r of recettes) {
+      for (const ing of (r.ingredients || [])) {
+        if (ing.nomIngredient) {
+          if (!map.has(ing.nomIngredient)) map.set(ing.nomIngredient, []);
+          map.get(ing.nomIngredient)!.push(r.id);
+        }
+      }
+    }
+    const normalize = (s: string) => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^\w\s]/g, '').trim();
+    const items = Array.from(map.entries()).map(([nom, ids]) => {
+      const match = ingredients.find(i => normalize(i.nom).includes(normalize(nom)) || normalize(nom).includes(normalize(i.nom.split(' ')[0])));
+      return { nomIngredient: nom, recetteIds: ids, ingredientChoisId: match?.id || null, done: false };
+    });
+    setMatchingItems(items);
+    setShowMatching(true);
+  };
 
   const parsePDF = async (file: File, pdfjsLib: any): Promise<{ code: string; nom: string; prix: number; date: string }[]> => {
     const buffer = await file.arrayBuffer();
@@ -223,6 +246,71 @@ export default function IngredientsPage() {
   .filter(i => filterCategorie === 'all' || i.categorie === filterCategorie)
   .sort((a, b) => a.categorie.localeCompare(b.categorie) || a.nom.localeCompare(b.nom));
 
+  if (showMatching) {
+    const total = matchingItems.length;
+    const matches = matchingItems.filter(i => i.ingredientChoisId).length;
+    const done = matchingItems.filter(i => i.done).length;
+    return (
+      <div className="max-w-6xl mx-auto">
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h1 className="text-2xl font-bold">Matching recettes ↔ ingrédients</h1>
+            <p className="text-sm text-gray-400 mt-1">{total} noms · {matches} matchés · {done} validés</p>
+          </div>
+          <button onClick={() => setShowMatching(false)} className="border border-gray-200 text-gray-600 hover:bg-gray-50 font-semibold rounded-lg px-4 py-2 text-sm">Fermer</button>
+        </div>
+        <div className="bg-white rounded-xl border border-yellow-100 overflow-hidden">
+          <table className="w-full text-sm">
+            <thead className="bg-yellow-50 text-gray-500 text-xs uppercase">
+              <tr>
+                <th className="px-4 py-2 text-left">Nom recette (XL)</th>
+                <th className="px-4 py-2 text-left">Ingrédient Foodflow</th>
+                <th className="px-4 py-2 text-right">Recettes</th>
+                <th className="px-4 py-2 text-center">Action</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-yellow-50">
+              {matchingItems.map((item, idx) => (
+                <tr key={idx} className={`transition-colors ${item.done ? 'bg-green-50 opacity-60' : item.ingredientChoisId ? 'bg-yellow-50' : 'bg-white'}`}>
+                  <td className="px-4 py-2 font-medium text-sm">{item.nomIngredient}</td>
+                  <td className="px-4 py-2">
+                    <select className="border border-gray-200 rounded-lg px-2 py-1 text-xs w-full"
+                      value={item.ingredientChoisId || ''}
+                      onChange={e => { const n = [...matchingItems]; n[idx] = { ...n[idx], ingredientChoisId: e.target.value || null }; setMatchingItems(n); }}>
+                      <option value="">— Non lié —</option>
+                      {ingredients.sort((a, b) => a.nom.localeCompare(b.nom)).map(i => <option key={i.id} value={i.id}>{i.nom}</option>)}
+                    </select>
+                  </td>
+                  <td className="px-4 py-2 text-right text-gray-400 text-xs">{item.recetteIds.length} recette{item.recetteIds.length > 1 ? 's' : ''}</td>
+                  <td className="px-4 py-2 text-center">
+                    <button disabled={!item.ingredientChoisId || item.done} onClick={async () => {
+                      if (!item.ingredientChoisId || item.done) return;
+                      const recSnap = await getDocs(collection(db, 'recettes'));
+                      for (const recDoc of recSnap.docs) {
+                        const data = recDoc.data();
+                        const ings = data.ingredients || [];
+                        const hasMatch = ings.some((i: any) => i.nomIngredient === item.nomIngredient);
+                        if (!hasMatch) continue;
+                        const newIngs = ings.map((i: any) => i.nomIngredient === item.nomIngredient
+                          ? { ingredientId: item.ingredientChoisId, grammage: i.grammage }
+                          : i);
+                        await updateDoc(doc(db, 'recettes', recDoc.id), { ingredients: newIngs });
+                      }
+                      const n = [...matchingItems]; n[idx] = { ...n[idx], done: true }; setMatchingItems(n);
+                    }}
+                      className={`w-7 h-7 rounded-full border-2 flex items-center justify-center transition-colors ${item.done ? 'bg-green-600 border-green-600 text-white' : item.ingredientChoisId ? 'bg-green-500 border-green-500 text-white hover:bg-green-600' : 'border-gray-200 text-gray-300'}`}>
+                      ✓
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-5xl mx-auto">
       <div className="flex items-center justify-between mb-6">
@@ -233,6 +321,9 @@ export default function IngredientsPage() {
           </button>
           <button onClick={() => pdfRef.current?.click()} disabled={importing} className="border border-gray-200 text-gray-600 hover:bg-gray-50 font-semibold rounded-lg px-4 py-2 text-sm">
             {importing ? importProgress || 'Import en cours...' : 'Importer factures Foodflow'}
+          </button>
+          <button onClick={handleOpenMatching} className="border border-yellow-400 text-yellow-600 hover:bg-yellow-50 font-semibold rounded-lg px-4 py-2 text-sm">
+            Matcher recettes
           </button>
           <button onClick={() => fileRef.current?.click()} className="bg-yellow-400 hover:bg-yellow-500 text-black font-semibold rounded-lg px-4 py-2 text-sm">
             Importer Excel
