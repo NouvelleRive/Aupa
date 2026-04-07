@@ -377,9 +377,9 @@ export default function RecettesPage() {
                           n[globalIdx] = { ...n[globalIdx], selected: true, done: true };
                           setImportPreview(n);
                           if (item.recetteChoisieId) {
-                            await updateDoc(doc(db, 'recettes', item.recetteChoisieId), { nom: item.nom, prixVente: item.prix, updatedAt: new Date().toISOString() });
+                            await updateDoc(doc(db, 'recettes', item.recetteChoisieId), { nom: item.nom, nomPopina: item.nomOriginal, prixVente: item.prix, updatedAt: new Date().toISOString() });
                           } else {
-                            await addDoc(collection(db, 'recettes'), { nom: item.nom, categorie: item.categorie, type: 'food', actif: true, prixVente: item.prix, ingredients: [], options: [], coutCalcule: 0, updatedAt: new Date().toISOString() });
+                            await addDoc(collection(db, 'recettes'), { nom: item.nom, nomPopina: item.nomOriginal, categorie: item.categorie, type: 'food', actif: true, prixVente: item.prix, ingredients: [], options: [], coutCalcule: 0, updatedAt: new Date().toISOString() });
                           }
                         }}
                           className={`w-7 h-7 rounded-full border-2 transition-colors flex items-center justify-center ${item.done ? 'bg-green-600 border-green-600 text-white' : item.selected ? 'bg-green-500 border-green-500 text-white' : 'border-gray-300 text-gray-300 hover:border-green-400 hover:text-green-400'}`}>
