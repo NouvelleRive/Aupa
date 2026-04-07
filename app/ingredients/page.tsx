@@ -138,7 +138,7 @@ export default function IngredientsPage() {
           await updateDoc(doc(db, 'ingredients', match.id), {
             prix: derniere.prix,
             historiquesPrix: [...historiqueExistant, ...nouveauxHistorique],
-            updatedAt: derniere.date,
+            updatedAt: nouveauxHistorique[nouveauxHistorique.length - 1].date,
           });
         }
         updated++;
