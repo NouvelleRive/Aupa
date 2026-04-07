@@ -278,7 +278,7 @@ export default function RecettesPage() {
   const handleEdit = (r: Recette) => {
     setEditId(r.id);
     setForm({ nom: r.nom, categorie: r.categorie, type: r.type || 'food', actif: r.actif });
-    setLignes(r.ingredients.map(i => ({ type: 'ingredient' as const, id: i.ingredientId!, grammage: String(i.grammage) })));
+    setLignes(r.ingredients.filter(i => i.ingredientId).map(i => ({ type: 'ingredient' as const, id: i.ingredientId!, grammage: String(i.grammage) })));
     setShowForm(true);
     window.scrollTo(0, 0);
   };
