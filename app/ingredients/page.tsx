@@ -43,6 +43,7 @@ export default function IngredientsPage() {
   const [importProgress, setImportProgress] = useState('');
   const fileRef = useRef<HTMLInputElement>(null);
   const pdfRef = useRef<HTMLInputElement>(null);
+  const [histoId, setHistoId] = useState<string | null>(null);
 
   const fetchIngredients = async () => {
     const snap = await getDocs(collection(db, 'ingredients'));
@@ -302,13 +303,40 @@ export default function IngredientsPage() {
                       return <span className={jours > 30 ? 'text-red-500 font-semibold' : 'text-gray-400'}>{label}{jours > 30 ? ' ⚠️' : ''}</span>;
                     })()}
                   </td>
-                  <td className="px-4 py-3 flex gap-2 justify-end">
-                    <button onClick={() => handleEdit(ing)} className="text-xs text-gray-400 hover:text-yellow-500">Modifier</button>
-                    <button onClick={() => handleDelete(ing.id)} className="text-xs text-gray-400 hover:text-yellow-500">Supprimer</button>
+                  <td className="px-4 py-3 text-right">
+                    {(() => {
+                      const hist = (ing.historiquesPrix || []).slice().sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime());
+                      const last = hist[hist.length - 1];
+                      const prev = hist[hist.length - 2];
+                      const trend = prev && last ? (last.prix > prev.prix ? '↑' : last.prix < prev.prix ? '↓' : '→') : null;
+                      const trendColor = trend === '↑' ? 'text-red-500' : trend === '↓' ? 'text-green-500' : 'text-gray-400';
+                      return trend ? (
+                        <button onClick={() => setHistoId(histoId === ing.id ? null : ing.id)}
+                          className={`font-bold text-sm ${trendColor} hover:opacity-70 mr-2`} title="Voir historique">
+                          {trend}
+                        </button>
+                      ) : <span className="mr-6"></span>;
+                    })()}
+                    <button onClick={() => handleEdit(ing)} className="text-gray-400 hover:text-yellow-500 mr-2" title="Modifier">✏️</button>
+                    <button onClick={() => handleDelete(ing.id)} className="text-gray-400 hover:text-red-500" title="Supprimer">🗑️</button>
                   </td>
                 </tr>
               ))}
               {filtered.length === 0 && <tr><td colSpan={8} className="px-4 py-8 text-center text-gray-400">Aucun ingrédient</td></tr>}
+              {filtered.map(ing => histoId === ing.id ? (
+                <tr key={ing.id + '-histo'}>
+                  <td colSpan={8} className="px-4 py-3 bg-yellow-50">
+                    <p className="text-xs font-semibold text-gray-500 mb-2 uppercase">Historique des prix — {ing.nom}</p>
+                    <div className="flex gap-4 flex-wrap">
+                      {(ing.historiquesPrix || []).slice().sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime()).map((h: any, i: number) => (
+                        <div key={i} className="text-xs text-gray-600">
+                          <span className="text-gray-400">{new Date(h.date).toLocaleDateString('fr-FR')}</span> → <span className="font-semibold">{h.prix.toFixed(2)} €</span>
+                        </div>
+                      ))}
+                    </div>
+                  </td>
+                </tr>
+              ) : null)}
             </tbody>
           </table>
         </div>
