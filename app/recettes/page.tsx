@@ -15,6 +15,7 @@ interface ImportPreviewItem {
   recetteExistanteNom: string | null;
   recetteChoisieId: string | null;
   selected: boolean;
+  done: boolean;
 }
 
 const POPINA_FOOD_CAT: Record<string, CategorieRecette> = {
@@ -108,6 +109,7 @@ export default function RecettesPage() {
         recetteExistanteNom: existante?.nom || null,
         recetteChoisieId: existante?.id || null,
         selected: true,
+        done: false,
       });
     }
     setImportPreview(items);
@@ -115,8 +117,8 @@ export default function RecettesPage() {
   };
 
   const handleConfirmImportFood = async () => {
-    const aCreer = importPreview.filter(i => i.selected && !i.recetteChoisieId);
-    const aRenommer = importPreview.filter(i => i.selected && i.recetteChoisieId);
+    const aCreer = importPreview.filter(i => i.selected && !i.recetteChoisieId && !i.done);
+    const aRenommer = importPreview.filter(i => i.selected && i.recetteChoisieId && !i.done);
     let created = 0;
     let renamed = 0;
     for (const item of aCreer) {
@@ -376,8 +378,9 @@ export default function RecettesPage() {
                     <td className="px-4 py-2 text-center">
                       <div className="flex gap-1 justify-center">
                         <button onClick={async () => {
+                          if (item.done) return;
                           const n = [...importPreview];
-                          n[globalIdx] = { ...n[globalIdx], selected: true };
+                          n[globalIdx] = { ...n[globalIdx], selected: true, done: true };
                           setImportPreview(n);
                           if (item.recetteChoisieId) {
                             await updateDoc(doc(db, 'recettes', item.recetteChoisieId), { nom: item.nom, prixVente: item.prix, updatedAt: new Date().toISOString() });
@@ -385,8 +388,8 @@ export default function RecettesPage() {
                             await addDoc(collection(db, 'recettes'), { nom: item.nom, categorie: item.categorie, type: 'food', actif: true, prixVente: item.prix, ingredients: [], options: [], coutCalcule: 0, updatedAt: new Date().toISOString() });
                           }
                         }}
-                          className={`w-7 h-7 rounded-full border-2 transition-colors flex items-center justify-center ${item.selected ? 'bg-green-500 border-green-500 text-white' : 'border-gray-300 text-gray-300 hover:border-green-400 hover:text-green-400'}`}>
-                          ✓
+                          className={`w-7 h-7 rounded-full border-2 transition-colors flex items-center justify-center ${item.done ? 'bg-green-600 border-green-600 text-white' : item.selected ? 'bg-green-500 border-green-500 text-white' : 'border-gray-300 text-gray-300 hover:border-green-400 hover:text-green-400'}`}>
+                          {item.done ? '✓✓' : '✓'}
                         </button>
                         <button onClick={() => { const n = [...importPreview]; n[globalIdx] = { ...n[globalIdx], selected: false, recetteChoisieId: null }; setImportPreview(n); }}
                           className={`w-7 h-7 rounded-full border-2 transition-colors flex items-center justify-center ${!item.selected ? 'bg-red-500 border-red-500 text-white' : 'border-gray-300 text-gray-300 hover:border-red-400 hover:text-red-400'}`}>
