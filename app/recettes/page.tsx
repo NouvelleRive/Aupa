@@ -231,7 +231,8 @@ export default function RecettesPage() {
           const grammage = row[plat.colGrammage];
           if (typeof nomIng !== 'string' || !nomIng.trim()) continue;
           if (typeof grammage !== 'number' || grammage <= 0) continue;
-          lignesRecette.push({ nomIngredient: nomIng.trim(), grammage });
+          const unite = rows2[r][2];
+          lignesRecette.push({ nomIngredient: nomIng.trim(), grammage, unite: typeof unite === 'string' ? unite.trim() : 'kg' });
         }
         await addDoc(collection(db, 'recettes'), {
           nom: plat.nom, categorie: cat, type: 'food', actif: true,
