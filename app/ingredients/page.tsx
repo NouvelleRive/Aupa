@@ -16,6 +16,7 @@ export default function IngredientsPage() {
   const [form, setForm] = useState({ nom: '', unite: 'kg' as Unite, categorie: 'épicerie' as Categorie });
   const [editId, setEditId] = useState<string | null>(null);
   const [pfNames, setPfNames] = useState<Record<string, string[]>>({});
+  const [pfPrix, setPfPrix] = useState<Record<string, number>>({});
   const [recetteNames, setRecetteNames] = useState<Record<string, string[]>>({});
 
   const fetchAll = async () => {
@@ -43,6 +44,18 @@ export default function IngredientsPage() {
       }
     }
     setPfNames(pf);
+
+    // Calculer le prix/kg par ingrédient (PF le plus récent lié par nom)
+    const prix: Record<string, number> = {};
+    for (const ing of ings) {
+      const pfsDocs = pfSnap.docs.filter(d => d.data().ingredient === ing.nom);
+      if (pfsDocs.length > 0) {
+        const plusRecent = pfsDocs.sort((a, b) => new Date(b.data().updatedAt).getTime() - new Date(a.data().updatedAt).getTime())[0];
+        const data = plusRecent.data();
+        prix[ing.id] = data.prix / (data.nbKg || 1) / (data.rendement || 1) / (data.nbPieces || 1);
+      }
+    }
+    setPfPrix(prix);
 
     // Collecter les noms des recettes liées
     const rc: Record<string, string[]> = {};
@@ -164,6 +177,7 @@ export default function IngredientsPage() {
                 <th className="px-4 py-3 text-left">Nom</th>
                 <th className="px-4 py-3 text-left">Unité</th>
                 <th className="px-4 py-3 text-left">Catégorie</th>
+                <th className="px-4 py-3 text-right">Prix/kg</th>
                 <th className="px-4 py-3 text-left">Produits fournisseurs</th>
                 <th className="px-4 py-3 text-left">Recettes liées</th>
                 <th className="px-4 py-3"></th>
@@ -175,6 +189,13 @@ export default function IngredientsPage() {
                   <td className="px-4 py-3 font-medium">{ing.nom}</td>
                   <td className="px-4 py-3 text-gray-500">{ing.unite}</td>
                   <td className="px-4 py-3 text-gray-500">{ing.categorie}</td>
+                  <td className="px-4 py-3 text-right">
+                    {pfPrix[ing.id] ? (
+                      <span className="font-semibold text-yellow-600">{pfPrix[ing.id].toFixed(2)} €</span>
+                    ) : (
+                      <span className="text-gray-300">—</span>
+                    )}
+                  </td>
                   <td className="px-4 py-3">
                     {pfNames[ing.id]?.length ? (
                       <div className="flex flex-wrap gap-1">
@@ -204,7 +225,7 @@ export default function IngredientsPage() {
                 </tr>
               ))}
               {filtered.length === 0 && (
-                <tr><td colSpan={6} className="px-4 py-8 text-center text-gray-400">Aucun ingrédient</td></tr>
+                <tr><td colSpan={7} className="px-4 py-8 text-center text-gray-400">Aucun ingrédient</td></tr>
               )}
             </tbody>
           </table>
