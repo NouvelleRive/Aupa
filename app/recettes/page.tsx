@@ -710,7 +710,6 @@ export default function RecettesPage() {
                     const cout = (r.ingredients || []).reduce((total: number, i: any) => {
                       if (i.ingredientId || i.ingredientIds?.length > 0) {
                         const ids = i.ingredientIds || [i.ingredientId];
-                        // Chercher le prix dans produitsFournisseurs
                         const prices: number[] = [];
                         for (const id of ids) {
                           const pfs = produitsFournisseurs.filter(pf => pf.ingredientId === id);
@@ -718,7 +717,6 @@ export default function RecettesPage() {
                             const plusRecent = pfs.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())[0];
                             prices.push((plusRecent.prix / plusRecent.rendement) / ((plusRecent as any).nbPieces || 1));
                           } else {
-                            // Fallback : chercher directement par id
                             const direct = produitsFournisseurs.find(pf => pf.id === id);
                             if (direct) prices.push((direct.prix / direct.rendement) / ((direct as any).nbPieces || 1));
                           }
@@ -733,6 +731,22 @@ export default function RecettesPage() {
                         if (prep.coutAuKg) return total + prep.coutAuKg * i.grammage;
                         if (prep.coutCalcule && prep.quantiteProduite) return total + (prep.coutCalcule / prep.quantiteProduite) * i.grammage;
                         return total;
+                      }
+                      // Résolution par nomIngredient (recettes importées sans ingredientId)
+                      if (i.nomIngredient) {
+                        // Chercher si c'est une préparation
+                        const prep = recettes.find(x => x.categorie === 'Préparations' && x.nom === i.nomIngredient) as any;
+                        if (prep) {
+                          if (prep.coutAuKg) return total + prep.coutAuKg * i.grammage;
+                          if (prep.coutCalcule && prep.quantiteProduite) return total + (prep.coutCalcule / prep.quantiteProduite) * i.grammage;
+                          return total;
+                        }
+                        // Chercher le produit fournisseur lié par nom (champ ingredient)
+                        const pfs = produitsFournisseurs.filter(pf => (pf as any).ingredient === i.nomIngredient);
+                        if (pfs.length > 0) {
+                          const plusRecent = pfs.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())[0];
+                          return total + ((plusRecent.prix / plusRecent.rendement) / ((plusRecent as any).nbPieces || 1)) * i.grammage;
+                        }
                       }
                       return total;
                     }, 0);
