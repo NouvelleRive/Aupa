@@ -86,12 +86,16 @@
         const recettes = recSnap.docs.map(d => ({ id: d.id, ...d.data() } as any));
         const map = new Map<string, string[]>();
         for (const r of recettes) {
-        for (const ing of (r.ingredients || [])) {
+          for (const ing of (r.ingredients || [])) {
             if (ing.nomIngredient) {
-            if (!map.has(ing.nomIngredient)) map.set(ing.nomIngredient, []);
-            map.get(ing.nomIngredient)!.push(r.id);
+              if (!map.has(ing.nomIngredient)) map.set(ing.nomIngredient, []);
+              map.get(ing.nomIngredient)!.push(r.id);
             }
-        }
+          }
+          if (r.categorie === 'Préparations') {
+            if (!map.has(r.nom)) map.set(r.nom, []);
+            map.get(r.nom)!.push(r.id);
+          }
         }
         setNomsXLMap(map);
         const normalize = (s: string) => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^\w\s]/g, '').trim();
