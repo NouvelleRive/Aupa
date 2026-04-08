@@ -377,16 +377,10 @@ export default function RecettesPage() {
             <h1 className="text-2xl font-bold">Validation import Popina</h1>
             <p className="text-sm text-gray-400 mt-1">{aCreerCount} à créer · {matchesCount} matchés · {ignoresCount} ignorés</p>
           </div>
-          <div className="flex gap-3">
-            <button onClick={() => { setShowImportPreview(false); setImportPreview([]); }}
-              className="border border-gray-200 text-gray-600 hover:bg-gray-50 font-semibold rounded-lg px-4 py-2 text-sm">
-              Annuler
-            </button>
-            <button onClick={handleConfirmImportFood}
-              className="bg-yellow-400 hover:bg-yellow-500 text-black font-semibold rounded-lg px-4 py-2 text-sm">
-              Valider
-            </button>
-          </div>
+          <button onClick={() => { setShowImportPreview(false); setImportPreview([]); fetchAll(); }}
+            className="border border-gray-200 text-gray-600 hover:bg-gray-50 font-semibold rounded-lg px-4 py-2 text-sm">
+            Fermer
+          </button>
         </div>
         <div className="bg-white rounded-xl border border-yellow-100 overflow-hidden">
           <table className="w-full text-sm">
