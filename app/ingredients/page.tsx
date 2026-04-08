@@ -293,8 +293,8 @@ export default function IngredientsPage() {
           <table className="w-full text-sm">
             <thead className="bg-yellow-50 text-gray-500 text-xs uppercase">
               <tr>
-                <th className="px-4 py-2 text-left">Ingrédient Foodflow</th>
                 <th className="px-4 py-2 text-left">Nom dans recettes XL</th>
+                <th className="px-4 py-2 text-left">Ingrédients Foodflow (cocher les refs)</th>
                 <th className="px-4 py-2 text-right">Recettes</th>
                 <th className="px-4 py-2 text-center">Action</th>
               </tr>
@@ -305,7 +305,12 @@ export default function IngredientsPage() {
                   <td className="px-4 py-2 font-medium text-sm">{item.nomXLChoisi}</td>
                   <td className="px-4 py-2">
                     <div className="space-y-1 max-h-32 overflow-y-auto">
-                      {ingredients.sort((a,b) => a.nom.localeCompare(b.nom)).map(ing => (
+                      {ingredients.filter(ing => {
+                        const normalize = (s: string) => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^\w\s]/g, '').trim();
+                        const nomXL = normalize(item.nomXLChoisi);
+                        const nomIng = normalize(ing.nom);
+                        return item.ingredientIds.includes(ing.id) || nomIng.includes(nomXL) || nomXL.includes(nomIng.split(' ')[0]);
+                      }).sort((a,b) => a.nom.localeCompare(b.nom)).map(ing => (
                         <label key={ing.id} className="flex items-center gap-2 cursor-pointer hover:bg-yellow-50 px-1 py-0.5 rounded">
                           <input type="checkbox" className="accent-yellow-400"
                             checked={item.ingredientIds.includes(ing.id)}
