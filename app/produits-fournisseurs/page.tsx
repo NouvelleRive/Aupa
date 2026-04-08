@@ -547,7 +547,7 @@
                         {isEditing ? <input className="border border-yellow-200 rounded px-2 py-1 text-sm w-16 text-right" type="number" step="0.01" min="0.01" value={editInlineForm.nbKg} onChange={e => setEditInlineForm({ ...editInlineForm, nbKg: e.target.value })} /> : <>{(ing as any).nbKg && (ing as any).nbKg !== 1 ? (ing as any).nbKg : <span className="text-gray-300">1</span>}</>}
                     </td>
                     <td className="px-4 py-3 text-right font-semibold text-yellow-600">
-                        {(ing.prix / ((ing as any).nbKg || 1) / ing.rendement).toFixed(2)} €
+                        {(ing.prix / ((ing as any).nbKg || 1) / ing.rendement / ((ing as any).nbPieces || 1)).toFixed(2)} €
                     </td>
                     <td className="px-4 py-3 text-sm">
                         {(() => {
