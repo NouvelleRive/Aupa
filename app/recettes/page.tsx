@@ -547,8 +547,18 @@ export default function RecettesPage() {
             <div className="space-y-2">
               {lignes.map((ligne, i) => {
                 const ing = ingredients.find(x => x.id === ligne.id);
+                const prep = recettes.find(x => x.id === ligne.id) as any;
                 const grammage = parseFloat(ligne.grammage) || 0;
-                const coutLigne = ing ? (ing.prix / ing.rendement) * grammage : 0;
+                const coutLigne = ligne.type === 'ingredient' && ing
+                  ? (ing.prix / ing.rendement) / ((ing as any).nbPieces || 1) * grammage
+                  : ligne.type === 'preparation' && prep?.coutAuKg
+                  ? prep.coutAuKg * grammage
+                  : 0;
+                const prixLabel = ligne.type === 'ingredient' && ing
+                  ? `${((ing.prix / ing.rendement) / ((ing as any).nbPieces || 1)).toFixed(2)} €/${ing.unite}`
+                  : ligne.type === 'preparation' && prep?.coutAuKg
+                  ? `${prep.coutAuKg.toFixed(2)} €/kg`
+                  : null;
                 return (
                   <div key={i} className="flex gap-2 items-center">
                     <select className="border border-yellow-200 rounded-lg px-3 py-2 text-sm flex-1" value={ligne.id} onChange={e => { const n = [...lignes]; n[i].id = e.target.value; setLignes(n); }}>
@@ -558,7 +568,7 @@ export default function RecettesPage() {
                       }
                     </select>
                     <input className="border border-yellow-200 rounded-lg px-3 py-2 text-sm w-24" placeholder="Qté" type="number" value={ligne.grammage} onChange={e => { const n = [...lignes]; n[i].grammage = e.target.value; setLignes(n); }} />
-                    {ing && <span className="text-xs text-gray-400 w-20 text-right">{ing.prix.toFixed(2)} €/{ing.unite}</span>}
+                    {prixLabel && <span className="text-xs text-gray-400 w-20 text-right">{prixLabel}</span>}
                     {coutLigne > 0 && <span className="text-xs font-semibold text-yellow-600 w-16 text-right">{coutLigne.toFixed(3)} €</span>}
                     <button onClick={() => setLignes(lignes.filter((_, j) => j !== i))} className="text-gray-400 hover:text-yellow-500 text-sm">✕</button>
                   </div>
