@@ -183,12 +183,16 @@ export default function IngredientsPage() {
         }
         updated++;
       } else {
+        const uniteDetectee = detectUnite(derniere.nom);
+        const matchPieces = derniere.nom.match(/[xX](\d+)/);
+        const nbPieces = uniteDetectee === 'pièce' && matchPieces ? parseInt(matchPieces[1]) : 1;
         await addDoc(collection(db, 'ingredients'), {
           nom: derniere.nom,
           prix: derniere.prix,
-          unite: detectUnite(derniere.nom),
+          unite: uniteDetectee,
           categorie: detectCategorie(derniere.nom),
           rendement: 1,
+          nbPieces,
           foodflowCode: code,
           historiquesPrix: lignes.map(l => ({ date: l.date, prix: l.prix })),
           updatedAt: derniere.date,
@@ -406,7 +410,10 @@ export default function IngredientsPage() {
                   <td className="px-4 py-3 text-right">{ing.prix.toFixed(2)} €</td>
                   <td className="px-4 py-3 text-gray-500">{ing.unite}</td>
                   <td className="px-4 py-3 text-right">{Math.round(ing.rendement * 100)}%</td>
-                  <td className="px-4 py-3 text-right font-semibold text-yellow-600">{(ing.prix / ing.rendement).toFixed(2)} €</td>
+                  <td className="px-4 py-3 text-right font-semibold text-yellow-600">
+                    {((ing.prix / ing.rendement) / ((ing as any).nbPieces || 1)).toFixed(2)} €
+                    {(ing as any).nbPieces > 1 && <div className="text-xs text-gray-400 font-normal">{(ing as any).nbPieces} pièces</div>}
+                  </td>
                   <td className="px-4 py-3 text-sm">
                     {(() => {
                       const date = new Date(ing.updatedAt);
