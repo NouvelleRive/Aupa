@@ -5,6 +5,8 @@ import { collection, getDocs, addDoc, deleteDoc, doc, updateDoc } from 'firebase
 import { db } from '@/lib/firebase';
 import { Recette, Ingredient, Preparation, CategorieRecette, TypePlat } from '@/lib/types';
 import { CATEGORIES } from '@/lib/categories';
+import { INGREDIENTS } from '@/lib/ingredient';
+
 const TYPES_PLAT = ['food', 'boisson'] as const;
 interface ImportPreviewItem {
   nomOriginal: string;
@@ -319,7 +321,7 @@ export default function RecettesPage() {
     return lignes.reduce((total, ligne) => {
       const grammage = parseFloat(ligne.grammage) || 0;
       if (ligne.type === 'ingredient') {
-        const ing = ingredients.find(i => i.id === ligne.id);
+        const ing = ingredients.find(i => i.id === ligne.id || i.nom === ligne.id);
         if (!ing) return total;
         const prixUnitaire = (ing.prix / ing.rendement) / ((ing as any).nbPieces || 1);
         return total + prixUnitaire * grammage;
@@ -343,7 +345,7 @@ export default function RecettesPage() {
       type: form.type, actif: form.actif,
       prixVente: parseFloat((form as any).prixVente) || 0,
       ingredients: lignes.map(l => l.type === 'ingredient'
-        ? { ingredientId: l.id, grammage: parseFloat(l.grammage) }
+        ? { ingredientId: ingredients.find(i => i.nom === l.id)?.id || l.id, grammage: parseFloat(l.grammage) }
         : { recetteId: l.id, grammage: parseFloat(l.grammage) }
       ),
       options: [], coutCalcule: cout, updatedAt: new Date().toISOString(),
@@ -363,7 +365,7 @@ export default function RecettesPage() {
     setForm({ nom: r.nom, categorie: r.categorie, type: r.type || 'food', actif: r.actif, quantiteProduite: String((r as any).quantiteProduite || ''), uniteProduction: (r as any).uniteProduction || 'kg', prixVente: String(r.prixVente || '') } as any);
     setLignes((r.ingredients as any[]).filter(i => i.ingredientId || i.recetteId).map(i => 
       i.ingredientId 
-        ? { type: 'ingredient' as const, id: i.ingredientId, grammage: String(i.grammage) }
+        ? { type: 'ingredient' as const, id: ingredients.find(x => x.id === i.ingredientId)?.nom || i.ingredientId, grammage: String(i.grammage) }
         : { type: 'preparation' as const, id: i.recetteId, grammage: String(i.grammage) }
     ));
     setNomIngredients((r.ingredients as any[]).filter(i => i.nomIngredient).map(i => ({ nom: i.nomIngredient, grammage: i.grammage, unite: i.unite || 'kg' })));
@@ -548,7 +550,7 @@ export default function RecettesPage() {
             </div>
             <div className="space-y-2">
               {lignes.map((ligne, i) => {
-                const ing = ingredients.find(x => x.id === ligne.id);
+                const ing = ingredients.find(x => x.id === ligne.id || x.nom === ligne.id);
                 const prep = recettes.find(x => x.id === ligne.id) as any;
                 const grammage = parseFloat(ligne.grammage) || 0;
                 const coutLigne = ligne.type === 'ingredient' && ing
@@ -565,7 +567,7 @@ export default function RecettesPage() {
                   <div key={i} className="flex gap-2 items-center">
                     <select className="border border-yellow-200 rounded-lg px-3 py-2 text-sm flex-1" value={ligne.id} onChange={e => { const n = [...lignes]; n[i].id = e.target.value; n[i].type = recettes.find(r => r.id === e.target.value) ? 'preparation' : 'ingredient'; setLignes(n); }}>
                       <optgroup label="Ingrédients">
-                        {ingredients.sort((a, b) => a.nom.localeCompare(b.nom)).map(ing => <option key={ing.id} value={ing.id}>{ing.nom} ({ing.unite})</option>)}
+                        {INGREDIENTS.map(nom => <option key={nom} value={nom}>{nom}</option>)}
                       </optgroup>
                       <optgroup label="Préparations">
                         {recettes.filter(r => r.categorie === 'Préparations').sort((a, b) => a.nom.localeCompare(b.nom)).map(p => <option key={p.id} value={p.id}>{p.nom}</option>)}
