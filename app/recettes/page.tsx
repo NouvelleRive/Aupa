@@ -377,13 +377,34 @@ export default function RecettesPage() {
   const handleEdit = (r: Recette) => {
     setEditId(r.id);
     setForm({ nom: r.nom, categorie: r.categorie, type: r.type || 'food', actif: r.actif, quantiteProduite: String((r as any).quantiteProduite || ''), uniteProduction: (r as any).uniteProduction || 'kg', prixVente: String(r.prixVente || '') } as any);
-    setLignes((r.ingredients as any[]).filter(i => i.ingredientId || i.recetteId || i.nomIngredient).map(i => {
-      if (i.recetteId) return { type: 'preparation' as const, id: i.recetteId, grammage: String(i.grammage) };
-      // Chercher l'ingrédient canonique par nomIngredient
-      const canonique = ingredients.find(x => x.nom === i.nomIngredient);
-      return { type: 'ingredient' as const, id: canonique?.id || '', grammage: String(i.grammage) };
-    }));
-    setNomIngredients((r.ingredients as any[]).filter(i => i.nomIngredient).map(i => ({ nom: i.nomIngredient, grammage: i.grammage, unite: i.unite || 'kg' })));
+    const resolvedLignes: typeof lignes = [];
+    const unresolvedNoms: typeof nomIngredients = [];
+    for (const i of (r.ingredients as any[])) {
+      if (i.recetteId) {
+        resolvedLignes.push({ type: 'preparation', id: i.recetteId, grammage: String(i.grammage) });
+        continue;
+      }
+      if (i.ingredientId && ingredients.find(x => x.id === i.ingredientId)) {
+        resolvedLignes.push({ type: 'ingredient', id: i.ingredientId, grammage: String(i.grammage) });
+        continue;
+      }
+      if (i.nomIngredient) {
+        // Chercher d'abord dans les préparations (recettes), puis dans les ingrédients canoniques
+        const prep = recettes.find(x => x.categorie === 'Préparations' && x.nom === i.nomIngredient);
+        if (prep) {
+          resolvedLignes.push({ type: 'preparation', id: prep.id, grammage: String(i.grammage) });
+          continue;
+        }
+        const canonique = ingredients.find(x => x.nom === i.nomIngredient);
+        if (canonique) {
+          resolvedLignes.push({ type: 'ingredient', id: canonique.id, grammage: String(i.grammage) });
+          continue;
+        }
+        unresolvedNoms.push({ nom: i.nomIngredient, grammage: i.grammage, unite: i.unite || 'kg' });
+      }
+    }
+    setLignes(resolvedLignes);
+    setNomIngredients(unresolvedNoms);
     setShowForm(true);
     window.scrollTo(0, 0);
   };
