@@ -89,7 +89,7 @@ export default function RecettesPage() {
   const [nomIngredients, setNomIngredients] = useState<{nom: string, grammage: number, unite: string}[]>([]);
   const [importPreview, setImportPreview] = useState<ImportPreviewItem[]>([]);
   const [showImportPreview, setShowImportPreview] = useState(false);
-  const [searchIngredient, setSearchIngredient] = useState('');
+  const [searchIngredients, setSearchIngredients] = useState<Record<number, string>>({});
 
   const fetchAll = async () => {
     const [rSnap, iSnap, pSnap] = await Promise.all([
@@ -553,11 +553,11 @@ export default function RecettesPage() {
                   <div key={i} className="flex gap-2 items-center">
                     <div className="flex-1 flex flex-col gap-1">
                       {ligne.type === 'ingredient' && (
-                        <input className="border border-yellow-100 rounded-lg px-2 py-1 text-xs focus:outline-none focus:border-yellow-300" placeholder="Rechercher..." value={searchIngredient} onChange={e => setSearchIngredient(e.target.value)} />
+                        <input className="border border-yellow-100 rounded-lg px-2 py-1 text-xs focus:outline-none focus:border-yellow-300" placeholder="Rechercher..." value={searchIngredients[i] || ''} onChange={e => setSearchIngredients(prev => ({ ...prev, [i]: e.target.value }))} />
                       )}
                       <select className="border border-yellow-200 rounded-lg px-3 py-2 text-sm w-full" value={ligne.id} onChange={e => { const n = [...lignes]; n[i].id = e.target.value; setLignes(n); }}>
                         {ligne.type === 'ingredient'
-                          ? ingredients.filter(ing => ing.nom.toLowerCase().includes(searchIngredient.toLowerCase())).sort((a, b) => a.nom.localeCompare(b.nom)).map(ing => <option key={ing.id} value={ing.id}>{ing.nom} ({ing.unite})</option>)
+                          ? ingredients.filter(ing => ing.nom.toLowerCase().includes((searchIngredients[i] || '').toLowerCase())).sort((a, b) => a.nom.localeCompare(b.nom)).map(ing => <option key={ing.id} value={ing.id}>{ing.nom} ({ing.unite})</option>)
                           : recettes.filter(r => r.categorie === 'Préparations').sort((a, b) => a.nom.localeCompare(b.nom)).map(p => <option key={p.id} value={p.id}>{p.nom}</option>)
                         }
                       </select>
