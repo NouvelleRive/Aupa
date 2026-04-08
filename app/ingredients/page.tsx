@@ -46,7 +46,7 @@ export default function IngredientsPage() {
   const [histoId, setHistoId] = useState<string | null>(null);
   const [showMatching, setShowMatching] = useState(false);
   const [matchingItems, setMatchingItems] = useState<{
-    ingredientId: string;
+    ingredientIds: string[];
     ingredientNom: string;
     nomXLChoisi: string;
     recetteIds: string[];
@@ -77,17 +77,24 @@ export default function IngredientsPage() {
     setNomsXLMap(map);
     const normalize = (s: string) => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^\w\s]/g, '').trim();
     const nomsXL = Array.from(map.keys());
-    const items = ingredients.map(ing => {
+    // Grouper par nomXL : un nomXL → plusieurs ingredientIds possibles
+    const nomXLToItems = new Map<string, { ingredientIds: string[]; ingredientNom: string }>();
+    for (const ing of ingredients) {
       const match = nomsXL.find(nom => normalize(ing.nom).includes(normalize(nom)) || normalize(nom).includes(normalize(ing.nom.split(' ')[0])));
+      if (!match) continue;
+      if (!nomXLToItems.has(match)) nomXLToItems.set(match, { ingredientIds: [], ingredientNom: match });
+      nomXLToItems.get(match)!.ingredientIds.push(ing.id);
+    }
+    const items = Array.from(map.entries()).map(([nomXL, recetteIds]) => {
+      const existing = nomXLToItems.get(nomXL);
       return {
-        ingredientId: ing.id,
-        ingredientNom: ing.nom,
-        nomXLChoisi: match || '',
-        nomsXLDisponibles: nomsXL,
-        recetteIds: match ? (map.get(match) || []) : [],
+        ingredientIds: existing?.ingredientIds || [],
+        ingredientNom: nomXL,
+        nomXLChoisi: nomXL,
+        recetteIds,
         done: false,
       };
-    }).filter(item => item.recetteIds.length > 0);
+    });
     setMatchingItems(items);
     setShowMatching(true);
   };
@@ -295,24 +302,30 @@ export default function IngredientsPage() {
             <tbody className="divide-y divide-yellow-50">
               {matchingItems.map((item, idx) => (
                 <tr key={idx} className={`transition-colors ${item.done ? 'bg-green-50 opacity-60' : item.nomXLChoisi ? 'bg-yellow-50' : 'bg-white'}`}>
-                  <td className="px-4 py-2 font-medium text-sm">{item.ingredientNom}</td>
+                  <td className="px-4 py-2 font-medium text-sm">{item.nomXLChoisi}</td>
                   <td className="px-4 py-2">
-                    <select className="border border-gray-200 rounded-lg px-2 py-1 text-xs w-full"
-                      value={item.nomXLChoisi}
-                      onChange={e => {
-                        const n = [...matchingItems];
-                        const nomChoisi = e.target.value;
-                        n[idx] = { ...n[idx], nomXLChoisi: nomChoisi, recetteIds: nomsXLMap.get(nomChoisi) || [] };
-                        setMatchingItems(n);
-                      }}>
-                      <option value="">— Non lié —</option>
-                      {Array.from(nomsXLMap.keys()).sort().map(nom => <option key={nom} value={nom}>{nom}</option>)}
-                    </select>
+                    <div className="space-y-1 max-h-32 overflow-y-auto">
+                      {ingredients.sort((a,b) => a.nom.localeCompare(b.nom)).map(ing => (
+                        <label key={ing.id} className="flex items-center gap-2 cursor-pointer hover:bg-yellow-50 px-1 py-0.5 rounded">
+                          <input type="checkbox" className="accent-yellow-400"
+                            checked={item.ingredientIds.includes(ing.id)}
+                            onChange={e => {
+                              const n = [...matchingItems];
+                              const ids = e.target.checked
+                                ? [...n[idx].ingredientIds, ing.id]
+                                : n[idx].ingredientIds.filter(id => id !== ing.id);
+                              n[idx] = { ...n[idx], ingredientIds: ids };
+                              setMatchingItems(n);
+                            }} />
+                          <span className="text-xs">{ing.nom}</span>
+                        </label>
+                      ))}
+                    </div>
                   </td>
                   <td className="px-4 py-2 text-right text-gray-400 text-xs">{item.recetteIds.length} recette{item.recetteIds.length > 1 ? 's' : ''}</td>
                   <td className="px-4 py-2 text-center">
-                    <button disabled={!item.nomXLChoisi || item.done} onClick={async () => {
-                      if (!item.nomXLChoisi || item.done) return;
+                    <button disabled={item.ingredientIds.length === 0 || item.done} onClick={async () => {
+                      if (!item.nomXLChoisi || item.ingredientIds.length === 0 || item.done) return;
                       const recSnap = await getDocs(collection(db, 'recettes'));
                       for (const recDoc of recSnap.docs) {
                         const data = recDoc.data();
@@ -320,7 +333,7 @@ export default function IngredientsPage() {
                         const hasMatch = ings.some((i: any) => i.nomIngredient === item.nomXLChoisi);
                         if (!hasMatch) continue;
                         const newIngs = ings.map((i: any) => i.nomIngredient === item.nomXLChoisi
-                          ? { ingredientId: item.ingredientId, grammage: i.grammage }
+                          ? { ingredientIds: item.ingredientIds, grammage: i.grammage }
                           : i);
                         await updateDoc(doc(db, 'recettes', recDoc.id), { ingredients: newIngs });
                       }
