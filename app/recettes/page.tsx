@@ -223,12 +223,15 @@ export default function RecettesPage() {
           if (typeof colA === 'string' && colA.trim() && (colB === null || colB === undefined)) {
             // Sauvegarder la prépa précédente
             if (currentNom && currentIngs.length > 0) {
-              await addDoc(collection(db, 'recettes'), {
-                nom: currentNom, categorie: 'Préparations', type: 'food', actif: true,
-                ingredients: currentIngs, options: [], coutCalcule: 0,
-                updatedAt: new Date().toISOString(),
-              });
-              created++;
+              const existeDeja = recettes.find(r => r.nom.toLowerCase().trim() === currentNom!.toLowerCase().trim());
+              if (!existeDeja) {
+                await addDoc(collection(db, 'recettes'), {
+                  nom: currentNom, categorie: 'Préparations', type: 'food', actif: true,
+                  ingredients: currentIngs, options: [], coutCalcule: 0,
+                  updatedAt: new Date().toISOString(),
+                });
+                created++;
+              }
             }
             currentNom = colA.trim();
             currentIngs = [];
@@ -241,12 +244,15 @@ export default function RecettesPage() {
           }
         }
         if (currentNom && currentIngs.length > 0) {
-          await addDoc(collection(db, 'recettes'), {
-            nom: currentNom, categorie: 'Préparations', type: 'food', actif: true,
-            ingredients: currentIngs, options: [], coutCalcule: 0,
-            updatedAt: new Date().toISOString(),
-          });
-          created++;
+          const existeDeja = recettes.find(r => r.nom.toLowerCase().trim() === currentNom!.toLowerCase().trim());
+          if (!existeDeja) {
+            await addDoc(collection(db, 'recettes'), {
+              nom: currentNom, categorie: 'Préparations', type: 'food', actif: true,
+              ingredients: currentIngs, options: [], coutCalcule: 0,
+              updatedAt: new Date().toISOString(),
+            });
+            created++;
+          }
         }
         continue;
       }
@@ -273,6 +279,8 @@ export default function RecettesPage() {
           const unite = rows2[r][2];
           lignesRecette.push({ nomIngredient: nomIng.trim(), grammage, unite: typeof unite === 'string' ? unite.trim() : 'kg' });
         }
+        const existeDeja = recettes.find(r => r.nom.toLowerCase().trim() === plat.nom.toLowerCase().trim());
+        if (existeDeja) continue;
         await addDoc(collection(db, 'recettes'), {
           nom: plat.nom, categorie: cat, type: 'food', actif: true,
           ingredients: lignesRecette, options: [], coutCalcule: 0,
