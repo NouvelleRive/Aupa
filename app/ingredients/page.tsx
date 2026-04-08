@@ -310,18 +310,18 @@
         <div className="max-w-6xl mx-auto">
             <div className="flex items-center justify-between mb-6">
             <div>
-                <h1 className="text-2xl font-bold">Matching ingrédients ↔ recettes</h1>
+                <h1 className="text-2xl font-bold">Matching produits fournisseur ↔ ingrédients</h1>
                 <p className="text-sm text-gray-400 mt-1">{total} à matcher · {done} validés</p>
             </div>
             <button onClick={() => setShowMatching(false)} className="border border-gray-200 text-gray-600 hover:bg-gray-50 font-semibold rounded-lg px-4 py-2 text-sm">Fermer</button>
             </div>
-            <input className="border border-yellow-200 rounded-lg px-3 py-2 text-sm mb-4 w-64 focus:outline-none focus:border-yellow-400" placeholder="Rechercher ingrédient Foodflow..." value={searchMatch} onChange={e => setSearchMatch(e.target.value)} />
+            <input className="border border-yellow-200 rounded-lg px-3 py-2 text-sm mb-4 w-64 focus:outline-none focus:border-yellow-400" placeholder="Rechercher produit fournisseur..." value={searchMatch} onChange={e => setSearchMatch(e.target.value)} />
             <div className="bg-white rounded-xl border border-yellow-100 overflow-hidden">
             <table className="w-full text-sm">
                 <thead className="bg-yellow-50 text-gray-500 text-xs uppercase">
                 <tr>
-                    <th className="px-4 py-2 text-left">Ingrédient Foodflow</th>
-                    <th className="px-4 py-2 text-left">Nom dans recettes XL</th>
+                    <th className="px-4 py-2 text-left">Produit fournisseur</th>
+                    <th className="px-4 py-2 text-left">Ingrédient</th>
                     <th className="px-4 py-2 text-right">Recettes</th>
                     <th className="px-4 py-2 text-center">Action</th>
                 </tr>
