@@ -51,7 +51,7 @@ const SHEET_TO_CAT: Record<string, CategorieRecette> = {
   'Softs maison chaud': 'Le Chaud', 'Softs maison froid': 'Les Iced', 'Sodas': 'Les Sodas',
 };
 
-const emptyForm = { nom: '', categorie: 'Croger' as CategorieRecette, type: 'food' as TypePlat, actif: true };
+const emptyForm = { nom: '', categorie: 'Croger' as CategorieRecette, type: 'food' as TypePlat, actif: true, quantiteProduite: '', uniteProduction: 'kg' };
 
 export default function RecettesPage() {
   const [recettes, setRecettes] = useState<Recette[]>([]);
@@ -59,7 +59,7 @@ export default function RecettesPage() {
   const [preparations, setPreparations] = useState<Preparation[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState(emptyForm);
+  const [form, setForm] = useState<typeof emptyForm>(emptyForm);
   const [lignes, setLignes] = useState<{ type: 'ingredient' | 'preparation'; id: string; grammage: string }[]>([]);
   const [editId, setEditId] = useState<string | null>(null);
   const [filterCat, setFilterCat] = useState<string>('all');
@@ -313,12 +313,19 @@ export default function RecettesPage() {
   const handleSubmit = async () => {
     if (!form.nom) return;
     const cout = calculerCout();
-    const data = {
+    const quantiteProduite = parseFloat(form.quantiteProduite) || 0;
+    const coutAuKg = quantiteProduite > 0 ? cout / quantiteProduite : 0;
+    const data: any = {
       nom: form.nom, categorie: form.categorie,
       type: form.type, actif: form.actif,
       ingredients: lignes.filter(l => l.type === 'ingredient').map(l => ({ ingredientId: l.id, grammage: parseFloat(l.grammage) })),
       options: [], coutCalcule: cout, updatedAt: new Date().toISOString(),
     };
+    if (form.categorie === 'Préparations' && quantiteProduite > 0) {
+      data.quantiteProduite = quantiteProduite;
+      data.uniteProduction = form.uniteProduction;
+      data.coutAuKg = coutAuKg;
+    }
     if (editId) { await updateDoc(doc(db, 'recettes', editId), data); setEditId(null); }
     else { await addDoc(collection(db, 'recettes'), data); }
     setForm(emptyForm); setLignes([]); setShowForm(false); fetchAll();
@@ -326,7 +333,7 @@ export default function RecettesPage() {
 
   const handleEdit = (r: Recette) => {
     setEditId(r.id);
-    setForm({ nom: r.nom, categorie: r.categorie, type: r.type || 'food', actif: r.actif });
+    setForm({ nom: r.nom, categorie: r.categorie, type: r.type || 'food', actif: r.actif, quantiteProduite: String((r as any).quantiteProduite || ''), uniteProduction: (r as any).uniteProduction || 'kg' });
     setLignes(r.ingredients.filter(i => i.ingredientId).map(i => ({ type: 'ingredient' as const, id: i.ingredientId!, grammage: String(i.grammage) })));
     setNomIngredients((r.ingredients as any[]).filter(i => i.nomIngredient).map(i => ({ nom: i.nomIngredient, grammage: i.grammage, unite: i.unite || 'kg' })));
     setShowForm(true);
@@ -482,6 +489,22 @@ export default function RecettesPage() {
             ))}
           </div>
 
+          {form.categorie === 'Préparations' && (
+            <div className="flex gap-3 mb-4 items-center">
+              <span className="text-sm text-gray-600">Quantité produite :</span>
+              <input className="border border-yellow-200 rounded-lg px-3 py-2 text-sm w-24" type="number" placeholder="ex: 4" value={form.quantiteProduite} onChange={e => setForm(f => ({ ...f, quantiteProduite: e.target.value }))} />
+              <select className="border border-yellow-200 rounded-lg px-3 py-2 text-sm" value={form.uniteProduction} onChange={e => setForm(f => ({ ...f, uniteProduction: e.target.value }))}>
+                <option value="kg">kg</option>
+                <option value="L">L</option>
+                <option value="pièce">pièce</option>
+                <option value="portion">portion</option>
+              </select>
+              {form.quantiteProduite && coutPreview > 0 && (
+                <span className="text-sm text-yellow-600 font-semibold">{(coutPreview / parseFloat(form.quantiteProduite)).toFixed(2)} €/{form.uniteProduction}</span>
+              )}
+            </div>
+          )}
+
           <div className="mb-4">
             <div className="flex items-center justify-between mb-2">
               <span className="text-sm font-medium text-gray-700">Ingrédients & Préparations</span>
@@ -604,10 +627,17 @@ export default function RecettesPage() {
                   </td>
                   {(() => {
                     const cout = (r.ingredients || []).reduce((total: number, i: any) => {
-                      if (!i.ingredientId) return total;
-                      const ing = ingredients.find(x => x.id === i.ingredientId);
-                      if (!ing) return total;
-                      return total + (ing.prix / ing.rendement) * i.grammage;
+                      if (i.ingredientId) {
+                        const ing = ingredients.find(x => x.id === i.ingredientId);
+                        if (!ing) return total;
+                        return total + (ing.prix / ing.rendement) * i.grammage;
+                      }
+                      if (i.recetteId) {
+                        const prep = recettes.find(x => x.id === i.recetteId) as any;
+                        if (!prep || !prep.coutAuKg) return total;
+                        return total + prep.coutAuKg * i.grammage;
+                      }
+                      return total;
                     }, 0);
                     const ht = r.prixVente ? r.prixVente / 1.1 : 0;
                     const fc = cout > 0 && ht > 0 ? cout / ht * 100 : 0;
