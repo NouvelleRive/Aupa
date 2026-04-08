@@ -4,7 +4,7 @@
     import { collection, getDocs, deleteDoc, doc, addDoc, updateDoc } from 'firebase/firestore';
     import { db } from '@/lib/firebase';
     import { Ingredient, Unite, Categorie } from '@/lib/types';
-    import { INGREDIENTS } from '@/lib/ingredients';
+    import { INGREDIENTS } from '@/lib/ingredient';
 
     const UNITES: Unite[] = ['kg', 'g', 'L', 'cL', 'pièce', 'lot'];
     const CATEGORIES: Categorie[] = ['viande', 'poisson', 'légume', 'fruit', 'laitage', 'épicerie', 'boisson', 'autre'];
