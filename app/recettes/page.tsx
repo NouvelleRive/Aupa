@@ -24,6 +24,7 @@ const POPINA_FOOD_CAT: Record<string, CategorieRecette> = {
   'Side': 'Sides', 'Entrees ': 'Entrées', 'Entrees': 'Entrées',
   'Grignotte': 'Grignotage', 'Saisonnier': 'Croger',
   'Tous': 'Desserts', 'Desserts': 'Desserts',
+  'Salade': 'Salade', 'Salades': 'Salade',
 };
 
 const POPINA_FAMILLE_FOOD: Record<string, CategorieRecette> = {
@@ -337,6 +338,7 @@ export default function RecettesPage() {
     const data: any = {
       nom: form.nom, categorie: form.categorie,
       type: form.type, actif: form.actif,
+      prixVente: parseFloat((form as any).prixVente) || 0,
       ingredients: lignes.filter(l => l.type === 'ingredient').map(l => ({ ingredientId: l.id, grammage: parseFloat(l.grammage) })),
       options: [], coutCalcule: cout, updatedAt: new Date().toISOString(),
     };
@@ -352,7 +354,7 @@ export default function RecettesPage() {
 
   const handleEdit = (r: Recette) => {
     setEditId(r.id);
-    setForm({ nom: r.nom, categorie: r.categorie, type: r.type || 'food', actif: r.actif, quantiteProduite: String((r as any).quantiteProduite || ''), uniteProduction: (r as any).uniteProduction || 'kg' });
+    setForm({ nom: r.nom, categorie: r.categorie, type: r.type || 'food', actif: r.actif, quantiteProduite: String((r as any).quantiteProduite || ''), uniteProduction: (r as any).uniteProduction || 'kg', prixVente: String(r.prixVente || '') } as any);
     setLignes(r.ingredients.filter(i => i.ingredientId).map(i => ({ type: 'ingredient' as const, id: i.ingredientId!, grammage: String(i.grammage) })));
     setNomIngredients((r.ingredients as any[]).filter(i => i.nomIngredient).map(i => ({ nom: i.nomIngredient, grammage: i.grammage, unite: i.unite || 'kg' })));
     setShowForm(true);
@@ -487,11 +489,15 @@ export default function RecettesPage() {
       {showForm && (
         <div className="bg-white rounded-xl border border-yellow-100 p-6 mb-6">
           <h2 className="font-semibold text-gray-700 mb-4">{editId ? 'Modifier la recette' : 'Nouvelle recette'}</h2>
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
             <input className="border border-yellow-200 focus:border-yellow-400 focus:outline-none rounded-lg px-3 py-2 text-sm col-span-2" placeholder="Nom de la recette" value={form.nom} onChange={e => setForm({ ...form, nom: e.target.value })} />
             <select className="border border-yellow-200 focus:border-yellow-400 focus:outline-none rounded-lg px-3 py-2 text-sm" value={form.categorie} onChange={e => setForm({ ...form, categorie: e.target.value as CategorieRecette })}>
               {CATEGORIES.map(c => <option key={c}>{c}</option>)}
             </select>
+            <div className="flex items-center gap-1">
+              <input className="border border-yellow-200 focus:border-yellow-400 focus:outline-none rounded-lg px-3 py-2 text-sm w-full" placeholder="Prix TTC" type="number" value={(form as any).prixVente || ''} onChange={e => setForm({ ...form, prixVente: e.target.value } as any)} />
+              {(form as any).prixVente && <span className="text-xs text-gray-400 whitespace-nowrap">{(parseFloat((form as any).prixVente) / 1.1).toFixed(2)} HT</span>}
+            </div>
           </div>
 
           <div className="flex gap-2 mb-4">
