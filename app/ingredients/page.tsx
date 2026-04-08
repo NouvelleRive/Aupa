@@ -54,7 +54,6 @@ export default function IngredientsPage() {
     done: boolean;
   }[]>([]);
   const [nomsXLMap, setNomsXLMap] = useState<Map<string, string[]>>(new Map());
-
   const [nomsXLParIngredient, setNomsXLParIngredient] = useState<Record<string, string>>({});
 
   const fetchIngredients = async () => {
