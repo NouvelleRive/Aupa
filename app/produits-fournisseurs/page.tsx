@@ -39,12 +39,13 @@
     const [search, setSearch] = useState('');
     const [showForm, setShowForm] = useState(false);
     const [form, setForm] = useState(emptyForm);
-    const [editId, setEditId] = useState<string | null>(null);
     const [importing, setImporting] = useState(false);
     const [importProgress, setImportProgress] = useState('');
     const fileRef = useRef<HTMLInputElement>(null);
     const pdfRef = useRef<HTMLInputElement>(null);
     const [histoId, setHistoId] = useState<string | null>(null);
+    const [editInlineId, setEditInlineId] = useState<string | null>(null);
+    const [editInlineForm, setEditInlineForm] = useState({ nom: '', prix: '', unite: 'kg' as Unite, categorie: 'épicerie' as Categorie, rendement: '100', nbPieces: '1' });
     const [showMatching, setShowMatching] = useState(false);
     const [searchMatch, setSearchMatch] = useState('');
     const [matchingItems, setMatchingItems] = useState<{
@@ -297,17 +298,27 @@
         if (!form.nom || !form.prix) return;
         const nbPieces = parseInt((form as any).nbPieces) || 1;
         const data: any = { nom: form.nom, prix: parseFloat(form.prix), unite: form.unite, categorie: form.categorie, rendement: parseFloat(form.rendement) / 100, nbPieces, historiquesPrix: [{ date: new Date().toISOString(), prix: parseFloat(form.prix) }], updatedAt: new Date().toISOString() };
-        if (editId) { await updateDoc(doc(db, 'produitsFournisseurs', editId), data); setEditId(null); }
-        else { await addDoc(collection(db, 'produitsFournisseurs'), data); }
+        await addDoc(collection(db, 'produitsFournisseurs'), data);
         setForm(emptyForm); setShowForm(false); fetchIngredients();
     };
 
     const handleEdit = (ing: ProduitFournisseur) => {
-        setEditId(ing.id);
         const matchPieces = ing.nom.match(/[xX](\d+)/);
         const nbPieces = (ing as any).nbPieces || (matchPieces ? parseInt(matchPieces[1]) : 1);
-        setForm({ nom: ing.nom, prix: String(ing.prix), unite: ing.unite, categorie: ing.categorie, rendement: String(Math.round(ing.rendement * 100)), nbPieces: String(nbPieces) } as any);
-        setShowForm(true);
+        setEditInlineId(ing.id);
+        setEditInlineForm({ nom: ing.nom, prix: String(ing.prix), unite: ing.unite, categorie: ing.categorie, rendement: String(Math.round(ing.rendement * 100)), nbPieces: String(nbPieces) });
+    };
+
+    const handleSaveInline = async () => {
+        if (!editInlineId || !editInlineForm.nom || !editInlineForm.prix) return;
+        const nbPieces = parseInt(editInlineForm.nbPieces) || 1;
+        await updateDoc(doc(db, 'produitsFournisseurs', editInlineId), {
+            nom: editInlineForm.nom, prix: parseFloat(editInlineForm.prix), unite: editInlineForm.unite,
+            categorie: editInlineForm.categorie, rendement: parseFloat(editInlineForm.rendement) / 100,
+            nbPieces, updatedAt: new Date().toISOString(),
+        });
+        setEditInlineId(null);
+        fetchIngredients();
     };
 
     const [filterCategorie, setFilterCategorie] = useState<string>('all');
@@ -412,7 +423,7 @@
         <div className="flex items-center justify-between mb-6">
             <h1 className="text-2xl font-bold">Produits fournisseur</h1>
             <div className="flex gap-3">
-            <button onClick={() => { setShowForm(!showForm); setEditId(null); setForm(emptyForm); }} className="border border-gray-200 text-gray-600 hover:bg-gray-50 font-semibold rounded-lg px-4 py-2 text-sm">
+            <button onClick={() => { setShowForm(!showForm); setForm(emptyForm); }} className="border border-gray-200 text-gray-600 hover:bg-gray-50 font-semibold rounded-lg px-4 py-2 text-sm">
                 + Ajouter manuellement
             </button>
             <button onClick={() => pdfRef.current?.click()} disabled={importing} className="border border-gray-200 text-gray-600 hover:bg-gray-50 font-semibold rounded-lg px-4 py-2 text-sm">
@@ -431,7 +442,7 @@
 
         {showForm && (
             <div className="bg-white rounded-xl border border-yellow-100 p-6 mb-6">
-            <h2 className="font-semibold text-gray-700 mb-4">{editId ? 'Modifier' : 'Nouvel ingrédient'}</h2>
+            <h2 className="font-semibold text-gray-700 mb-4">Nouvel ingrédient</h2>
             <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
                 <input className="border border-yellow-200 focus:border-yellow-400 focus:outline-none rounded-lg px-3 py-2 text-sm col-span-2" placeholder="Nom" value={form.nom} onChange={e => setForm({ ...form, nom: e.target.value })} />
                 <input className="border border-yellow-200 focus:border-yellow-400 focus:outline-none rounded-lg px-3 py-2 text-sm" placeholder="Prix (€)" type="number" value={form.prix} onChange={e => setForm({ ...form, prix: e.target.value })} />
@@ -449,8 +460,8 @@
                 <span className="text-sm text-gray-400">×</span>
                 <input className="border border-yellow-200 focus:border-yellow-400 focus:outline-none rounded-lg px-3 py-2 text-sm w-20" placeholder="Nb pièces" type="number" min="1" value={(form as any).nbPieces || ''} onChange={e => setForm({ ...form, nbPieces: e.target.value } as any)} title="Nombre de pièces dans le colis (ex: 90 pour x90)" />
                 </div>
-                <button onClick={handleSubmit} className="bg-yellow-400 hover:bg-yellow-500 text-black font-semibold rounded-lg px-4 py-2 text-sm">{editId ? 'Enregistrer' : 'Ajouter'}</button>
-                <button onClick={() => { setShowForm(false); setEditId(null); setForm(emptyForm); }} className="border border-gray-200 rounded-lg px-4 py-2 text-sm text-gray-500 hover:bg-gray-50">Annuler</button>
+                <button onClick={handleSubmit} className="bg-yellow-400 hover:bg-yellow-500 text-black font-semibold rounded-lg px-4 py-2 text-sm">Ajouter</button>
+                <button onClick={() => { setShowForm(false); setForm(emptyForm); }} className="border border-gray-200 rounded-lg px-4 py-2 text-sm text-gray-500 hover:bg-gray-50">Annuler</button>
             </div>
             </div>
         )}
@@ -479,10 +490,16 @@
                 </tr>
                 </thead>
                 <tbody className="divide-y divide-yellow-50">
-                {filtered.map(ing => (
-                    <tr key={ing.id} className="hover:bg-yellow-50 transition-colors">
-                    <td className="px-4 py-3 font-medium">{ing.nom}</td>
-                    <td className="px-4 py-3 text-gray-500">{ing.categorie}</td>
+                {filtered.map(ing => {
+                    const isEditing = editInlineId === ing.id;
+                    return (
+                    <tr key={ing.id} className={`transition-colors ${isEditing ? 'bg-yellow-50' : 'hover:bg-yellow-50'}`}>
+                    <td className="px-4 py-3 font-medium">
+                        {isEditing ? <input className="border border-yellow-200 rounded px-2 py-1 text-sm w-full" value={editInlineForm.nom} onChange={e => setEditInlineForm({ ...editInlineForm, nom: e.target.value })} /> : ing.nom}
+                    </td>
+                    <td className="px-4 py-3 text-gray-500">
+                        {isEditing ? <select className="border border-yellow-200 rounded px-2 py-1 text-sm" value={editInlineForm.categorie} onChange={e => setEditInlineForm({ ...editInlineForm, categorie: e.target.value as Categorie })}>{CATEGORIES.map(c => <option key={c}>{c}</option>)}</select> : ing.categorie}
+                    </td>
                     <td className="px-4 py-3 text-xs">
                       <select className="border border-gray-200 rounded px-2 py-1 text-xs w-full max-w-[160px]"
                         value={ingredientParProduit[ing.id] || ''}
@@ -510,9 +527,15 @@
                         {Array.from(ingredientsMap.keys()).sort().map(nom => <option key={nom} value={nom}>{nom}</option>)}
                       </select>
                     </td>
-                    <td className="px-4 py-3 text-right">{ing.prix.toFixed(2)} €</td>
-                    <td className="px-4 py-3 text-gray-500">{ing.unite}</td>
-                    <td className="px-4 py-3 text-right">{Math.round(ing.rendement * 100)}%</td>
+                    <td className="px-4 py-3 text-right">
+                        {isEditing ? <input className="border border-yellow-200 rounded px-2 py-1 text-sm w-20 text-right" type="number" value={editInlineForm.prix} onChange={e => setEditInlineForm({ ...editInlineForm, prix: e.target.value })} /> : <>{ing.prix.toFixed(2)} €</>}
+                    </td>
+                    <td className="px-4 py-3 text-gray-500">
+                        {isEditing ? <select className="border border-yellow-200 rounded px-2 py-1 text-sm" value={editInlineForm.unite} onChange={e => setEditInlineForm({ ...editInlineForm, unite: e.target.value as Unite })}>{UNITES.map(u => <option key={u}>{u}</option>)}</select> : ing.unite}
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                        {isEditing ? <div className="flex items-center justify-end gap-1"><input className="border border-yellow-200 rounded px-2 py-1 text-sm w-16 text-right" type="number" min="1" max="100" value={editInlineForm.rendement} onChange={e => setEditInlineForm({ ...editInlineForm, rendement: e.target.value })} /><span className="text-xs text-gray-400">%</span></div> : <>{Math.round(ing.rendement * 100)}%</>}
+                    </td>
                     <td className="px-4 py-3 text-right font-semibold text-yellow-600">
                         {((ing.prix / ing.rendement) / ((ing as any).nbPieces || 1)).toFixed(2)} €
                         {(ing as any).nbPieces > 1 && <div className="text-xs text-gray-400 font-normal">{(ing as any).nbPieces} pièces</div>}
@@ -527,7 +550,7 @@
                     </td>
                     <td className="px-4 py-3 text-right whitespace-nowrap">
                         <div className="flex items-center justify-end gap-2">
-                        {(() => {
+                        {!isEditing && (() => {
                         const hist = (ing.historiquesPrix || []).slice().sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime());
                         const last = hist[hist.length - 1];
                         const prev = hist[hist.length - 2];
@@ -540,12 +563,22 @@
                             </button>
                         ) : null;
                         })()}
-                        <button onClick={() => handleEdit(ing)} className="text-gray-400 hover:text-yellow-500" title="Modifier">✏️</button>
-                        <button onClick={() => handleDelete(ing.id)} className="text-gray-400 hover:text-red-500" title="Supprimer">🗑️</button>
+                        {isEditing ? (
+                          <>
+                            <button onClick={handleSaveInline} className="text-green-500 hover:text-green-600 font-bold text-sm" title="Sauvegarder">✓</button>
+                            <button onClick={() => setEditInlineId(null)} className="text-gray-400 hover:text-gray-600 font-bold text-sm" title="Annuler">✕</button>
+                          </>
+                        ) : (
+                          <>
+                            <button onClick={() => handleEdit(ing)} className="text-gray-400 hover:text-yellow-500" title="Modifier">✏️</button>
+                            <button onClick={() => handleDelete(ing.id)} className="text-gray-400 hover:text-red-500" title="Supprimer">🗑️</button>
+                          </>
+                        )}
                         </div>
                     </td>
                     </tr>
-                ))}
+                    );
+                })}
                 {histoId && filtered.find(i => i.id === histoId) && (
                     <tr key={histoId + '-histo'}>
                     <td colSpan={8} className="px-4 py-3 bg-yellow-50">
