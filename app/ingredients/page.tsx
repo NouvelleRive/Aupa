@@ -382,7 +382,7 @@
     return (
         <div className="max-w-5xl mx-auto">
         <div className="flex items-center justify-between mb-6">
-            <h1 className="text-2xl font-bold">Ingrédients</h1>
+            <h1 className="text-2xl font-bold">Produits fournisseur</h1>
             <div className="flex gap-3">
             <button onClick={() => { setShowForm(!showForm); setEditId(null); setForm(emptyForm); }} className="border border-gray-200 text-gray-600 hover:bg-gray-50 font-semibold rounded-lg px-4 py-2 text-sm">
                 + Ajouter manuellement
@@ -439,9 +439,9 @@
             <table className="w-full text-sm">
                 <thead className="bg-yellow-50 text-gray-500 text-xs uppercase">
                 <tr>
-                    <th className="px-4 py-3 text-left">Nom</th>
+                    <th className="px-4 py-3 text-left">Produit fournisseur</th>
                     <th className="px-4 py-3 text-left">Catégorie</th>
-                    <th className="px-4 py-3 text-left">Nom recette</th>
+                    <th className="px-4 py-3 text-left">Ingrédient</th>
                     <th className="px-4 py-3 text-right">Prix achat</th>
                     <th className="px-4 py-3 text-left">Unité</th>
                     <th className="px-4 py-3 text-right">Rendement</th>
@@ -455,7 +455,7 @@
                     <tr key={ing.id} className="hover:bg-yellow-50 transition-colors">
                     <td className="px-4 py-3 font-medium">{ing.nom}</td>
                     <td className="px-4 py-3 text-gray-500">{ing.categorie}</td>
-                    <td className="px-4 py-3 text-gray-400 text-xs">{ing.nom}</td>
+                    <td className="px-4 py-3 text-gray-400 text-xs">{nomsXLParIngredient[ing.id] || '—'}</td>
                     <td className="px-4 py-3 text-right">{ing.prix.toFixed(2)} €</td>
                     <td className="px-4 py-3 text-gray-500">{ing.unite}</td>
                     <td className="px-4 py-3 text-right">{Math.round(ing.rendement * 100)}%</td>
