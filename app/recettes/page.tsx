@@ -407,7 +407,7 @@ export default function RecettesPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-yellow-50">
-              {importPreview.map((item, globalIdx) => {
+              {importPreview.filter(item => !item.done).map((item, globalIdx) => {
                 const isIgnored = !item.selected && !item.recetteChoisieId;
                 const isMatched = !!item.recetteChoisieId;
                 const isNew = item.selected && !item.recetteChoisieId;
@@ -430,7 +430,7 @@ export default function RecettesPage() {
                         value={item.recetteChoisieId || ''}
                         onChange={e => setImportPreview(p => p.map((x, j) => j === globalIdx ? { ...x, recetteChoisieId: e.target.value || null, selected: true } : x))}>
                         <option value="">— Créer nouveau —</option>
-                        {recettes.filter(r => r.type === 'food').sort((a, b) => a.nom.localeCompare(b.nom)).map(r => <option key={r.id} value={r.id}>{r.nom}</option>)}
+                        {recettes.filter(r => r.type === 'food' && !importPreview.some(p => p.recetteChoisieId === r.id && p !== item)).sort((a, b) => a.nom.localeCompare(b.nom)).map(r => <option key={r.id} value={r.id}>{r.nom}</option>)}
                       </select>
                     </td>
                     <td className="px-4 py-2 text-right text-gray-500">{item.prix} €</td>
