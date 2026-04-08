@@ -15,8 +15,8 @@ export default function IngredientsPage() {
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ nom: '', unite: 'kg' as Unite, categorie: 'épicerie' as Categorie });
   const [editId, setEditId] = useState<string | null>(null);
-  const [pfCounts, setPfCounts] = useState<Record<string, number>>({});
-  const [recetteCounts, setRecetteCounts] = useState<Record<string, number>>({});
+  const [pfNames, setPfNames] = useState<Record<string, string[]>>({});
+  const [recetteNames, setRecetteNames] = useState<Record<string, string[]>>({});
 
   const fetchAll = async () => {
     const [ingSnap, pfSnap, recSnap] = await Promise.all([
@@ -28,31 +28,42 @@ export default function IngredientsPage() {
     const ings = ingSnap.docs.map(d => ({ id: d.id, ...d.data() } as Ingredient));
     setIngredients(ings);
 
-    // Compter les produits fournisseurs liés par nom (champ ingredient)
-    const pf: Record<string, number> = {};
+    // Collecter les noms des produits fournisseurs liés
+    const pf: Record<string, string[]> = {};
     for (const d of pfSnap.docs) {
-      const nomIngredient = d.data().ingredient;
+      const data = d.data();
+      const nomIngredient = data.ingredient;
       if (nomIngredient) {
         const ing = ings.find(i => i.nom === nomIngredient);
-        if (ing) pf[ing.id] = (pf[ing.id] || 0) + 1;
+        if (ing) {
+          if (!pf[ing.id]) pf[ing.id] = [];
+          const nomProduit = data.nom || data.designation || nomIngredient;
+          pf[ing.id].push(nomProduit);
+        }
       }
     }
-    setPfCounts(pf);
+    setPfNames(pf);
 
-    // Compter les recettes liées par nomIngredient
-    const rc: Record<string, number> = {};
+    // Collecter les noms des recettes liées
+    const rc: Record<string, string[]> = {};
     for (const d of recSnap.docs) {
-      const lignes = d.data().ingredients || [];
+      const data = d.data();
+      const lignes = data.ingredients || [];
+      const nomRecette = data.nom || d.id;
       const seen = new Set<string>();
       for (const l of lignes) {
         const nomIngredient = l.nomIngredient;
         if (nomIngredient && !seen.has(nomIngredient)) {
           const ing = ings.find(i => i.nom === nomIngredient);
-          if (ing) { rc[ing.id] = (rc[ing.id] || 0) + 1; seen.add(nomIngredient); }
+          if (ing) {
+            if (!rc[ing.id]) rc[ing.id] = [];
+            rc[ing.id].push(nomRecette);
+            seen.add(nomIngredient);
+          }
         }
       }
     }
-    setRecetteCounts(rc);
+    setRecetteNames(rc);
     setLoading(false);
   };
 
@@ -153,8 +164,8 @@ export default function IngredientsPage() {
                 <th className="px-4 py-3 text-left">Nom</th>
                 <th className="px-4 py-3 text-left">Unité</th>
                 <th className="px-4 py-3 text-left">Catégorie</th>
-                <th className="px-4 py-3 text-right">Produits fournisseurs</th>
-                <th className="px-4 py-3 text-right">Recettes liées</th>
+                <th className="px-4 py-3 text-left">Produits fournisseurs</th>
+                <th className="px-4 py-3 text-left">Recettes liées</th>
                 <th className="px-4 py-3"></th>
               </tr>
             </thead>
@@ -164,18 +175,26 @@ export default function IngredientsPage() {
                   <td className="px-4 py-3 font-medium">{ing.nom}</td>
                   <td className="px-4 py-3 text-gray-500">{ing.unite}</td>
                   <td className="px-4 py-3 text-gray-500">{ing.categorie}</td>
-                  <td className="px-4 py-3 text-right">
-                    {pfCounts[ing.id] ? (
-                      <span className="bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full text-xs font-medium">{pfCounts[ing.id]}</span>
+                  <td className="px-4 py-3">
+                    {pfNames[ing.id]?.length ? (
+                      <div className="flex flex-wrap gap-1">
+                        {pfNames[ing.id].map((nom, i) => (
+                          <span key={i} className="bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full text-xs font-medium">{nom}</span>
+                        ))}
+                      </div>
                     ) : (
-                      <span className="text-gray-300">0</span>
+                      <span className="text-gray-300">—</span>
                     )}
                   </td>
-                  <td className="px-4 py-3 text-right">
-                    {recetteCounts[ing.id] ? (
-                      <span className="bg-green-100 text-green-700 px-2 py-0.5 rounded-full text-xs font-medium">{recetteCounts[ing.id]}</span>
+                  <td className="px-4 py-3">
+                    {recetteNames[ing.id]?.length ? (
+                      <div className="flex flex-wrap gap-1">
+                        {recetteNames[ing.id].map((nom, i) => (
+                          <span key={i} className="bg-green-100 text-green-700 px-2 py-0.5 rounded-full text-xs font-medium">{nom}</span>
+                        ))}
+                      </div>
                     ) : (
-                      <span className="text-gray-300">0</span>
+                      <span className="text-gray-300">—</span>
                     )}
                   </td>
                   <td className="px-4 py-3 text-right whitespace-nowrap">
