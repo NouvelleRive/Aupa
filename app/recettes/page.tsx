@@ -638,11 +638,12 @@ export default function RecettesPage() {
                   </td>
                   {(() => {
                     const cout = (r.ingredients || []).reduce((total: number, i: any) => {
-                      if (i.ingredientId) {
-                        const ing = ingredients.find(x => x.id === i.ingredientId);
-                        if (!ing) return total;
-                        const prixUnitaire = (ing.prix / ing.rendement) / ((ing as any).nbPieces || 1);
-                        return total + prixUnitaire * i.grammage;
+                      if (i.ingredientId || i.ingredientIds?.length > 0) {
+                        const ids = i.ingredientIds || [i.ingredientId];
+                        const ings = ids.map((id: string) => ingredients.find(x => x.id === id)).filter(Boolean);
+                        if (ings.length === 0) return total;
+                        const prixMoyen = ings.reduce((s: number, ing: any) => s + (ing.prix / ing.rendement) / ((ing as any).nbPieces || 1), 0) / ings.length;
+                        return total + prixMoyen * i.grammage;
                       }
                       if (i.recetteId) {
                         const prep = recettes.find(x => x.id === i.recetteId) as any;
