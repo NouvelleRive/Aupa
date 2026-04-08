@@ -13,12 +13,20 @@ export type CategorieRecette = typeof CATEGORIES[number];
 export interface Ingredient {
   id: string;
   nom: string;
+  unite: Unite;
+  categorie: Categorie;
+}
+
+export interface ProduitFournisseur {
+  id: string;
+  nom: string;
   prix: number;
   unite: Unite;
   categorie: Categorie;
   rendement: number;
   historiquesPrix: { date: string; prix: number }[];
   updatedAt: string;
+  ingredientId?: string;
 }
 
 export interface PreparationIngredient {
