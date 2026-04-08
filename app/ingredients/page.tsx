@@ -87,7 +87,7 @@ export default function IngredientsPage() {
         recetteIds: match ? (map.get(match) || []) : [],
         done: false,
       };
-    });
+    }).filter(item => item.recetteIds.length > 0);
     setMatchingItems(items);
     setShowMatching(true);
   };
