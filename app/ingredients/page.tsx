@@ -344,6 +344,7 @@ export default function IngredientsPage() {
                           });
                           await updateDoc(doc(db, 'recettes', recDoc.id), { ingredients: newIngs });
                         }
+                        await updateDoc(doc(db, 'ingredients', ing.id), { nomXL: item.nomXLChoisi });
                         setMatchingItems(prev => prev.map((m, i) => i === realIdx ? { ...m, done: true } : m));
                       }}
                         className={`w-7 h-7 rounded-full border-2 flex items-center justify-center transition-colors ${item.nomXLChoisi ? 'bg-green-500 border-green-500 text-white hover:bg-green-600' : 'border-gray-200 text-gray-300'}`}>
@@ -422,6 +423,7 @@ export default function IngredientsPage() {
               <tr>
                 <th className="px-4 py-3 text-left">Nom</th>
                 <th className="px-4 py-3 text-left">Catégorie</th>
+                <th className="px-4 py-3 text-left">Nom recette</th>
                 <th className="px-4 py-3 text-right">Prix achat</th>
                 <th className="px-4 py-3 text-left">Unité</th>
                 <th className="px-4 py-3 text-right">Rendement</th>
@@ -435,6 +437,7 @@ export default function IngredientsPage() {
                 <tr key={ing.id} className="hover:bg-yellow-50 transition-colors">
                   <td className="px-4 py-3 font-medium">{ing.nom}</td>
                   <td className="px-4 py-3 text-gray-500">{ing.categorie}</td>
+                  <td className="px-4 py-3 text-gray-400 text-xs">{(ing as any).nomXL || '—'}</td>
                   <td className="px-4 py-3 text-right">{ing.prix.toFixed(2)} €</td>
                   <td className="px-4 py-3 text-gray-500">{ing.unite}</td>
                   <td className="px-4 py-3 text-right">{Math.round(ing.rendement * 100)}%</td>
