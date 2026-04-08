@@ -409,7 +409,8 @@ export default function RecettesPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-yellow-50">
-              {importPreview.filter(item => !item.done).map((item, globalIdx) => {
+              {importPreview.map((item, globalIdx) => {
+                if (item.done) return null;
                 const isIgnored = !item.selected && !item.recetteChoisieId;
                 const isMatched = !!item.recetteChoisieId;
                 const isNew = item.selected && !item.recetteChoisieId;
