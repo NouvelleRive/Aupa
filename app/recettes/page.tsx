@@ -36,7 +36,20 @@ const matchExistant = (nomCaisse: string, nomRecette: string): boolean => {
   const a = normalize(nomCaisse);
   const b = normalize(nomRecette);
   if (a === b) return true;
-  const STOP = new Set(['croger', 'bowl', 'plat', 'entree', 'avec']);
+
+  // Détection du type de plat (croger, bol, salade, etc.)
+  const getType = (s: string) => {
+    if (s.includes('bol')) return 'bol';
+    if (s.includes('croger')) return 'croger';
+    if (s.includes('salade')) return 'salade';
+    if (s.includes('planche')) return 'planche';
+    return 'autre';
+  };
+  const typeA = getType(a);
+  const typeB = getType(b);
+  if (typeA !== 'autre' && typeB !== 'autre' && typeA !== typeB) return false;
+
+  const STOP = new Set(['croger', 'bol', 'bowl', 'plat', 'entree', 'avec', 'salade']);
   const motsCaisse = a.split(' ').filter(m => m.length > 3 && !STOP.has(m));
   const motsRecette = b.split(' ').filter(m => m.length > 3 && !STOP.has(m));
   if (motsCaisse.length === 0 || motsRecette.length === 0) return false;
