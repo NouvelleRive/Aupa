@@ -278,14 +278,13 @@ export default function IngredientsPage() {
 
   if (showMatching) {
     const total = matchingItems.length;
-    const matches = matchingItems.filter(i => i.nomXLChoisi).length;
     const done = matchingItems.filter(i => i.done).length;
     return (
       <div className="max-w-6xl mx-auto">
         <div className="flex items-center justify-between mb-6">
           <div>
             <h1 className="text-2xl font-bold">Matching ingrédients ↔ recettes</h1>
-            <p className="text-sm text-gray-400 mt-1">{total} ingrédients · {matches} matchés · {done} validés</p>
+            <p className="text-sm text-gray-400 mt-1">{total} à matcher · {done} validés</p>
           </div>
           <button onClick={() => setShowMatching(false)} className="border border-gray-200 text-gray-600 hover:bg-gray-50 font-semibold rounded-lg px-4 py-2 text-sm">Fermer</button>
         </div>
@@ -293,63 +292,61 @@ export default function IngredientsPage() {
           <table className="w-full text-sm">
             <thead className="bg-yellow-50 text-gray-500 text-xs uppercase">
               <tr>
+                <th className="px-4 py-2 text-left">Ingrédient Foodflow</th>
                 <th className="px-4 py-2 text-left">Nom dans recettes XL</th>
-                <th className="px-4 py-2 text-left">Ingrédients Foodflow (cocher les refs)</th>
                 <th className="px-4 py-2 text-right">Recettes</th>
                 <th className="px-4 py-2 text-center">Action</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-yellow-50">
-              {matchingItems.map((item, idx) => (
-                <tr key={idx} className={`transition-colors ${item.done ? 'bg-green-50 opacity-60' : item.nomXLChoisi ? 'bg-yellow-50' : 'bg-white'}`}>
-                  <td className="px-4 py-2 font-medium text-sm">{item.nomXLChoisi}</td>
-                  <td className="px-4 py-2">
-                    <div className="space-y-1 max-h-32 overflow-y-auto">
-                      {ingredients.filter(ing => {
-                        const normalize = (s: string) => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^\w\s]/g, '').trim();
-                        const nomXL = normalize(item.nomXLChoisi);
-                        const nomIng = normalize(ing.nom);
-                        return item.ingredientIds.includes(ing.id) || nomIng.includes(nomXL) || nomXL.includes(nomIng.split(' ')[0]);
-                      }).sort((a,b) => a.nom.localeCompare(b.nom)).map(ing => (
-                        <label key={ing.id} className="flex items-center gap-2 cursor-pointer hover:bg-yellow-50 px-1 py-0.5 rounded">
-                          <input type="checkbox" className="accent-yellow-400"
-                            checked={item.ingredientIds.includes(ing.id)}
-                            onChange={e => {
-                              const n = [...matchingItems];
-                              const ids = e.target.checked
-                                ? [...n[idx].ingredientIds, ing.id]
-                                : n[idx].ingredientIds.filter(id => id !== ing.id);
-                              n[idx] = { ...n[idx], ingredientIds: ids };
-                              setMatchingItems(n);
-                            }} />
-                          <span className="text-xs">{ing.nom}</span>
-                        </label>
-                      ))}
-                    </div>
-                  </td>
-                  <td className="px-4 py-2 text-right text-gray-400 text-xs">{item.recetteIds.length} recette{item.recetteIds.length > 1 ? 's' : ''}</td>
-                  <td className="px-4 py-2 text-center">
-                    <button disabled={item.ingredientIds.length === 0 || item.done} onClick={async () => {
-                      if (!item.nomXLChoisi || item.ingredientIds.length === 0 || item.done) return;
-                      const recSnap = await getDocs(collection(db, 'recettes'));
-                      for (const recDoc of recSnap.docs) {
-                        const data = recDoc.data();
-                        const ings = data.ingredients || [];
-                        const hasMatch = ings.some((i: any) => i.nomIngredient === item.nomXLChoisi);
-                        if (!hasMatch) continue;
-                        const newIngs = ings.map((i: any) => i.nomIngredient === item.nomXLChoisi
-                          ? { ingredientIds: item.ingredientIds, grammage: i.grammage }
-                          : i);
-                        await updateDoc(doc(db, 'recettes', recDoc.id), { ingredients: newIngs });
-                      }
-                      const n = [...matchingItems]; n[idx] = { ...n[idx], done: true }; setMatchingItems(n);
-                    }}
-                      className={`w-7 h-7 rounded-full border-2 flex items-center justify-center transition-colors ${item.done ? 'bg-green-600 border-green-600 text-white' : item.nomXLChoisi ? 'bg-green-500 border-green-500 text-white hover:bg-green-600' : 'border-gray-200 text-gray-300'}`}>
-                      ✓
-                    </button>
-                  </td>
-                </tr>
-              ))}
+              {ingredients.sort((a, b) => a.nom.localeCompare(b.nom)).map(ing => {
+                const item = matchingItems.find(m => m.ingredientIds.includes(ing.id));
+                if (!item) return null;
+                if (item.done) return null;
+                return (
+                  <tr key={ing.id} className={`transition-colors ${item.nomXLChoisi ? 'bg-yellow-50' : 'bg-white'}`}>
+                    <td className="px-4 py-2 font-medium text-sm">{ing.nom}</td>
+                    <td className="px-4 py-2">
+                      <select className="border border-gray-200 rounded-lg px-2 py-1 text-xs w-full"
+                        value={item.nomXLChoisi}
+                        onChange={e => {
+                          const nomChoisi = e.target.value;
+                          setMatchingItems(prev => prev.map(m =>
+                            m.ingredientIds.includes(ing.id)
+                              ? { ...m, nomXLChoisi: nomChoisi, recetteIds: nomsXLMap.get(nomChoisi) || [] }
+                              : m
+                          ));
+                        }}>
+                        <option value="">— Non lié —</option>
+                        {Array.from(nomsXLMap.keys()).sort().map(nom => <option key={nom} value={nom}>{nom}</option>)}
+                      </select>
+                    </td>
+                    <td className="px-4 py-2 text-right text-gray-400 text-xs">{item.recetteIds.length} recette{item.recetteIds.length > 1 ? 's' : ''}</td>
+                    <td className="px-4 py-2 text-center">
+                      <button disabled={!item.nomXLChoisi} onClick={async () => {
+                        if (!item.nomXLChoisi) return;
+                        const recSnap = await getDocs(collection(db, 'recettes'));
+                        for (const recDoc of recSnap.docs) {
+                          const data = recDoc.data();
+                          const ings = data.ingredients || [];
+                          const hasMatch = ings.some((i: any) => i.nomIngredient === item.nomXLChoisi);
+                          if (!hasMatch) continue;
+                          const newIngs = ings.map((i: any) => i.nomIngredient === item.nomXLChoisi
+                            ? { ingredientIds: item.ingredientIds, grammage: i.grammage }
+                            : i);
+                          await updateDoc(doc(db, 'recettes', recDoc.id), { ingredients: newIngs });
+                        }
+                        setMatchingItems(prev => prev.map(m =>
+                          m.ingredientIds.includes(ing.id) ? { ...m, done: true } : m
+                        ));
+                      }}
+                        className={`w-7 h-7 rounded-full border-2 flex items-center justify-center transition-colors ${item.nomXLChoisi ? 'bg-green-500 border-green-500 text-white hover:bg-green-600' : 'border-gray-200 text-gray-300'}`}>
+                        ✓
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
