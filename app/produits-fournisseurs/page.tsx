@@ -78,6 +78,10 @@
         }
         }
         
+        for (const d of snap.docs) {
+          const data = d.data();
+          if (data.ingredient && !map[d.id]) map[d.id] = data.ingredient;
+        }
         setNomsXLParIngredient(map);
         const xlMap = new Map<string, string[]>();
         for (const nom of INGREDIENTS) {
