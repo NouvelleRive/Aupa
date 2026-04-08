@@ -455,7 +455,7 @@
                     <tr key={ing.id} className="hover:bg-yellow-50 transition-colors">
                     <td className="px-4 py-3 font-medium">{ing.nom}</td>
                     <td className="px-4 py-3 text-gray-500">{ing.categorie}</td>
-                    <td className="px-4 py-3 text-gray-400 text-xs">{nomsXLParIngredient[ing.id] || '—'}</td>
+                    <td className="px-4 py-3 text-gray-400 text-xs">{(ing as any).nomXL || nomsXLParIngredient[ing.id] || '—'}</td>
                     <td className="px-4 py-3 text-right">{ing.prix.toFixed(2)} €</td>
                     <td className="px-4 py-3 text-gray-500">{ing.unite}</td>
                     <td className="px-4 py-3 text-right">{Math.round(ing.rendement * 100)}%</td>
