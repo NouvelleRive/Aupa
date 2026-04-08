@@ -324,9 +324,11 @@ export default function RecettesPage() {
         const prixUnitaire = (ing.prix / ing.rendement) / ((ing as any).nbPieces || 1);
         return total + prixUnitaire * grammage;
       } else {
-        const prep = preparations.find(p => p.id === ligne.id);
+        const prep = recettes.find(p => p.id === ligne.id) as any;
         if (!prep) return total;
-        return total + prep.coutCalcule * grammage;
+        if (prep.coutAuKg) return total + prep.coutAuKg * grammage;
+        if (prep.coutCalcule && prep.quantiteProduite) return total + (prep.coutCalcule / prep.quantiteProduite) * grammage;
+        return total;
       }
     }, 0);
   };
