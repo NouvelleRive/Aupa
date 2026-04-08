@@ -351,7 +351,7 @@ export default function RecettesPage() {
   const filtered = recettes.filter(r =>
     (filterCat === 'all' || r.categorie === filterCat) &&
     (filterType === 'all' || (filterType === 'food' ? (!r.type || r.type === 'food') : r.type === filterType))
-  );
+  ).sort((a, b) => a.categorie.localeCompare(b.categorie) || a.nom.localeCompare(b.nom));
 
   const coutPreview = calculerCout();
 
