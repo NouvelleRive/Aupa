@@ -76,6 +76,21 @@
         }
         }
         setNomsXLParIngredient(map);
+        const xlMap = new Map<string, string[]>();
+        for (const r of recSnap.docs) {
+          const data = r.data();
+          for (const ing of (data.ingredients || [])) {
+            if (ing.nomIngredient) {
+              if (!xlMap.has(ing.nomIngredient)) xlMap.set(ing.nomIngredient, []);
+              xlMap.get(ing.nomIngredient)!.push(r.id);
+            }
+          }
+          if (data.categorie === 'Préparations') {
+            if (!xlMap.has(data.nom)) xlMap.set(data.nom, []);
+            xlMap.get(data.nom)!.push(r.id);
+          }
+        }
+        setNomsXLMap(xlMap);
         setLoading(false);
     };
 
@@ -463,7 +478,33 @@
                     <tr key={ing.id} className="hover:bg-yellow-50 transition-colors">
                     <td className="px-4 py-3 font-medium">{ing.nom}</td>
                     <td className="px-4 py-3 text-gray-500">{ing.categorie}</td>
-                    <td className="px-4 py-3 text-gray-400 text-xs">{nomsXLParIngredient[ing.id] || '—'}</td>
+                    <td className="px-4 py-3 text-xs">
+                      <select className="border border-gray-200 rounded px-2 py-1 text-xs w-full max-w-[160px]"
+                        value={nomsXLParIngredient[ing.id] || ''}
+                        onChange={async e => {
+                          const nomChoisi = e.target.value;
+                          if (!nomChoisi) return;
+                          const recSnap = await getDocs(collection(db, 'recettes'));
+                          for (const recDoc of recSnap.docs) {
+                            const data = recDoc.data();
+                            const ings = data.ingredients || [];
+                            const hasMatch = ings.some((i: any) => i.nomIngredient === nomChoisi);
+                            if (!hasMatch) continue;
+                            const newIngs = ings.map((i: any) => {
+                              if (i.nomIngredient !== nomChoisi) return i;
+                              const existingIds = i.ingredientIds || (i.ingredientId ? [i.ingredientId] : []);
+                              const mergedIds = [...new Set([...existingIds, ing.id])];
+                              return { ingredientIds: mergedIds, grammage: i.grammage, nomIngredient: i.nomIngredient };
+                            });
+                            await updateDoc(doc(db, 'recettes', recDoc.id), { ingredients: newIngs });
+                          }
+                          await updateDoc(doc(db, 'ingredients', ing.id), { nomXL: nomChoisi });
+                          fetchIngredients();
+                        }}>
+                        <option value="">— Non lié —</option>
+                        {Array.from(nomsXLMap.keys()).sort().map(nom => <option key={nom} value={nom}>{nom}</option>)}
+                      </select>
+                    </td>
                     <td className="px-4 py-3 text-right">{ing.prix.toFixed(2)} €</td>
                     <td className="px-4 py-3 text-gray-500">{ing.unite}</td>
                     <td className="px-4 py-3 text-right">{Math.round(ing.rendement * 100)}%</td>
