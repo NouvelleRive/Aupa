@@ -301,7 +301,8 @@ export default function RecettesPage() {
       if (ligne.type === 'ingredient') {
         const ing = ingredients.find(i => i.id === ligne.id);
         if (!ing) return total;
-        return total + (ing.prix / ing.rendement) * grammage;
+        const prixUnitaire = (ing.prix / ing.rendement) / ((ing as any).nbPieces || 1);
+        return total + prixUnitaire * grammage;
       } else {
         const prep = preparations.find(p => p.id === ligne.id);
         if (!prep) return total;
@@ -630,7 +631,8 @@ export default function RecettesPage() {
                       if (i.ingredientId) {
                         const ing = ingredients.find(x => x.id === i.ingredientId);
                         if (!ing) return total;
-                        return total + (ing.prix / ing.rendement) * i.grammage;
+                        const prixUnitaire = (ing.prix / ing.rendement) / ((ing as any).nbPieces || 1);
+                        return total + prixUnitaire * i.grammage;
                       }
                       if (i.recetteId) {
                         const prep = recettes.find(x => x.id === i.recetteId) as any;
