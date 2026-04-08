@@ -383,10 +383,13 @@ export default function RecettesPage() {
       type: form.type, actif: form.actif,
       prixVente: parseFloat((form as any).prixVente) || 0,
       ingredients: [
-        ...lignes.map(l => l.type === 'ingredient'
-          ? { ingredientId: l.id, nomIngredient: ingredients.find(i => i.id === l.id)?.nom || l.id, grammage: parseFloat(l.grammage) }
-          : { recetteId: l.id, grammage: parseFloat(l.grammage) }
-        ),
+        ...lignes.map(l => {
+          if (l.type === 'ingredient') {
+            return { ingredientId: l.id, nomIngredient: ingredients.find(i => i.id === l.id)?.nom || l.id, grammage: parseFloat(l.grammage) };
+          }
+          const prepNom = recettes.find(r => r.id === l.id)?.nom || l.id;
+          return { recetteId: l.id, nomIngredient: prepNom, grammage: parseFloat(l.grammage) };
+        }),
         ...nomIngredients.map(n => ({ nomIngredient: n.nom, grammage: n.grammage, unite: n.unite })),
       ],
       options: [], coutCalcule: cout, updatedAt: new Date().toISOString(),
