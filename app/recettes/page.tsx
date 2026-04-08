@@ -377,11 +377,12 @@ export default function RecettesPage() {
   const handleEdit = (r: Recette) => {
     setEditId(r.id);
     setForm({ nom: r.nom, categorie: r.categorie, type: r.type || 'food', actif: r.actif, quantiteProduite: String((r as any).quantiteProduite || ''), uniteProduction: (r as any).uniteProduction || 'kg', prixVente: String(r.prixVente || '') } as any);
-    setLignes((r.ingredients as any[]).filter(i => i.ingredientId || i.recetteId).map(i =>
-      i.ingredientId
-        ? { type: 'ingredient' as const, id: i.ingredientId, grammage: String(i.grammage) }
-        : { type: 'preparation' as const, id: i.recetteId, grammage: String(i.grammage) }
-    ));
+    setLignes((r.ingredients as any[]).filter(i => i.ingredientId || i.recetteId || i.nomIngredient).map(i => {
+      if (i.recetteId) return { type: 'preparation' as const, id: i.recetteId, grammage: String(i.grammage) };
+      // Chercher l'ingrédient canonique par nomIngredient
+      const canonique = ingredients.find(x => x.nom === i.nomIngredient);
+      return { type: 'ingredient' as const, id: canonique?.id || '', grammage: String(i.grammage) };
+    }));
     setNomIngredients((r.ingredients as any[]).filter(i => i.nomIngredient).map(i => ({ nom: i.nomIngredient, grammage: i.grammage, unite: i.unite || 'kg' })));
     setShowForm(true);
     window.scrollTo(0, 0);
