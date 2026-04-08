@@ -342,7 +342,7 @@ export default function RecettesPage() {
   };
 
   const calculerCout = () => {
-    return lignes.reduce((total, ligne) => {
+    const coutLignes = lignes.reduce((total, ligne) => {
       const grammage = parseFloat(ligne.grammage) || 0;
       if (ligne.type === 'ingredient') {
         const prix = getPrixProduitFournisseur(ligne.id);
@@ -355,6 +355,22 @@ export default function RecettesPage() {
         return total;
       }
     }, 0);
+    // Ajouter le coût des nomIngredients non résolus
+    const coutNoms = nomIngredients.reduce((total, n) => {
+      const prep = recettes.find(x => x.categorie === 'Préparations' && x.nom === n.nom) as any;
+      if (prep) {
+        if (prep.coutAuKg) return total + prep.coutAuKg * n.grammage;
+        if (prep.coutCalcule && prep.quantiteProduite) return total + (prep.coutCalcule / prep.quantiteProduite) * n.grammage;
+        return total;
+      }
+      const pfs = produitsFournisseurs.filter(pf => (pf as any).ingredient === n.nom);
+      if (pfs.length > 0) {
+        const plusRecent = pfs.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())[0];
+        return total + ((plusRecent.prix / plusRecent.rendement) / ((plusRecent as any).nbPieces || 1)) * n.grammage;
+      }
+      return total;
+    }, 0);
+    return coutLignes + coutNoms;
   };
 
   const handleSubmit = async () => {
