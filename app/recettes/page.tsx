@@ -570,8 +570,8 @@ export default function RecettesPage() {
                       }
                     </select>
                     <input className="border border-yellow-200 rounded-lg px-3 py-2 text-sm w-24" placeholder="Qté" type="number" value={ligne.grammage} onChange={e => { const n = [...lignes]; n[i].grammage = e.target.value; setLignes(n); }} />
-                    {prixLabel && <span className="text-xs text-gray-400 w-20 text-right">{prixLabel}</span>}
-                    {coutLigne > 0 && <span className="text-xs font-semibold text-yellow-600 w-16 text-right">{coutLigne.toFixed(3)} €</span>}
+                    <span className="text-xs text-gray-400 w-20 text-right">{prixLabel || ''}</span>
+                    <span className="text-xs font-semibold text-yellow-600 w-16 text-right">{coutLigne > 0 ? coutLigne.toFixed(3) + ' €' : ''}</span>
                     <button onClick={() => setLignes(lignes.filter((_, j) => j !== i))} className="text-gray-400 hover:text-yellow-500 text-sm">✕</button>
                   </div>
                 );
