@@ -50,7 +50,7 @@
     const [matchingItems, setMatchingItems] = useState<{
         ingredientIds: string[];
         ingredientNom: string;
-        nomXLChoisi: string;
+        ingredientChoisi: string;
         recetteIds: string[];
         done: boolean;
     }[]>([]);
@@ -116,24 +116,24 @@
         setMatchingMap(map);
         const normalize = (s: string) => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^\w\s]/g, '').trim();
         const nomsXL = Array.from(map.keys());
-        // Grouper par nomXL : un nomXL → plusieurs ingredientIds possibles
-        const nomXLToItems = new Map<string, { ingredientIds: string[]; ingredientNom: string }>();
+        // Grouper par ingredient : un ingredient → plusieurs ingredientIds possibles
+        const ingredientToItems = new Map<string, { ingredientIds: string[]; ingredientNom: string }>();
         for (const ing of ingredients) {
         const match = nomsXL.find(nom => normalize(ing.nom).includes(normalize(nom)) || normalize(nom).includes(normalize(ing.nom.split(' ')[0])));
         if (!match) continue;
-        if (!nomXLToItems.has(match)) nomXLToItems.set(match, { ingredientIds: [], ingredientNom: match });
-        nomXLToItems.get(match)!.ingredientIds.push(ing.id);
+        if (!ingredientToItems.has(match)) ingredientToItems.set(match, { ingredientIds: [], ingredientNom: match });
+        ingredientToItems.get(match)!.ingredientIds.push(ing.id);
         }
-        const items = Array.from(map.entries()).map(([nomXL, recetteIds]) => {
-        const existing = nomXLToItems.get(nomXL);
+        const items = Array.from(map.entries()).map(([ingredient, recetteIds]) => {
+        const existing = ingredientToItems.get(ingredient);
         const dejaMatche = existing?.ingredientIds?.some(id => {
           const ing = ingredients.find(i => i.id === id);
-          return ing && (ing as any).nomXL === nomXL;
+          return ing && (ing as any).ingredient === ingredient;
         }) || false;
         return {
             ingredientIds: existing?.ingredientIds || [],
-            ingredientNom: nomXL,
-            nomXLChoisi: nomXL,
+            ingredientNom: ingredient,
+            ingredientChoisi: ingredient,
             recetteIds,
             done: dejaMatche,
         };
@@ -352,15 +352,15 @@
                     if (!item || item.done) return null;
                     const realIdx = matchingItems.indexOf(item);
                     return (
-                    <tr key={ing.id} className={`transition-colors ${item.nomXLChoisi ? 'bg-yellow-50' : 'bg-white'}`}>
+                    <tr key={ing.id} className={`transition-colors ${item.ingredientChoisi ? 'bg-yellow-50' : 'bg-white'}`}>
                         <td className="px-4 py-2 font-medium text-sm">{ing.nom}</td>
                         <td className="px-4 py-2">
                         <select className="border border-gray-200 rounded-lg px-2 py-1 text-xs w-full"
-                            value={item.nomXLChoisi}
+                            value={item.ingredientChoisi}
                             onChange={e => {
                             const nomChoisi = e.target.value;
                             setMatchingItems(prev => prev.map((m, i) => i === realIdx
-                                ? { ...m, nomXLChoisi: nomChoisi, recetteIds: matchingMap.get(nomChoisi) || [] }
+                                ? { ...m, ingredientChoisi: nomChoisi, recetteIds: matchingMap.get(nomChoisi) || [] }
                                 : m
                             ));
                             }}>
@@ -370,26 +370,26 @@
                         </td>
                         <td className="px-4 py-2 text-right text-gray-400 text-xs">{item.recetteIds.length} recette{item.recetteIds.length > 1 ? 's' : ''}</td>
                         <td className="px-4 py-2 text-center">
-                        <button disabled={!item.nomXLChoisi} onClick={async () => {
-                            if (!item.nomXLChoisi) return;
+                        <button disabled={!item.ingredientChoisi} onClick={async () => {
+                            if (!item.ingredientChoisi) return;
                             const recSnap = await getDocs(collection(db, 'recettes'));
                             for (const recDoc of recSnap.docs) {
                             const data = recDoc.data();
                             const ings = data.ingredients || [];
-                            const hasMatch = ings.some((i: any) => i.nomIngredient === item.nomXLChoisi);
+                            const hasMatch = ings.some((i: any) => i.nomIngredient === item.ingredientChoisi);
                             if (!hasMatch) continue;
                             const newIngs = ings.map((i: any) => {
-                                if (i.nomIngredient !== item.nomXLChoisi) return i;
+                                if (i.nomIngredient !== item.ingredientChoisi) return i;
                                 const existingIds = i.ingredientIds || (i.ingredientId ? [i.ingredientId] : []);
                                 const mergedIds = [...new Set([...existingIds, ing.id])];
                                 return { ingredientIds: mergedIds, grammage: i.grammage, nomIngredient: i.nomIngredient };
                             });
                             await updateDoc(doc(db, 'recettes', recDoc.id), { ingredients: newIngs });
                             }
-                            await updateDoc(doc(db, 'produitsFournisseurs', ing.id), { nomXL: item.nomXLChoisi });
+                            await updateDoc(doc(db, 'produitsFournisseurs', ing.id), { ingredient: item.ingredientChoisi });
                             setMatchingItems(prev => prev.map((m, i) => i === realIdx ? { ...m, done: true } : m));
                         }}
-                            className={`w-7 h-7 rounded-full border-2 flex items-center justify-center transition-colors ${item.nomXLChoisi ? 'bg-green-500 border-green-500 text-white hover:bg-green-600' : 'border-gray-200 text-gray-300'}`}>
+                            className={`w-7 h-7 rounded-full border-2 flex items-center justify-center transition-colors ${item.ingredientChoisi ? 'bg-green-500 border-green-500 text-white hover:bg-green-600' : 'border-gray-200 text-gray-300'}`}>
                             ✓
                         </button>
                         </td>
@@ -499,7 +499,7 @@
                             });
                             await updateDoc(doc(db, 'recettes', recDoc.id), { ingredients: newIngs });
                           }
-                          await updateDoc(doc(db, 'produitsFournisseurs', ing.id), { nomXL: nomChoisi });
+                          await updateDoc(doc(db, 'produitsFournisseurs', ing.id), { ingredient: nomChoisi });
                           fetchIngredients();
                         }}>
                         <option value="">— Non lié —</option>
