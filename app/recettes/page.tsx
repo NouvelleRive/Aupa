@@ -339,7 +339,10 @@ export default function RecettesPage() {
       nom: form.nom, categorie: form.categorie,
       type: form.type, actif: form.actif,
       prixVente: parseFloat((form as any).prixVente) || 0,
-      ingredients: lignes.filter(l => l.type === 'ingredient').map(l => ({ ingredientId: l.id, grammage: parseFloat(l.grammage) })),
+      ingredients: lignes.map(l => l.type === 'ingredient'
+        ? { ingredientId: l.id, grammage: parseFloat(l.grammage) }
+        : { recetteId: l.id, grammage: parseFloat(l.grammage) }
+      ),
       options: [], coutCalcule: cout, updatedAt: new Date().toISOString(),
     };
     if (form.categorie === 'Préparations' && quantiteProduite > 0) {
