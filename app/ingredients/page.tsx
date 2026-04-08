@@ -55,9 +55,28 @@ export default function IngredientsPage() {
   }[]>([]);
   const [nomsXLMap, setNomsXLMap] = useState<Map<string, string[]>>(new Map());
 
+  const [nomsXLParIngredient, setNomsXLParIngredient] = useState<Record<string, string>>({});
+
   const fetchIngredients = async () => {
-    const snap = await getDocs(collection(db, 'ingredients'));
+    const [snap, recSnap] = await Promise.all([
+      getDocs(collection(db, 'ingredients')),
+      getDocs(collection(db, 'recettes')),
+    ]);
     setIngredients(snap.docs.map(d => ({ id: d.id, ...d.data() } as Ingredient)));
+    const map: Record<string, string> = {};
+    for (const r of recSnap.docs) {
+      for (const ing of (r.data().ingredients || [])) {
+        if (ing.ingredientIds) {
+          for (const id of ing.ingredientIds) {
+            if (!map[id]) map[id] = ing.nomIngredient || '';
+          }
+        }
+        if (ing.ingredientId && ing.nomIngredient) {
+          map[ing.ingredientId] = ing.nomIngredient;
+        }
+      }
+    }
+    setNomsXLParIngredient(map);
     setLoading(false);
   };
 
@@ -437,7 +456,7 @@ export default function IngredientsPage() {
                 <tr key={ing.id} className="hover:bg-yellow-50 transition-colors">
                   <td className="px-4 py-3 font-medium">{ing.nom}</td>
                   <td className="px-4 py-3 text-gray-500">{ing.categorie}</td>
-                  <td className="px-4 py-3 text-gray-400 text-xs">{(ing as any).nomXL || '—'}</td>
+                  <td className="px-4 py-3 text-gray-400 text-xs">{nomsXLParIngredient[ing.id] || '—'}</td>
                   <td className="px-4 py-3 text-right">{ing.prix.toFixed(2)} €</td>
                   <td className="px-4 py-3 text-gray-500">{ing.unite}</td>
                   <td className="px-4 py-3 text-right">{Math.round(ing.rendement * 100)}%</td>
