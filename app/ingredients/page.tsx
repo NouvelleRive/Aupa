@@ -358,7 +358,7 @@
                                 if (i.nomIngredient !== item.nomXLChoisi) return i;
                                 const existingIds = i.ingredientIds || (i.ingredientId ? [i.ingredientId] : []);
                                 const mergedIds = [...new Set([...existingIds, ing.id])];
-                                return { ingredientIds: mergedIds, grammage: i.grammage };
+                                return { ingredientIds: mergedIds, grammage: i.grammage, nomIngredient: i.nomIngredient };
                             });
                             await updateDoc(doc(db, 'recettes', recDoc.id), { ingredients: newIngs });
                             }
