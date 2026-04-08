@@ -45,6 +45,7 @@ export default function IngredientsPage() {
   const pdfRef = useRef<HTMLInputElement>(null);
   const [histoId, setHistoId] = useState<string | null>(null);
   const [showMatching, setShowMatching] = useState(false);
+  const [searchMatch, setSearchMatch] = useState('');
   const [matchingItems, setMatchingItems] = useState<{
     ingredientIds: string[];
     ingredientNom: string;
@@ -279,6 +280,10 @@ export default function IngredientsPage() {
   if (showMatching) {
     const total = matchingItems.length;
     const done = matchingItems.filter(i => i.done).length;
+    const ingredientsFiltres = ingredients
+      .filter(ing => ing.nom.toLowerCase().includes(searchMatch.toLowerCase()))
+      .filter(ing => matchingItems.some(m => m.ingredientIds.includes(ing.id) && !m.done))
+      .sort((a, b) => a.nom.localeCompare(b.nom));
     return (
       <div className="max-w-6xl mx-auto">
         <div className="flex items-center justify-between mb-6">
@@ -288,6 +293,7 @@ export default function IngredientsPage() {
           </div>
           <button onClick={() => setShowMatching(false)} className="border border-gray-200 text-gray-600 hover:bg-gray-50 font-semibold rounded-lg px-4 py-2 text-sm">Fermer</button>
         </div>
+        <input className="border border-yellow-200 rounded-lg px-3 py-2 text-sm mb-4 w-64 focus:outline-none focus:border-yellow-400" placeholder="Rechercher ingrédient Foodflow..." value={searchMatch} onChange={e => setSearchMatch(e.target.value)} />
         <div className="bg-white rounded-xl border border-yellow-100 overflow-hidden">
           <table className="w-full text-sm">
             <thead className="bg-yellow-50 text-gray-500 text-xs uppercase">
@@ -299,10 +305,10 @@ export default function IngredientsPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-yellow-50">
-              {ingredients.sort((a, b) => a.nom.localeCompare(b.nom)).map(ing => {
+              {ingredientsFiltres.map(ing => {
                 const item = matchingItems.find(m => m.ingredientIds.includes(ing.id));
-                if (!item) return null;
-                if (item.done) return null;
+                if (!item || item.done) return null;
+                const realIdx = matchingItems.indexOf(item);
                 return (
                   <tr key={ing.id} className={`transition-colors ${item.nomXLChoisi ? 'bg-yellow-50' : 'bg-white'}`}>
                     <td className="px-4 py-2 font-medium text-sm">{ing.nom}</td>
@@ -311,10 +317,9 @@ export default function IngredientsPage() {
                         value={item.nomXLChoisi}
                         onChange={e => {
                           const nomChoisi = e.target.value;
-                          setMatchingItems(prev => prev.map(m =>
-                            m.ingredientIds.includes(ing.id)
-                              ? { ...m, nomXLChoisi: nomChoisi, recetteIds: nomsXLMap.get(nomChoisi) || [] }
-                              : m
+                          setMatchingItems(prev => prev.map((m, i) => i === realIdx
+                            ? { ...m, nomXLChoisi: nomChoisi, recetteIds: nomsXLMap.get(nomChoisi) || [] }
+                            : m
                           ));
                         }}>
                         <option value="">— Non lié —</option>
@@ -331,14 +336,15 @@ export default function IngredientsPage() {
                           const ings = data.ingredients || [];
                           const hasMatch = ings.some((i: any) => i.nomIngredient === item.nomXLChoisi);
                           if (!hasMatch) continue;
-                          const newIngs = ings.map((i: any) => i.nomIngredient === item.nomXLChoisi
-                            ? { ingredientIds: item.ingredientIds, grammage: i.grammage }
-                            : i);
+                          const newIngs = ings.map((i: any) => {
+                            if (i.nomIngredient !== item.nomXLChoisi) return i;
+                            const existingIds = i.ingredientIds || (i.ingredientId ? [i.ingredientId] : []);
+                            const mergedIds = [...new Set([...existingIds, ing.id])];
+                            return { ingredientIds: mergedIds, grammage: i.grammage };
+                          });
                           await updateDoc(doc(db, 'recettes', recDoc.id), { ingredients: newIngs });
                         }
-                        setMatchingItems(prev => prev.map(m =>
-                          m.ingredientIds.includes(ing.id) ? { ...m, done: true } : m
-                        ));
+                        setMatchingItems(prev => prev.map((m, i) => i === realIdx ? { ...m, done: true } : m));
                       }}
                         className={`w-7 h-7 rounded-full border-2 flex items-center justify-center transition-colors ${item.nomXLChoisi ? 'bg-green-500 border-green-500 text-white hover:bg-green-600' : 'border-gray-200 text-gray-300'}`}>
                         ✓
