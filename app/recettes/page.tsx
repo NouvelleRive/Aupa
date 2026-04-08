@@ -121,6 +121,8 @@ export default function RecettesPage() {
       seen.add(nom);
       const categorie: CategorieRecette = POPINA_FOOD_CAT[catPopina] || POPINA_FAMILLE_FOOD[famille] || 'Croger';
       const existante = recettes.find(r => matchExistant(nom, r.nom));
+      const dejaMatchee = recettes.find(r => (r as any).nomPopina === nomRaw);
+      if (dejaMatchee) continue;
       items.push({
         nomOriginal: nomRaw, nom, categorie, prix,
         recetteExistanteId: existante?.id || null,
