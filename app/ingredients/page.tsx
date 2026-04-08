@@ -241,7 +241,8 @@ export default function IngredientsPage() {
 
   const handleSubmit = async () => {
     if (!form.nom || !form.prix) return;
-    const data = { nom: form.nom, prix: parseFloat(form.prix), unite: form.unite, categorie: form.categorie, rendement: parseFloat(form.rendement) / 100, historiquesPrix: [{ date: new Date().toISOString(), prix: parseFloat(form.prix) }], updatedAt: new Date().toISOString() };
+    const nbPieces = parseInt((form as any).nbPieces) || 1;
+    const data: any = { nom: form.nom, prix: parseFloat(form.prix), unite: form.unite, categorie: form.categorie, rendement: parseFloat(form.rendement) / 100, nbPieces, historiquesPrix: [{ date: new Date().toISOString(), prix: parseFloat(form.prix) }], updatedAt: new Date().toISOString() };
     if (editId) { await updateDoc(doc(db, 'ingredients', editId), data); setEditId(null); }
     else { await addDoc(collection(db, 'ingredients'), data); }
     setForm(emptyForm); setShowForm(false); fetchIngredients();
@@ -249,7 +250,7 @@ export default function IngredientsPage() {
 
   const handleEdit = (ing: Ingredient) => {
     setEditId(ing.id);
-    setForm({ nom: ing.nom, prix: String(ing.prix), unite: ing.unite, categorie: ing.categorie, rendement: String(Math.round(ing.rendement * 100)) });
+    setForm({ nom: ing.nom, prix: String(ing.prix), unite: ing.unite, categorie: ing.categorie, rendement: String(Math.round(ing.rendement * 100)), nbPieces: String((ing as any).nbPieces || 1) } as any);
     setShowForm(true);
   };
 
@@ -374,6 +375,7 @@ export default function IngredientsPage() {
               <input className="border border-yellow-200 focus:border-yellow-400 focus:outline-none rounded-lg px-3 py-2 text-sm w-full" placeholder="Rendement" type="number" min="1" max="100" value={form.rendement} onChange={e => setForm({ ...form, rendement: e.target.value })} />
               <span className="text-sm text-gray-400">%</span>
             </div>
+            <input className="border border-yellow-200 focus:border-yellow-400 focus:outline-none rounded-lg px-3 py-2 text-sm" placeholder="Nb pièces" type="number" min="1" value={(form as any).nbPieces || ''} onChange={e => setForm({ ...form, nbPieces: e.target.value } as any)} />
             <button onClick={handleSubmit} className="bg-yellow-400 hover:bg-yellow-500 text-black font-semibold rounded-lg px-4 py-2 text-sm">{editId ? 'Enregistrer' : 'Ajouter'}</button>
             <button onClick={() => { setShowForm(false); setEditId(null); setForm(emptyForm); }} className="border border-gray-200 rounded-lg px-4 py-2 text-sm text-gray-500 hover:bg-gray-50">Annuler</button>
           </div>
