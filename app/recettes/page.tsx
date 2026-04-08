@@ -594,15 +594,27 @@ export default function RecettesPage() {
                   <td className="px-4 py-3 text-right">
                     {r.prixVente ? <><div>{r.prixVente.toFixed(2)} €</div><div className="text-xs text-gray-400">{(r.prixVente / 1.1).toFixed(2)} € HT</div></> : <span className="text-gray-300">—</span>}
                   </td>
-                  <td className="px-4 py-3 text-right">
-                    {r.coutCalcule > 0 ? <><div>{r.coutCalcule.toFixed(2)} €</div><div className="text-xs text-gray-400">{(r.coutCalcule / (r.prixVente / 1.1) * 100).toFixed(0)}% du HT</div></> : <span className="text-gray-300">—</span>}
-                  </td>
-                  <td className="px-4 py-3 text-right">
-                    {r.prixVente && r.coutCalcule > 0 ? <span className={`font-semibold ${(r.coutCalcule / (r.prixVente / 1.1) * 100) > 32 ? 'text-red-500' : 'text-gray-700'}`}>{(r.coutCalcule / (r.prixVente / 1.1) * 100).toFixed(1)}%</span> : <span className="text-gray-300">—</span>}
-                  </td>
-                  <td className="px-4 py-3 text-right">
-                    {r.prixVente && r.coutCalcule > 0 ? <span className="text-green-600 font-semibold">{(r.prixVente / 1.1 - r.coutCalcule).toFixed(2)} €</span> : <span className="text-gray-300">—</span>}
-                  </td>
+                  {(() => {
+                    const cout = (r.ingredients || []).reduce((total: number, i: any) => {
+                      if (!i.ingredientId) return total;
+                      const ing = ingredients.find(x => x.id === i.ingredientId);
+                      if (!ing) return total;
+                      return total + (ing.prix / ing.rendement) * i.grammage;
+                    }, 0);
+                    const ht = r.prixVente ? r.prixVente / 1.1 : 0;
+                    const fc = cout > 0 && ht > 0 ? cout / ht * 100 : 0;
+                    return <>
+                      <td className="px-4 py-3 text-right">
+                        {cout > 0 ? <><div>{cout.toFixed(2)} €</div>{ht > 0 && <div className="text-xs text-gray-400">{(cout / ht * 100).toFixed(0)}% du HT</div>}</> : <span className="text-gray-300">—</span>}
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        {fc > 0 ? <span className={`font-semibold ${fc > 32 ? 'text-red-500' : 'text-gray-700'}`}>{fc.toFixed(1)}%</span> : <span className="text-gray-300">—</span>}
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        {cout > 0 && ht > 0 ? <span className="text-green-600 font-semibold">{(ht - cout).toFixed(2)} €</span> : <span className="text-gray-300">—</span>}
+                      </td>
+                    </>;
+                  })()}
                   <td className="px-4 py-3 text-right whitespace-nowrap">
                     <div className="flex items-center justify-end gap-2">
                       <button onClick={() => handleEdit(r)} className="text-gray-400 hover:text-yellow-500" title="Modifier">✏️</button>
