@@ -4,6 +4,7 @@
     import { collection, getDocs, deleteDoc, doc, addDoc, updateDoc } from 'firebase/firestore';
     import { db } from '@/lib/firebase';
     import { Ingredient, Unite, Categorie } from '@/lib/types';
+    import { INGREDIENTS } from '@/lib/ingredients';
 
     const UNITES: Unite[] = ['kg', 'g', 'L', 'cL', 'pièce', 'lot'];
     const CATEGORIES: Categorie[] = ['viande', 'poisson', 'légume', 'fruit', 'laitage', 'épicerie', 'boisson', 'autre'];
@@ -77,17 +78,15 @@
         }
         setNomsXLParIngredient(map);
         const xlMap = new Map<string, string[]>();
+        for (const nom of INGREDIENTS) {
+          xlMap.set(nom, []);
+        }
         for (const r of recSnap.docs) {
           const data = r.data();
           for (const ing of (data.ingredients || [])) {
-            if (ing.nomIngredient) {
-              if (!xlMap.has(ing.nomIngredient)) xlMap.set(ing.nomIngredient, []);
+            if (ing.nomIngredient && xlMap.has(ing.nomIngredient)) {
               xlMap.get(ing.nomIngredient)!.push(r.id);
             }
-          }
-          if (data.categorie === 'Préparations') {
-            if (!xlMap.has(data.nom)) xlMap.set(data.nom, []);
-            xlMap.get(data.nom)!.push(r.id);
           }
         }
         setNomsXLMap(xlMap);
