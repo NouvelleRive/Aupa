@@ -452,8 +452,8 @@ export default function RecettesPage() {
                           className={`w-7 h-7 rounded-full border-2 transition-colors flex items-center justify-center ${item.done ? 'bg-green-600 border-green-600 text-white' : item.selected ? 'bg-green-500 border-green-500 text-white' : 'border-gray-300 text-gray-300 hover:border-green-400 hover:text-green-400'}`}>
                           {item.done ? '✓✓' : '✓'}
                         </button>
-                        <button onClick={() => { const n = [...importPreview]; n[globalIdx] = { ...n[globalIdx], selected: false, recetteChoisieId: null }; setImportPreview(n); }}
-                          className={`w-7 h-7 rounded-full border-2 transition-colors flex items-center justify-center ${!item.selected ? 'bg-red-500 border-red-500 text-white' : 'border-gray-300 text-gray-300 hover:border-red-400 hover:text-red-400'}`}>
+                        <button onClick={() => { setImportPreview(p => p.filter((_, j) => j !== globalIdx)); }}
+                          className="w-7 h-7 rounded-full border-2 border-gray-300 text-gray-300 hover:border-red-400 hover:text-red-400 transition-colors flex items-center justify-center">
                           ✕
                         </button>
                       </div>
