@@ -57,21 +57,6 @@
     const [nomsXLMap, setNomsXLMap] = useState<Map<string, string[]>>(new Map());
     const [nomsXLParIngredient, setNomsXLParIngredient] = useState<Record<string, string>>({});
 
-    const suggestMatch = (nom: string): string => {
-    const normalize = (s: string) => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^\w\s]/g, '').trim();
-    const n = normalize(nom);
-    const candidates = Array.from(nomsXLMap.keys());
-    // Cherche d'abord un match exact sur un mot significatif (>3 chars)
-    const exact = candidates.find(c => normalize(c) === n);
-    if (exact) return exact;
-    // Cherche inclusion dans les deux sens
-    const partial = candidates.find(c => {
-        const nc = normalize(c);
-        return n.includes(nc) || nc.includes(n.split(' ')[0]);
-    });
-    return partial || '';
-    };
-
     const fetchIngredients = async () => {
         const [snap, recSnap] = await Promise.all([
         getDocs(collection(db, 'ingredients')),
@@ -498,7 +483,7 @@
                     <td className="px-4 py-3 text-gray-500">{ing.categorie}</td>
                     <td className="px-4 py-3 text-xs">
                       <select className="border border-gray-200 rounded px-2 py-1 text-xs w-full max-w-[160px]"
-                        value={nomsXLParIngredient[ing.id] || suggestMatch(ing.nom)}
+                        value={nomsXLParIngredient[ing.id] || ''}
                         onChange={async e => {
                           const nomChoisi = e.target.value;
                           if (!nomChoisi) return;
@@ -519,11 +504,6 @@
                           await updateDoc(doc(db, 'ingredients', ing.id), { nomXL: nomChoisi });
                           fetchIngredients();
                         }}>
-                            {!nomsXLParIngredient[ing.id] && suggestMatch(ing.nom) && (
-                            <option value={suggestMatch(ing.nom)} disabled style={{fontStyle:'italic', color:'#ca8a04'}}>
-                                💡 {suggestMatch(ing.nom)}
-                            </option>
-                            )}
                         <option value="">— Non lié —</option>
                         {Array.from(nomsXLMap.keys()).sort().map(nom => <option key={nom} value={nom}>{nom}</option>)}
                       </select>
