@@ -54,8 +54,8 @@
         recetteIds: string[];
         done: boolean;
     }[]>([]);
-    const [nomsXLMap, setNomsXLMap] = useState<Map<string, string[]>>(new Map());
-    const [nomsXLParIngredient, setNomsXLParIngredient] = useState<Record<string, string>>({});
+    const [ingredientsMap, setNomsXLMap] = useState<Map<string, string[]>>(new Map());
+    const [ingredientParProduit, setNomsXLParIngredient] = useState<Record<string, string>>({});
     const [matchingMap, setMatchingMap] = useState<Map<string, string[]>>(new Map());
 
     const fetchIngredients = async () => {
@@ -485,7 +485,7 @@
                     <td className="px-4 py-3 text-gray-500">{ing.categorie}</td>
                     <td className="px-4 py-3 text-xs">
                       <select className="border border-gray-200 rounded px-2 py-1 text-xs w-full max-w-[160px]"
-                        value={nomsXLParIngredient[ing.id] || ''}
+                        value={ingredientParProduit[ing.id] || ''}
                         onChange={async e => {
                           const nomChoisi = e.target.value;
                           if (!nomChoisi) return;
@@ -507,7 +507,7 @@
                           fetchIngredients();
                         }}>
                         <option value="">— Non lié —</option>
-                        {Array.from(nomsXLMap.keys()).sort().map(nom => <option key={nom} value={nom}>{nom}</option>)}
+                        {Array.from(ingredientsMap.keys()).sort().map(nom => <option key={nom} value={nom}>{nom}</option>)}
                       </select>
                     </td>
                     <td className="px-4 py-3 text-right">{ing.prix.toFixed(2)} €</td>
