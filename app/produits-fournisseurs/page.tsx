@@ -8,7 +8,7 @@
 
     const UNITES: Unite[] = ['kg', 'g', 'L', 'cL', 'pièce', 'lot'];
     const CATEGORIES: Categorie[] = ['viande', 'poisson', 'légume', 'fruit', 'laitage', 'épicerie', 'boisson', 'consommable', 'autre'];
-    const emptyForm = { nom: '', prix: '', unite: 'kg' as Unite, categorie: 'épicerie' as Categorie, rendement: '100' };
+    const emptyForm = { nom: '', prix: '', unite: 'kg' as Unite, categorie: 'épicerie' as Categorie, rendement: '100', nbKg: '1' };
 
     const detectUnite = (nom: string): Unite => {
     const n = nom.toLowerCase();
@@ -45,7 +45,7 @@
     const pdfRef = useRef<HTMLInputElement>(null);
     const [histoId, setHistoId] = useState<string | null>(null);
     const [editInlineId, setEditInlineId] = useState<string | null>(null);
-    const [editInlineForm, setEditInlineForm] = useState({ nom: '', prix: '', unite: 'kg' as Unite, categorie: 'épicerie' as Categorie, rendement: '100', nbPieces: '1' });
+    const [editInlineForm, setEditInlineForm] = useState({ nom: '', prix: '', unite: 'kg' as Unite, categorie: 'épicerie' as Categorie, rendement: '100', nbPieces: '1', nbKg: '1' });
     const [showMatching, setShowMatching] = useState(false);
     const [searchMatch, setSearchMatch] = useState('');
     const [matchingItems, setMatchingItems] = useState<{
@@ -297,7 +297,8 @@
     const handleSubmit = async () => {
         if (!form.nom || !form.prix) return;
         const nbPieces = parseInt((form as any).nbPieces) || 1;
-        const data: any = { nom: form.nom, prix: parseFloat(form.prix), unite: form.unite, categorie: form.categorie, rendement: parseFloat(form.rendement) / 100, nbPieces, historiquesPrix: [{ date: new Date().toISOString(), prix: parseFloat(form.prix) }], updatedAt: new Date().toISOString() };
+        const nbKg = parseFloat(form.nbKg) || 1;
+        const data: any = { nom: form.nom, prix: parseFloat(form.prix), unite: form.unite, categorie: form.categorie, rendement: parseFloat(form.rendement) / 100, nbPieces, nbKg, historiquesPrix: [{ date: new Date().toISOString(), prix: parseFloat(form.prix) }], updatedAt: new Date().toISOString() };
         await addDoc(collection(db, 'produitsFournisseurs'), data);
         setForm(emptyForm); setShowForm(false); fetchIngredients();
     };
@@ -306,16 +307,17 @@
         const matchPieces = ing.nom.match(/[xX](\d+)/);
         const nbPieces = (ing as any).nbPieces || (matchPieces ? parseInt(matchPieces[1]) : 1);
         setEditInlineId(ing.id);
-        setEditInlineForm({ nom: ing.nom, prix: String(ing.prix), unite: ing.unite, categorie: ing.categorie, rendement: String(Math.round(ing.rendement * 100)), nbPieces: String(nbPieces) });
+        setEditInlineForm({ nom: ing.nom, prix: String(ing.prix), unite: ing.unite, categorie: ing.categorie, rendement: String(Math.round(ing.rendement * 100)), nbPieces: String(nbPieces), nbKg: String((ing as any).nbKg || 1) });
     };
 
     const handleSaveInline = async () => {
         if (!editInlineId || !editInlineForm.nom || !editInlineForm.prix) return;
         const nbPieces = parseInt(editInlineForm.nbPieces) || 1;
+        const nbKg = parseFloat(editInlineForm.nbKg) || 1;
         await updateDoc(doc(db, 'produitsFournisseurs', editInlineId), {
             nom: editInlineForm.nom, prix: parseFloat(editInlineForm.prix), unite: editInlineForm.unite,
             categorie: editInlineForm.categorie, rendement: parseFloat(editInlineForm.rendement) / 100,
-            nbPieces, updatedAt: new Date().toISOString(),
+            nbPieces, nbKg, updatedAt: new Date().toISOString(),
         });
         setEditInlineId(null);
         fetchIngredients();
@@ -457,6 +459,10 @@
                 <span className="text-sm text-gray-400">%</span>
                 </div>
                 <div className="flex items-center gap-1">
+                <input className="border border-yellow-200 focus:border-yellow-400 focus:outline-none rounded-lg px-3 py-2 text-sm w-20" placeholder="Nb kg" type="number" step="0.01" min="0.01" value={form.nbKg} onChange={e => setForm({ ...form, nbKg: e.target.value })} title="Quantité en kg dans le colis" />
+                <span className="text-sm text-gray-400">kg</span>
+                </div>
+                <div className="flex items-center gap-1">
                 <span className="text-sm text-gray-400">×</span>
                 <input className="border border-yellow-200 focus:border-yellow-400 focus:outline-none rounded-lg px-3 py-2 text-sm w-20" placeholder="Nb pièces" type="number" min="1" value={(form as any).nbPieces || ''} onChange={e => setForm({ ...form, nbPieces: e.target.value } as any)} title="Nombre de pièces dans le colis (ex: 90 pour x90)" />
                 </div>
@@ -484,6 +490,7 @@
                     <th className="px-4 py-3 text-right">Prix achat</th>
                     <th className="px-4 py-3 text-left">Unité</th>
                     <th className="px-4 py-3 text-right">Rendement</th>
+                    <th className="px-4 py-3 text-right">Nb kg</th>
                     <th className="px-4 py-3 text-right">Prix réel</th>
                     <th className="px-4 py-3 text-left">Dernière MAJ</th>
                     <th className="px-4 py-3"></th>
@@ -536,9 +543,11 @@
                     <td className="px-4 py-3 text-right">
                         {isEditing ? <div className="flex items-center justify-end gap-1"><input className="border border-yellow-200 rounded px-2 py-1 text-sm w-16 text-right" type="number" min="1" max="100" value={editInlineForm.rendement} onChange={e => setEditInlineForm({ ...editInlineForm, rendement: e.target.value })} /><span className="text-xs text-gray-400">%</span></div> : <>{Math.round(ing.rendement * 100)}%</>}
                     </td>
+                    <td className="px-4 py-3 text-right">
+                        {isEditing ? <input className="border border-yellow-200 rounded px-2 py-1 text-sm w-16 text-right" type="number" step="0.01" min="0.01" value={editInlineForm.nbKg} onChange={e => setEditInlineForm({ ...editInlineForm, nbKg: e.target.value })} /> : <>{(ing as any).nbKg && (ing as any).nbKg !== 1 ? (ing as any).nbKg : <span className="text-gray-300">1</span>}</>}
+                    </td>
                     <td className="px-4 py-3 text-right font-semibold text-yellow-600">
-                        {((ing.prix / ing.rendement) / ((ing as any).nbPieces || 1)).toFixed(2)} €
-                        {(ing as any).nbPieces > 1 && <div className="text-xs text-gray-400 font-normal">{(ing as any).nbPieces} pièces</div>}
+                        {(ing.prix / ((ing as any).nbKg || 1) / ing.rendement).toFixed(2)} €
                     </td>
                     <td className="px-4 py-3 text-sm">
                         {(() => {
@@ -581,7 +590,7 @@
                 })}
                 {histoId && filtered.find(i => i.id === histoId) && (
                     <tr key={histoId + '-histo'}>
-                    <td colSpan={8} className="px-4 py-3 bg-yellow-50">
+                    <td colSpan={9} className="px-4 py-3 bg-yellow-50">
                         <p className="text-xs font-semibold text-gray-500 mb-2 uppercase">Historique des prix — {filtered.find(i => i.id === histoId)?.nom}</p>
                         <div className="flex gap-4 flex-wrap">
                         {(filtered.find(i => i.id === histoId)?.historiquesPrix || []).slice().sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime()).map((h: any, i: number) => (
@@ -593,7 +602,7 @@
                     </td>
                     </tr>
                 )}
-                {filtered.length === 0 && <tr><td colSpan={8} className="px-4 py-8 text-center text-gray-400">Aucun ingrédient</td></tr>}
+                {filtered.length === 0 && <tr><td colSpan={9} className="px-4 py-8 text-center text-gray-400">Aucun ingrédient</td></tr>}
                 </tbody>
             </table>
             </div>
