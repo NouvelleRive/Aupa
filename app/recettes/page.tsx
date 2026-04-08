@@ -611,7 +611,7 @@ export default function RecettesPage() {
             </thead>
             <tbody className="divide-y divide-yellow-50">
               {filtered.map(r => (
-                <tr key={r.id} className={`hover:bg-yellow-50 transition-colors ${selected.has(r.id) ? 'bg-yellow-50' : ''}`}>
+                <tr key={r.id} className={`hover:bg-yellow-50 transition-colors ${selected.has(r.id) ? 'bg-yellow-50' : ''} ${(!r.ingredients || r.ingredients.length === 0) ? 'opacity-40' : ''}`}>
                   <td className="px-4 py-3 text-center">
                     <input type="checkbox" checked={selected.has(r.id)} className="accent-yellow-400"
                       onChange={e => { const s = new Set(selected); e.target.checked ? s.add(r.id) : s.delete(r.id); setSelected(s); }} />
