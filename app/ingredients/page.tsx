@@ -28,32 +28,27 @@ export default function IngredientsPage() {
     const ings = ingSnap.docs.map(d => ({ id: d.id, ...d.data() } as Ingredient));
     setIngredients(ings);
 
-    // Compter les produits fournisseurs liés par ingredientId
+    // Compter les produits fournisseurs liés par nom (champ ingredient)
     const pf: Record<string, number> = {};
     for (const d of pfSnap.docs) {
-      const ingredientId = d.data().ingredientId;
-      if (ingredientId) {
-        pf[ingredientId] = (pf[ingredientId] || 0) + 1;
+      const nomIngredient = d.data().ingredient;
+      if (nomIngredient) {
+        const ing = ings.find(i => i.nom === nomIngredient);
+        if (ing) pf[ing.id] = (pf[ing.id] || 0) + 1;
       }
     }
     setPfCounts(pf);
 
-    // Compter les recettes liées par ingredientId dans leurs lignes
+    // Compter les recettes liées par nomIngredient
     const rc: Record<string, number> = {};
     for (const d of recSnap.docs) {
       const lignes = d.data().ingredients || [];
       const seen = new Set<string>();
       for (const l of lignes) {
-        const id = l.ingredientId;
-        if (id && !seen.has(id)) {
-          rc[id] = (rc[id] || 0) + 1;
-          seen.add(id);
-        }
-        for (const aid of (l.ingredientIds || [])) {
-          if (!seen.has(aid)) {
-            rc[aid] = (rc[aid] || 0) + 1;
-            seen.add(aid);
-          }
+        const nomIngredient = l.nomIngredient;
+        if (nomIngredient && !seen.has(nomIngredient)) {
+          const ing = ings.find(i => i.nom === nomIngredient);
+          if (ing) { rc[ing.id] = (rc[ing.id] || 0) + 1; seen.add(nomIngredient); }
         }
       }
     }
