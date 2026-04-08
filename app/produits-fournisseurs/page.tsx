@@ -7,7 +7,7 @@
     import { INGREDIENTS } from '@/lib/ingredient';
 
     const UNITES: Unite[] = ['kg', 'g', 'L', 'cL', 'pièce', 'lot'];
-    const CATEGORIES: Categorie[] = ['viande', 'poisson', 'légume', 'fruit', 'laitage', 'épicerie', 'boisson', 'autre'];
+    const CATEGORIES: Categorie[] = ['viande', 'poisson', 'légume', 'fruit', 'laitage', 'épicerie', 'boisson', 'consommable', 'autre'];
     const emptyForm = { nom: '', prix: '', unite: 'kg' as Unite, categorie: 'épicerie' as Categorie, rendement: '100' };
 
     const detectUnite = (nom: string): Unite => {
