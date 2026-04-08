@@ -525,7 +525,8 @@
                         return <span className={jours > 30 ? 'text-red-500 font-semibold' : 'text-gray-400'}>{label}{jours > 30 ? ' ⚠️' : ''}</span>;
                         })()}
                     </td>
-                    <td className="px-4 py-3 text-right">
+                    <td className="px-4 py-3 text-right whitespace-nowrap">
+                        <div className="flex items-center justify-end gap-2">
                         {(() => {
                         const hist = (ing.historiquesPrix || []).slice().sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime());
                         const last = hist[hist.length - 1];
@@ -534,12 +535,14 @@
                         const trendColor = trend === '↑' ? 'text-red-500' : trend === '↓' ? 'text-green-500' : 'text-gray-400';
                         return trend ? (
                             <button onClick={() => setHistoId(histoId === ing.id ? null : ing.id)}
-                            className={`font-bold text-sm ${trendColor} hover:opacity-70 mr-2`} title="Voir historique">
+                            className={`font-bold text-sm ${trendColor} hover:opacity-70`} title="Voir historique">
                             {trend}
                             </button>
-                        ) : <span className="mr-6"></span>;
+                        ) : null;
                         })()}
-                        <button onClick={() => handleEdit(ing)} className="text-gray-400 hover:text-yellow-500" title="Modifier">✏️</button><button onClick={() => handleDelete(ing.id)} className="text-gray-400 hover:text-red-500" title="Supprimer">🗑️</button>
+                        <button onClick={() => handleEdit(ing)} className="text-gray-400 hover:text-yellow-500" title="Modifier">✏️</button>
+                        <button onClick={() => handleDelete(ing.id)} className="text-gray-400 hover:text-red-500" title="Supprimer">🗑️</button>
+                        </div>
                     </td>
                     </tr>
                 ))}
