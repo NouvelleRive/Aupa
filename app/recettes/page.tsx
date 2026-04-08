@@ -320,14 +320,22 @@ export default function RecettesPage() {
   };
 
   const getPrixProduitFournisseur = (ingredientId: string): number => {
-    // Cherche dans produitsFournisseurs les produits liés à cet ingrédient canonique
+    // Cherche dans produitsFournisseurs les produits liés à cet ingrédient canonique par ingredientId
     const pfs = produitsFournisseurs.filter(pf => pf.ingredientId === ingredientId);
     if (pfs.length > 0) {
-      // Prendre le prix le plus récent
       const plusRecent = pfs.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())[0];
       return (plusRecent.prix / plusRecent.rendement) / ((plusRecent as any).nbPieces || 1);
     }
-    // Fallback : chercher par id directement dans produitsFournisseurs (ancien matching)
+    // Fallback : chercher par le champ ingredient (nom canonique) via l'ingrédient canonique
+    const ingCanon = ingredients.find(i => i.id === ingredientId);
+    if (ingCanon) {
+      const pfsByNom = produitsFournisseurs.filter(pf => (pf as any).ingredient === ingCanon.nom);
+      if (pfsByNom.length > 0) {
+        const plusRecent = pfsByNom.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())[0];
+        return (plusRecent.prix / plusRecent.rendement) / ((plusRecent as any).nbPieces || 1);
+      }
+    }
+    // Fallback : chercher directement par id
     const directMatch = produitsFournisseurs.find(pf => pf.id === ingredientId);
     if (directMatch) return (directMatch.prix / directMatch.rendement) / ((directMatch as any).nbPieces || 1);
     return 0;
