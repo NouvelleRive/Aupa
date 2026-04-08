@@ -551,17 +551,12 @@ export default function RecettesPage() {
                 const coutLigne = ing ? (ing.prix / ing.rendement) * grammage : 0;
                 return (
                   <div key={i} className="flex gap-2 items-center">
-                    <div className="flex-1 flex flex-col gap-1">
-                      {ligne.type === 'ingredient' && (
-                        <input className="border border-yellow-100 rounded-lg px-2 py-1 text-xs focus:outline-none focus:border-yellow-300" placeholder="Rechercher..." value={searchIngredients[i] || ''} onChange={e => setSearchIngredients(prev => ({ ...prev, [i]: e.target.value }))} />
-                      )}
-                      <select className="border border-yellow-200 rounded-lg px-3 py-2 text-sm w-full" value={ligne.id} onChange={e => { const n = [...lignes]; n[i].id = e.target.value; setLignes(n); }}>
-                        {ligne.type === 'ingredient'
-                          ? ingredients.filter(ing => ing.nom.toLowerCase().includes((searchIngredients[i] || '').toLowerCase())).sort((a, b) => a.nom.localeCompare(b.nom)).map(ing => <option key={ing.id} value={ing.id}>{ing.nom} ({ing.unite})</option>)
-                          : recettes.filter(r => r.categorie === 'Préparations').sort((a, b) => a.nom.localeCompare(b.nom)).map(p => <option key={p.id} value={p.id}>{p.nom}</option>)
-                        }
-                      </select>
-                    </div>
+                    <select className="border border-yellow-200 rounded-lg px-3 py-2 text-sm flex-1" value={ligne.id} onChange={e => { const n = [...lignes]; n[i].id = e.target.value; setLignes(n); }}>
+                      {ligne.type === 'ingredient'
+                        ? ingredients.sort((a, b) => a.nom.localeCompare(b.nom)).map(ing => <option key={ing.id} value={ing.id}>{ing.nom} ({ing.unite})</option>)
+                        : recettes.filter(r => r.categorie === 'Préparations').sort((a, b) => a.nom.localeCompare(b.nom)).map(p => <option key={p.id} value={p.id}>{p.nom}</option>)
+                      }
+                    </select>
                     <input className="border border-yellow-200 rounded-lg px-3 py-2 text-sm w-24" placeholder="Qté" type="number" value={ligne.grammage} onChange={e => { const n = [...lignes]; n[i].grammage = e.target.value; setLignes(n); }} />
                     {ing && <span className="text-xs text-gray-400 w-20 text-right">{ing.prix.toFixed(2)} €/{ing.unite}</span>}
                     {coutLigne > 0 && <span className="text-xs font-semibold text-yellow-600 w-16 text-right">{coutLigne.toFixed(3)} €</span>}
