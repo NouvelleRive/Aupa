@@ -563,11 +563,13 @@ export default function RecettesPage() {
                   : null;
                 return (
                   <div key={i} className="flex gap-2 items-center">
-                    <select className="border border-yellow-200 rounded-lg px-3 py-2 text-sm flex-1" value={ligne.id} onChange={e => { const n = [...lignes]; n[i].id = e.target.value; setLignes(n); }}>
-                      {ligne.type === 'ingredient'
-                        ? ingredients.sort((a, b) => a.nom.localeCompare(b.nom)).map(ing => <option key={ing.id} value={ing.id}>{ing.nom} ({ing.unite})</option>)
-                        : recettes.filter(r => r.categorie === 'Préparations').sort((a, b) => a.nom.localeCompare(b.nom)).map(p => <option key={p.id} value={p.id}>{p.nom}</option>)
-                      }
+                    <select className="border border-yellow-200 rounded-lg px-3 py-2 text-sm flex-1" value={ligne.id} onChange={e => { const n = [...lignes]; n[i].id = e.target.value; n[i].type = recettes.find(r => r.id === e.target.value) ? 'preparation' : 'ingredient'; setLignes(n); }}>
+                      <optgroup label="Ingrédients">
+                        {ingredients.sort((a, b) => a.nom.localeCompare(b.nom)).map(ing => <option key={ing.id} value={ing.id}>{ing.nom} ({ing.unite})</option>)}
+                      </optgroup>
+                      <optgroup label="Préparations">
+                        {recettes.filter(r => r.categorie === 'Préparations').sort((a, b) => a.nom.localeCompare(b.nom)).map(p => <option key={p.id} value={p.id}>{p.nom}</option>)}
+                      </optgroup>
                     </select>
                     <input className="border border-yellow-200 rounded-lg px-3 py-2 text-sm w-24" placeholder="Qté" type="number" value={ligne.grammage} onChange={e => { const n = [...lignes]; n[i].grammage = e.target.value; setLignes(n); }} />
                     <span className="text-xs text-gray-400 w-20 text-right">{prixLabel || ''}</span>
