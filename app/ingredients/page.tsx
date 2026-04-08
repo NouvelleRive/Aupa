@@ -110,12 +110,16 @@
         }
         const items = Array.from(map.entries()).map(([nomXL, recetteIds]) => {
         const existing = nomXLToItems.get(nomXL);
+        const dejaMatche = existing?.ingredientIds?.some(id => {
+          const ing = ingredients.find(i => i.id === id);
+          return ing && (ing as any).nomXL === nomXL;
+        }) || false;
         return {
             ingredientIds: existing?.ingredientIds || [],
             ingredientNom: nomXL,
             nomXLChoisi: nomXL,
             recetteIds,
-            done: false,
+            done: dejaMatche,
         };
         });
         setMatchingItems(items);
