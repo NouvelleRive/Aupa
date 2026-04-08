@@ -40,7 +40,10 @@ const matchExistant = (nomCaisse: string, nomRecette: string): boolean => {
   const motsCaisse = a.split(' ').filter(m => m.length > 3 && !STOP.has(m));
   const motsRecette = b.split(' ').filter(m => m.length > 3 && !STOP.has(m));
   if (motsCaisse.length === 0 || motsRecette.length === 0) return false;
-  return motsCaisse.every(m => b.includes(m)) && motsRecette.every(m => a.includes(m));
+  const communsCaisse = motsCaisse.filter(m => b.includes(m));
+  const communsRecette = motsRecette.filter(m => a.includes(m));
+  if (communsCaisse.length === 0 || communsRecette.length === 0) return false;
+  return communsCaisse.length >= motsCaisse.length * 0.8 && communsRecette.length >= motsRecette.length * 0.8;
 };
 
 const SHEET_TO_CAT: Record<string, CategorieRecette> = {
@@ -420,7 +423,7 @@ export default function RecettesPage() {
                         value={item.recetteChoisieId || ''}
                         onChange={e => setImportPreview(p => p.map((x, j) => j === globalIdx ? { ...x, recetteChoisieId: e.target.value || null, selected: true } : x))}>
                         <option value="">— Créer nouveau —</option>
-                        {recettes.filter(r => r.type === 'food').map(r => <option key={r.id} value={r.id}>{r.nom}</option>)}
+                        {recettes.filter(r => r.type === 'food').sort((a, b) => a.nom.localeCompare(b.nom)).map(r => <option key={r.id} value={r.id}>{r.nom}</option>)}
                       </select>
                     </td>
                     <td className="px-4 py-2 text-right text-gray-500">{item.prix} €</td>
