@@ -674,8 +674,10 @@ export default function RecettesPage() {
                       }
                       if (i.recetteId) {
                         const prep = recettes.find(x => x.id === i.recetteId) as any;
-                        if (!prep || !prep.coutAuKg) return total;
-                        return total + prep.coutAuKg * i.grammage;
+                        if (!prep) return total;
+                        if (prep.coutAuKg) return total + prep.coutAuKg * i.grammage;
+                        if (prep.coutCalcule && prep.quantiteProduite) return total + (prep.coutCalcule / prep.quantiteProduite) * i.grammage;
+                        return total;
                       }
                       return total;
                     }, 0);
