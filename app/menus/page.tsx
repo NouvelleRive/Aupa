@@ -193,12 +193,16 @@
     const totalVendus = ventesMenuActuel.reduce((s, v) => s + v.quantity, 0);
 
     const allMenuRecettes = menuCourant?.categories.flatMap(c => c.recettes || []) || [];
-    const foodCostMoyen = allMenuRecettes.filter(mr => mr.prixVente > 0).length > 0
-        ? allMenuRecettes.filter(mr => mr.prixVente > 0).reduce((s, mr) => {
-            const r = recettes.find(x => x.id === mr.id);
-            if (!r) return s;
+    const recettesAvecCout = allMenuRecettes.filter(mr => {
+        if (mr.prixVente <= 0) return false;
+        const r = recettes.find(x => x.id === mr.id);
+        return r && r.coutCalcule > 0;
+    });
+    const foodCostMoyen = recettesAvecCout.length > 0
+        ? recettesAvecCout.reduce((s, mr) => {
+            const r = recettes.find(x => x.id === mr.id)!;
             return s + (r.coutCalcule / (mr.prixVente / 1.1)) * 100;
-        }, 0) / allMenuRecettes.filter(mr => mr.prixVente > 0).length
+        }, 0) / recettesAvecCout.length
         : 0;
 
     const recettesFiltrees = recettes.filter(r => filterCatEdit === 'all' || r.categorie === filterCatEdit);
