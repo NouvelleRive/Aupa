@@ -170,15 +170,27 @@
         const content = await page.getTextContent();
         const items = content.items.map((item: any) => item.str.trim()).filter(Boolean);
         for (let j = 0; j < items.length; j++) {
-            const match = items[j].match(/^(FF-\d+)\s+(.+)$/);
-            if (match) {
-            const prixStr = items[j + 2] || '';
-            const prixMatch = prixStr.replace(',', '.').match(/^(\d+\.\d+)/);
+            const codeMatch = items[j].match(/^(FF-\d+)$/);
+        if (codeMatch) {
+        const code = codeMatch[1];
+        let nom = items[j + 1] || '';
+        let nomComplet = nom;
+        for (let k = j + 2; k < j + 5; k++) {
+            if (!items[k] || items[k].match(/^\d/)) break;
+            nomComplet += ' ' + items[k];
+        }
+        let prix = 0;
+        for (let k = j + 2; k < Math.min(j + 7, items.length); k++) {
+            const prixMatch = items[k].replace(',', '.').match(/^(\d+\.?\d*)\s*€/);
             if (prixMatch) {
-                const prix = parseFloat(prixMatch[1]);
-                if (prix > 0) lignes.push({ code: match[1], nom: match[2], prix, date: dateFacture });
+            prix = parseFloat(prixMatch[1]);
+            break;
             }
-            }
+        }
+        if (prix > 0 && nom) {
+            lignes.push({ code, nom: nomComplet, prix, date: dateFacture });
+        }
+        }
         }
         }
         return lignes;
@@ -324,6 +336,7 @@
     };
 
     const [filterCategorie, setFilterCategorie] = useState<string>('all');
+    const [filterNonLie, setFilterNonLie] = useState(false);
 
     const handleDelete = async (id: string) => {
         if (!confirm('Supprimer cet ingrédient ?')) return;
@@ -334,6 +347,7 @@
     const filtered = ingredients
     .filter(i => i.nom.toLowerCase().includes(search.toLowerCase()))
     .filter(i => filterCategorie === 'all' || i.categorie === filterCategorie)
+    .filter(i => !filterNonLie || !ingredientParProduit[i.id])
     .sort((a, b) => a.categorie.localeCompare(b.categorie) || a.nom.localeCompare(b.nom));
 
     if (showMatching) {
@@ -478,6 +492,11 @@
             <option value="all">Toutes catégories</option>
             {CATEGORIES.map(c => <option key={c}>{c}</option>)}
             </select>
+
+            <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer ml-2">
+            <input type="checkbox" checked={filterNonLie} onChange={e => setFilterNonLie(e.target.checked)} className="accent-yellow-400" />
+            Non liés seulement
+            </label>
 
         {loading ? <p className="text-gray-400">Chargement...</p> : (
             <div className="bg-white rounded-xl border border-yellow-100 overflow-hidden">
