@@ -30,10 +30,13 @@ export const INGREDIENTS: string[] = [
   'Sucre cassonade', 'Sucre de canne', 'Suze', 'Thé', 'Thon', 'Thym',
   'Tomate', 'Tomate cerise', 'Tonic', 'Vanille liquide', 'Vin', 'Vin blanc',
   'Vinaigre blanc', 'Vodka', 'Whisky', 'Yahourt grec',
-  'Aioli', 'Bourguignon', 'Caramel beurre salé', 'Coleslaw',
-  'Crème de champi', 'Croissant perdu', 'Guaca', 'Mayonnaise',
-  'Mayonnaise harissa', 'Mayonnaise moutarde à l\'ancienne',
-  'Pickles concombre', 'Pickles oignon', 'Pesto', 'Polpette',
-  'Poulet basquaise', 'Puled pork', 'Ratatouille', 'Rougail',
-  'Thon prépa', 'Tzatziki', 'Velouté',
+].sort();
+
+export const PREPARATIONS: string[] = [
+  'Prépa aioli', 'Prépa bourguignon', 'Prépa caramel beurre salé', 'Prépa coleslaw',
+  'Prépa crème de champi', 'Prépa croissant perdu', 'Prépa guaca', 'Prépa mayonnaise',
+  'Prépa mayonnaise harissa', 'Prépa mayonnaise moutarde à l\'ancienne',
+  'Prépa pickles concombre', 'Prépa pickles oignon', 'Prépa pesto', 'Prépa polpette',
+  'Prépa poulet basquaise', 'Prépa puled pork', 'Prépa ratatouille', 'Prépa rougail',
+  'Prépa thon', 'Prépa tzatziki', 'Prépa velouté',
 ].sort();
