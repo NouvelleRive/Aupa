@@ -232,7 +232,7 @@
                 onChange={e => setNouveauDateFin(e.target.value)} />
             <select className="border border-yellow-200 focus:border-yellow-400 focus:outline-none rounded-lg px-3 py-2 text-sm"
                 value={dupliquerDepuis} onChange={e => setDupliquerDepuis(e.target.value)}>
-                <option value="">Vide (nouveau)</option>
+                <option value="">Dupliquer à partir de</option>
                 {menus.map(m => <option key={m.id} value={m.id}>Dupliquer {m.nom}</option>)}
             </select>
             <button onClick={handleCreerMenu} className="bg-yellow-400 hover:bg-yellow-500 text-black font-semibold rounded-lg px-4 py-2 text-sm">Créer</button>
