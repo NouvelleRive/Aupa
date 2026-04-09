@@ -288,7 +288,7 @@ export default function IngredientsPage() {
                 <th className="px-4 py-3 text-left">Nom</th>
                 <th className="px-4 py-3 text-left">Unité</th>
                 <th className="px-4 py-3 text-left">Catégorie</th>
-                <th className="px-4 py-3 text-right">Prix/kg</th>
+                <th className="px-4 py-3 text-right">Prix/unité</th>
                 <th className="px-4 py-3 text-left">Produits fournisseurs</th>
                 <th className="px-4 py-3 text-left">Recettes liées</th>
                 <th className="px-4 py-3"></th>
@@ -302,7 +302,7 @@ export default function IngredientsPage() {
                   <td className="px-4 py-3 text-gray-500">{ing.categorie}</td>
                   <td className="px-4 py-3 text-right">
                     {pfPrix[ing.id] ? (
-                      <span className="font-semibold text-yellow-600">{pfPrix[ing.id].toFixed(2)} €</span>
+                      <span className="font-semibold text-yellow-600">{pfPrix[ing.id].toFixed(2)} €/{ing.unite}</span>
                     ) : (
                       <span className="text-gray-300">—</span>
                     )}
