@@ -36,6 +36,7 @@
     const [nouveauNom, setNouveauNom] = useState('');
     const [nouveauDateDebut, setNouveauDateDebut] = useState('');
     const [nouveauDateFin, setNouveauDateFin] = useState('');
+    const [dupliquerDepuis, setDupliquerDepuis] = useState<string>('');
 
     const [menuEdit, setMenuEdit] = useState<string>('');
     const [catNom, setCatNom] = useState('Croger');
@@ -76,17 +77,20 @@
         const nom = nouveauNom.toUpperCase().trim();
         const saison = nom.startsWith('ETE') ? 'été' : 'hiver';
         const annee = parseInt('20' + nom.replace('ETE', '').replace('HIVER', ''));
+        const sourceMenu = dupliquerDepuis ? menus.find(m => m.id === dupliquerDepuis) : null;
+        const categories = sourceMenu ? sourceMenu.categories.map(c => ({ nom: c.nom, recettes: c.recettes.map(r => ({ ...r })) })) : [];
         const newDoc = await addDoc(collection(db, 'menus'), {
         nom, saison, annee,
         dateDebut: nouveauDateDebut,
         dateFin: nouveauDateFin,
-        categories: [], actif: true,
+        categories, actif: true,
         createdAt: new Date().toISOString(),
         });
         setShowCreerMenu(false);
         setNouveauNom('');
         setNouveauDateDebut('');
         setNouveauDateFin('');
+        setDupliquerDepuis('');
         await fetchAll();
         setMenuActif(newDoc.id);
     };
@@ -226,6 +230,11 @@
             <input className="border border-yellow-200 focus:border-yellow-400 focus:outline-none rounded-lg px-3 py-2 text-sm w-36"
                 placeholder="Fin (2025-04-30)" value={nouveauDateFin}
                 onChange={e => setNouveauDateFin(e.target.value)} />
+            <select className="border border-yellow-200 focus:border-yellow-400 focus:outline-none rounded-lg px-3 py-2 text-sm"
+                value={dupliquerDepuis} onChange={e => setDupliquerDepuis(e.target.value)}>
+                <option value="">Vide (nouveau)</option>
+                {menus.map(m => <option key={m.id} value={m.id}>Dupliquer {m.nom}</option>)}
+            </select>
             <button onClick={handleCreerMenu} className="bg-yellow-400 hover:bg-yellow-500 text-black font-semibold rounded-lg px-4 py-2 text-sm">Créer</button>
             <button onClick={() => setShowCreerMenu(false)} className="text-sm text-gray-400 hover:text-gray-600">Annuler</button>
             </div>
