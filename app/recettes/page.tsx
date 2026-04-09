@@ -456,7 +456,7 @@ export default function RecettesPage() {
 
   const filtered = recettes.filter(r =>
     (filterCat === 'all' || r.categorie === filterCat) &&
-    (filterType === 'all' || (filterType === 'food' ? (!r.type || r.type === 'food') : r.type === filterType))
+    (filterType === 'all' || (filterType === 'food' ? (!r.type || r.type === 'food') : filterType === 'afaire' ? (r as any).needsIngredients : r.type === filterType))
   ).sort((a, b) => a.categorie.localeCompare(b.categorie) || a.nom.localeCompare(b.nom));
 
   const coutPreview = calculerCout();
@@ -684,6 +684,7 @@ export default function RecettesPage() {
           <option value="all">Food & Boisson</option>
           <option value="food">Food</option>
           <option value="boisson">Boisson</option>
+          <option value="afaire">A faire</option>
         </select>
         {selected.size > 0 && (
           <div className="flex items-center gap-2 ml-auto">
@@ -731,7 +732,10 @@ export default function RecettesPage() {
                       {r.type === 'boisson' ? 'B' : 'F'}
                     </span>
                   </td>
-                  <td className="px-4 py-3 font-medium">{r.nom}</td>
+                  <td className="px-4 py-3 font-medium">
+                    {r.nom}
+                    {(r as any).needsIngredients && <span className="ml-2 bg-orange-100 text-orange-600 px-1.5 py-0.5 rounded text-xs font-medium">A FAIRE</span>}
+                  </td>
                   <td className="px-4 py-3 text-gray-500">{r.categorie}</td>
                   <td className="px-4 py-3 text-right">
                     {r.prixVente ? <><div>{r.prixVente.toFixed(2)} €</div><div className="text-xs text-gray-400">{(r.prixVente / 1.1).toFixed(2)} € HT</div></> : <span className="text-gray-300">—</span>}
