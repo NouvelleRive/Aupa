@@ -44,6 +44,9 @@
     const [filterCatEdit, setFilterCatEdit] = useState('all');
     const [editingCatIdx, setEditingCatIdx] = useState<number | null>(null);
     const [showAddCat, setShowAddCat] = useState(false);
+    const [editDates, setEditDates] = useState(false);
+    const [editDateDebut, setEditDateDebut] = useState('');
+    const [editDateFin, setEditDateFin] = useState('');
 
     const fileRef = useRef<HTMLInputElement>(null);
 
@@ -54,7 +57,7 @@
         getDocs(collection(db, 'ventes')),
         ]);
         const ms = mSnap.docs.map(d => ({ id: d.id, ...d.data() } as MenuDoc));
-        ms.sort((a, b) => (b.dateDebut || '').localeCompare(a.dateDebut || ''));
+        ms.sort((a, b) => (a.dateDebut || '').localeCompare(b.dateDebut || ''));
         ms.forEach(m => {
             m.categories = (m.categories || []).map((c: any) => {
                 if (c.recetteIds && !c.recettes) {
@@ -254,6 +257,26 @@
             <p className="text-gray-400 text-center py-12">Crée un menu pour commencer.</p>
         ) : (
             <>
+            <div className="flex items-center gap-3 mb-4">
+              {editDates ? (
+                <>
+                  <input className="border border-yellow-200 focus:border-yellow-400 focus:outline-none rounded-lg px-3 py-1 text-sm w-36" type="date" value={editDateDebut} onChange={e => setEditDateDebut(e.target.value)} />
+                  <span className="text-gray-400 text-sm">→</span>
+                  <input className="border border-yellow-200 focus:border-yellow-400 focus:outline-none rounded-lg px-3 py-1 text-sm w-36" type="date" value={editDateFin} onChange={e => setEditDateFin(e.target.value)} />
+                  <button onClick={async () => {
+                    await updateDoc(doc(db, 'menus', menuCourant.id), { dateDebut: editDateDebut, dateFin: editDateFin });
+                    setEditDates(false);
+                    await fetchAll();
+                  }} className="bg-yellow-400 hover:bg-yellow-500 text-black font-semibold rounded-lg px-3 py-1 text-sm">OK</button>
+                  <button onClick={() => setEditDates(false)} className="text-sm text-gray-400 hover:text-gray-600">Annuler</button>
+                </>
+              ) : (
+                <button onClick={() => { setEditDates(true); setEditDateDebut(menuCourant.dateDebut || ''); setEditDateFin(menuCourant.dateFin || ''); }}
+                  className="text-xs text-gray-400 hover:text-yellow-500 border border-gray-200 rounded-lg px-3 py-1">
+                  {menuCourant.dateDebut ? `${menuCourant.dateDebut} → ${menuCourant.dateFin}` : 'Ajouter dates de validité'}
+                </button>
+              )}
+            </div>
             {moisDisponibles.length > 0 && (
                 <div className="flex gap-2 mb-6 flex-wrap">
                 <button onClick={() => setMoisActif('all')}
