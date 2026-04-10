@@ -36,6 +36,6 @@ export const PREPARATIONS: string[] = [
   'Prépa crème de champi', 'Prépa croissant perdu', 'Prépa guaca', 'Prépa mayonnaise',
   'Prépa mayonnaise harissa', 'Prépa mayonnaise moutarde à l\'ancienne',
   'Prépa pickles concombre', 'Prépa pickles oignon', 'Prépa pesto', 'Prépa polpette',
-  'Prépa poulet basquaise', 'Prépa puled pork', 'Prépa ratatouille', 'Prépa rougail',
+  'Prépa poulet basquaise', 'Prépa puled pork', 'Prépa ratatouille été', 'Prépa ratatouille hiver', 'Prépa rougail',
   'Prépa thon', 'Prépa tzatziki', 'Prépa velouté',
 ].sort();
