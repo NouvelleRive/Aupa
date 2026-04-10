@@ -874,7 +874,7 @@
                         {isEditing ? <div><span className="text-xs text-gray-400 block mb-1">Nom</span><input className="border border-yellow-200 rounded px-2 py-1 text-sm w-full" value={editInlineForm.nom} onChange={e => setEditInlineForm({ ...editInlineForm, nom: e.target.value })} /><div className="flex gap-2 mt-2"><button onClick={handleSaveInline} className="bg-yellow-400 hover:bg-yellow-500 text-black font-semibold rounded px-3 py-1 text-xs">Enregistrer</button><button onClick={() => setEditInlineId(null)} className="border border-gray-200 rounded px-3 py-1 text-xs text-gray-500 hover:bg-gray-50">Annuler</button></div></div> : ing.nom}
                     </td>
                     <td className="px-4 py-3 text-gray-500">
-                        {isEditing ? <div><span className="text-xs text-gray-400 block mb-1">Catégorie</span><select className="border border-yellow-200 rounded px-2 py-1 text-sm" value={editInlineForm.categorie} onChange={e => setEditInlineForm({ ...editInlineForm, categorie: e.target.value as Categorie })}>{CATEGORIES.map(c => <option key={c}>{c}</option>)}</select></div> : ing.categorie}
+                        <select className="bg-transparent text-sm cursor-pointer hover:text-yellow-600" value={ing.categorie} onChange={async e => { await updateDoc(doc(db, 'produitsFournisseurs', ing.id), { categorie: e.target.value }); fetchIngredients(); }}>{CATEGORIES.map(c => <option key={c}>{c}</option>)}</select>
                     </td>
                     <td className="px-4 py-3 text-xs">
                       <select className="border border-gray-200 rounded px-2 py-1 text-xs w-full max-w-[160px]"
