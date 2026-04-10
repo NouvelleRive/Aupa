@@ -8,7 +8,7 @@
 
     const UNITES: Unite[] = ['kg', 'g', 'L', 'cL', 'pièce', 'lot'];
     const CATEGORIES: Categorie[] = ['viande', 'poisson', 'légume', 'fruit', 'laitage', 'épicerie', 'boisson', 'consommable', 'autre'];
-    const emptyForm = { nom: '', prix: '', unite: 'kg' as Unite, categorie: 'épicerie' as Categorie, rendement: '100', nbKg: '1' };
+    const emptyForm = { nom: '', prix: '', unite: 'kg' as Unite, categorie: 'épicerie' as Categorie, rendement: '100', quantite: '1' };
 
     const detectUnite = (nom: string): Unite => {
     const n = nom.toLowerCase();
@@ -47,7 +47,7 @@
     const lbaRef = useRef<HTMLInputElement>(null);
     const [histoId, setHistoId] = useState<string | null>(null);
     const [editInlineId, setEditInlineId] = useState<string | null>(null);
-    const [editInlineForm, setEditInlineForm] = useState({ nom: '', prix: '', unite: 'kg' as Unite, categorie: 'épicerie' as Categorie, rendement: '100', nbPieces: '1', nbKg: '1' });
+    const [editInlineForm, setEditInlineForm] = useState({ nom: '', prix: '', unite: 'kg' as Unite, categorie: 'épicerie' as Categorie, rendement: '100', quantite: '1' });
     const [showMatching, setShowMatching] = useState(false);
     const [searchMatch, setSearchMatch] = useState('');
     const [matchingItems, setMatchingItems] = useState<{
@@ -253,15 +253,15 @@
             updated++;
         } else {
             const uniteDetectee = detectUnite(derniere.nom);
-            const matchPieces = derniere.nom.match(/[xX]\s?(\d+)/);
-            const nbPieces = uniteDetectee === 'pièce' && matchPieces ? parseInt(matchPieces[1]) : 1;
+            const matchQte = derniere.nom.match(/[xX]\s?(\d+)/);
+            const quantite = matchQte ? parseInt(matchQte[1]) : 1;
             await addDoc(collection(db, 'produitsFournisseurs'), {
             nom: derniere.nom,
             prix: derniere.prix,
             unite: uniteDetectee,
             categorie: detectCategorie(derniere.nom),
             rendement: 1,
-            nbPieces,
+            quantite,
             fournisseur: 'Foodflow',
             foodflowCode: code,
             historiquesPrix: lignes.map(l => ({ date: l.date, prix: l.prix })),
@@ -414,15 +414,15 @@
             updated++;
         } else {
             const uniteDetectee = detectUnite(derniere.nom);
-            const matchPieces = derniere.nom.match(/[xX]\s?(\d+)/);
-            const nbPieces = uniteDetectee === 'pièce' && matchPieces ? parseInt(matchPieces[1]) : 1;
+            const matchQte = derniere.nom.match(/[xX]\s?(\d+)/);
+            const quantite = matchQte ? parseInt(matchQte[1]) : 1;
             await addDoc(collection(db, 'produitsFournisseurs'), {
             nom: derniere.nom,
             prix: derniere.prix,
             unite: uniteDetectee,
             categorie: 'boisson' as Categorie,
             rendement: 1,
-            nbPieces,
+            quantite,
             fournisseur: 'Milliet',
             millietCode: code,
             historiquesPrix: lignes.map(l => ({ date: l.date, prix: l.prix })),
@@ -593,15 +593,15 @@
             updated++;
         } else {
             const uniteDetectee = detectUnite(derniere.nom);
-            const matchPieces = derniere.nom.match(/[xX]\s?(\d+)/);
-            const nbPieces = uniteDetectee === 'pièce' && matchPieces ? parseInt(matchPieces[1]) : 1;
+            const matchQte = derniere.nom.match(/[xX]\s?(\d+)/);
+            const quantite = matchQte ? parseInt(matchQte[1]) : 1;
             await addDoc(collection(db, 'produitsFournisseurs'), {
             nom: derniere.nom,
             prix: derniere.prix,
             unite: uniteDetectee,
             categorie: 'boisson' as Categorie,
             rendement: 1,
-            nbPieces,
+            quantite,
             fournisseur: 'LBA',
             lbaCode: code,
             historiquesPrix: lignes.map(l => ({ date: l.date, prix: l.prix })),
@@ -651,28 +651,25 @@
 
     const handleSubmit = async () => {
         if (!form.nom || !form.prix) return;
-        const nbPieces = parseInt((form as any).nbPieces) || 1;
-        const nbKg = parseFloat(form.nbKg) || 1;
-        const data: any = { nom: form.nom, prix: parseFloat(form.prix), unite: form.unite, categorie: form.categorie, rendement: parseFloat(form.rendement) / 100, nbPieces, nbKg, historiquesPrix: [{ date: new Date().toISOString(), prix: parseFloat(form.prix) }], updatedAt: new Date().toISOString() };
+        const quantite = parseFloat(form.quantite) || 1;
+        const data: any = { nom: form.nom, prix: parseFloat(form.prix), unite: form.unite, categorie: form.categorie, rendement: parseFloat(form.rendement) / 100, quantite, historiquesPrix: [{ date: new Date().toISOString(), prix: parseFloat(form.prix) }], updatedAt: new Date().toISOString() };
         await addDoc(collection(db, 'produitsFournisseurs'), data);
         setForm(emptyForm); setShowForm(false); fetchIngredients();
     };
 
     const handleEdit = (ing: ProduitFournisseur) => {
-        const matchPieces = ing.nom.match(/[xX]\s?(\d+)/);
-        const nbPieces = (ing as any).nbPieces || (matchPieces ? parseInt(matchPieces[1]) : 1);
+        const q = (ing as any).quantite || (ing as any).nbKg || (ing as any).nbPieces || 1;
         setEditInlineId(ing.id);
-        setEditInlineForm({ nom: ing.nom, prix: String(ing.prix), unite: ing.unite, categorie: ing.categorie, rendement: String(Math.round(ing.rendement * 100)), nbPieces: String(nbPieces), nbKg: String((ing as any).nbKg || 1) });
+        setEditInlineForm({ nom: ing.nom, prix: String(ing.prix), unite: ing.unite, categorie: ing.categorie, rendement: String(Math.round(ing.rendement * 100)), quantite: String(q) });
     };
 
     const handleSaveInline = async () => {
         if (!editInlineId || !editInlineForm.nom || !editInlineForm.prix) return;
-        const nbPieces = parseInt(editInlineForm.nbPieces) || 1;
-        const nbKg = parseFloat(editInlineForm.nbKg) || 1;
+        const quantite = parseFloat(editInlineForm.quantite) || 1;
         await updateDoc(doc(db, 'produitsFournisseurs', editInlineId), {
             nom: editInlineForm.nom, prix: parseFloat(editInlineForm.prix), unite: editInlineForm.unite,
             categorie: editInlineForm.categorie, rendement: parseFloat(editInlineForm.rendement) / 100,
-            nbPieces, nbKg, updatedAt: new Date().toISOString(),
+            quantite, updatedAt: new Date().toISOString(),
         });
         setEditInlineId(null);
         fetchIngredients();
@@ -823,14 +820,7 @@
                 <input className="border border-yellow-200 focus:border-yellow-400 focus:outline-none rounded-lg px-3 py-2 text-sm w-full" placeholder="Rendement" type="number" min="1" max="100" value={form.rendement} onChange={e => setForm({ ...form, rendement: e.target.value })} />
                 <span className="text-sm text-gray-400">%</span>
                 </div>
-                <div className="flex items-center gap-1">
-                <input className="border border-yellow-200 focus:border-yellow-400 focus:outline-none rounded-lg px-3 py-2 text-sm w-20" placeholder="Nb kg" type="number" step="0.01" min="0.01" value={form.nbKg} onChange={e => setForm({ ...form, nbKg: e.target.value })} title="Quantité en kg dans le colis" />
-                <span className="text-sm text-gray-400">kg</span>
-                </div>
-                <div className="flex items-center gap-1">
-                <span className="text-sm text-gray-400">×</span>
-                <input className="border border-yellow-200 focus:border-yellow-400 focus:outline-none rounded-lg px-3 py-2 text-sm w-20" placeholder="Nb pièces" type="number" min="1" value={(form as any).nbPieces || ''} onChange={e => setForm({ ...form, nbPieces: e.target.value } as any)} title="Nombre de pièces dans le colis (ex: 90 pour x90)" />
-                </div>
+                <input className="border border-yellow-200 focus:border-yellow-400 focus:outline-none rounded-lg px-3 py-2 text-sm w-20" placeholder="Quantité" type="number" step="0.01" min="0.01" value={form.quantite} onChange={e => setForm({ ...form, quantite: e.target.value })} title="Nb de pièces, kg ou L dans le colis" />
                 <button onClick={handleSubmit} className="bg-yellow-400 hover:bg-yellow-500 text-black font-semibold rounded-lg px-4 py-2 text-sm">Ajouter</button>
                 <button onClick={() => { setShowForm(false); setForm(emptyForm); }} className="border border-gray-200 rounded-lg px-4 py-2 text-sm text-gray-500 hover:bg-gray-50">Annuler</button>
             </div>
@@ -860,7 +850,7 @@
                     <th className="px-4 py-3 text-right">Prix achat</th>
                     <th className="px-4 py-3 text-left">Unité</th>
                     <th className="px-4 py-3 text-right">Rendement</th>
-                    <th className="px-4 py-3 text-right">Nb kg</th>
+                    <th className="px-4 py-3 text-right">Nb pièces/kg/L</th>
                     <th className="px-4 py-3 text-right">Prix réel</th>
                     <th className="px-4 py-3 text-left">Dernière MAJ</th>
                     <th className="px-4 py-3"></th>
@@ -914,10 +904,10 @@
                         {isEditing ? <div><span className="text-xs text-gray-400 block mb-1">Rendement</span><div className="flex items-center justify-end gap-1"><input className="border border-yellow-200 rounded px-2 py-1 text-sm w-16 text-right" type="number" min="1" max="100" value={editInlineForm.rendement} onChange={e => setEditInlineForm({ ...editInlineForm, rendement: e.target.value })} /><span className="text-xs text-gray-400">%</span></div></div> : <>{Math.round(ing.rendement * 100)}%</>}
                     </td>
                     <td className="px-4 py-3 text-right">
-                        {isEditing ? <div><span className="text-xs text-gray-400 block mb-1">Nb kg</span><input className="border border-yellow-200 rounded px-2 py-1 text-sm w-16 text-right" type="number" step="0.01" min="0.01" value={editInlineForm.nbKg} onChange={e => setEditInlineForm({ ...editInlineForm, nbKg: e.target.value })} /></div> : <>{(ing as any).nbKg && (ing as any).nbKg !== 1 ? (ing as any).nbKg : <span className="text-gray-300">1</span>}</>}
+                        {isEditing ? <div><span className="text-xs text-gray-400 block mb-1">Quantité</span><input className="border border-yellow-200 rounded px-2 py-1 text-sm w-16 text-right" type="number" step="0.01" min="0.01" value={editInlineForm.quantite} onChange={e => setEditInlineForm({ ...editInlineForm, quantite: e.target.value })} /></div> : <>{(() => { const q = (ing as any).quantite || (ing as any).nbKg || (ing as any).nbPieces || 1; return q !== 1 ? q : <span className="text-gray-300">1</span>; })()}</>}
                     </td>
                     <td className="px-4 py-3 text-right font-semibold text-yellow-600">
-                        {(ing.prix / ((ing as any).nbKg || 1) / ing.rendement / ((ing as any).nbPieces || 1)).toFixed(2)} €
+                        {(ing.prix / ((ing as any).quantite || (ing as any).nbKg || (ing as any).nbPieces || 1) / ing.rendement).toFixed(2)} €
                     </td>
                     <td className="px-4 py-3 text-sm">
                         {(() => {

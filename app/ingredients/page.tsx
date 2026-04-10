@@ -109,7 +109,7 @@ export default function IngredientsPage() {
           if (!pfOpts[ing.id]) pfOpts[ing.id] = [];
           const nomProduit = data.nom || data.designation || nomIngredient;
           const fournisseur = data.fournisseur || (data.foodflowCode ? 'Foodflow' : data.millietCode ? 'Milliet' : data.lbaCode ? 'LBA' : '');
-          const prixUnit = data.prix / (data.nbKg || 1) / (data.rendement || 1) / (data.nbPieces || 1);
+          const prixUnit = data.prix / (data.quantite || data.nbKg || data.nbPieces || 1) / (data.rendement || 1);
           pfOpts[ing.id].push({ id: d.id, nom: nomProduit, fournisseur, prixUnit });
         }
       }
@@ -127,7 +127,7 @@ export default function IngredientsPage() {
         if (pfsDocs.length > 0) {
           const plusRecent = pfsDocs.sort((a, b) => new Date(b.data().updatedAt).getTime() - new Date(a.data().updatedAt).getTime())[0];
           const data = plusRecent.data();
-          prix[ing.id] = data.prix / (data.nbKg || 1) / (data.rendement || 1) / (data.nbPieces || 1);
+          prix[ing.id] = data.prix / (data.quantite || data.nbKg || data.nbPieces || 1) / (data.rendement || 1);
         }
       }
     }
