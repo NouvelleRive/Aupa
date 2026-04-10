@@ -34,7 +34,7 @@ export default function IngredientsPage() {
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ nom: '', unite: 'kg' as Unite, categorie: 'épicerie' as Categorie });
   const [editId, setEditId] = useState<string | null>(null);
-  const [pfOptions, setPfOptions] = useState<Record<string, { id: string; nom: string; prixUnit: number }[]>>({});
+  const [pfOptions, setPfOptions] = useState<Record<string, { id: string; nom: string; fournisseur: string; prixUnit: number }[]>>({});
   const [pfPrix, setPfPrix] = useState<Record<string, number>>({});
   const [recetteNames, setRecetteNames] = useState<Record<string, string[]>>({});
 
@@ -99,7 +99,7 @@ export default function IngredientsPage() {
     setPreparations(prepsData);
 
     // Collecter les produits fournisseurs liés (pour bruts uniquement)
-    const pfOpts: Record<string, { id: string; nom: string; prixUnit: number }[]> = {};
+    const pfOpts: Record<string, { id: string; nom: string; fournisseur: string; prixUnit: number }[]> = {};
     for (const d of pfSnap.docs) {
       const data = d.data();
       const nomIngredient = data.ingredient;
@@ -108,8 +108,9 @@ export default function IngredientsPage() {
         if (ing) {
           if (!pfOpts[ing.id]) pfOpts[ing.id] = [];
           const nomProduit = data.nom || data.designation || nomIngredient;
+          const fournisseur = data.fournisseur || (data.foodflowCode ? 'Foodflow' : data.millietCode ? 'Milliet' : data.lbaCode ? 'LBA' : '');
           const prixUnit = data.prix / (data.nbKg || 1) / (data.rendement || 1) / (data.nbPieces || 1);
-          pfOpts[ing.id].push({ id: d.id, nom: nomProduit, prixUnit });
+          pfOpts[ing.id].push({ id: d.id, nom: nomProduit, fournisseur, prixUnit });
         }
       }
     }
@@ -321,13 +322,13 @@ export default function IngredientsPage() {
                   <td className="px-4 py-3">
                     {pfOptions[ing.id]?.length ? (
                       <select
-                        className="border border-yellow-200 focus:border-yellow-400 focus:outline-none rounded-lg px-2 py-1 text-xs w-full max-w-[200px]"
+                        className="border border-yellow-200 focus:border-yellow-400 focus:outline-none rounded-lg px-2 py-1 text-xs w-full max-w-[250px]"
                         value={ing.fournisseurRefId || ''}
                         onChange={e => handleSetFournisseurRef(ing.id, e.target.value)}
                       >
                         <option value="">— Choisir —</option>
                         {pfOptions[ing.id].map(pf => (
-                          <option key={pf.id} value={pf.id}>{pf.nom} ({pf.prixUnit.toFixed(2)} €/{ing.unite})</option>
+                          <option key={pf.id} value={pf.id}>{pf.fournisseur || '?'} — {pf.nom} ({pf.prixUnit.toFixed(2)} €/{ing.unite})</option>
                         ))}
                       </select>
                     ) : (
