@@ -788,21 +788,27 @@
             <button onClick={() => { setShowForm(!showForm); setForm(emptyForm); }} className="border border-gray-200 text-gray-600 hover:bg-gray-50 font-semibold rounded-lg px-4 py-2 text-sm">
                 + Ajouter manuellement
             </button>
-            <button onClick={() => pdfRef.current?.click()} disabled={importing} className="border border-gray-200 text-gray-600 hover:bg-gray-50 font-semibold rounded-lg px-4 py-2 text-sm">
-                {importing ? importProgress || 'Import en cours...' : 'Importer factures Foodflow'}
-            </button>
-            <button onClick={handleOpenMatching} className="border border-yellow-400 text-yellow-600 hover:bg-yellow-50 font-semibold rounded-lg px-4 py-2 text-sm">
-                Matcher recettes
-            </button>
-            <button onClick={() => millietRef.current?.click()} disabled={importing} className="border border-gray-200 text-gray-600 hover:bg-gray-50 font-semibold rounded-lg px-4 py-2 text-sm">
-                {importing ? importProgress || 'Import en cours...' : 'Importer Milliet'}
-            </button>
-            <button onClick={() => lbaRef.current?.click()} disabled={importing} className="border border-gray-200 text-gray-600 hover:bg-gray-50 font-semibold rounded-lg px-4 py-2 text-sm">
-                {importing ? importProgress || 'Import en cours...' : 'Importer LBA'}
-            </button>
-            <button onClick={() => fileRef.current?.click()} className="bg-yellow-400 hover:bg-yellow-500 text-black font-semibold rounded-lg px-4 py-2 text-sm">
-                Importer Excel
-            </button>
+            <div className="relative">
+              <select
+                disabled={importing}
+                className="border border-yellow-400 text-yellow-600 hover:bg-yellow-50 font-semibold rounded-lg px-4 py-2 text-sm appearance-none cursor-pointer pr-8"
+                value=""
+                onChange={e => {
+                  const v = e.target.value;
+                  if (v === 'foodflow') pdfRef.current?.click();
+                  else if (v === 'milliet') millietRef.current?.click();
+                  else if (v === 'lba') lbaRef.current?.click();
+                  else if (v === 'excel') fileRef.current?.click();
+                  e.target.value = '';
+                }}
+              >
+                <option value="">{importing ? importProgress || 'Import en cours...' : 'Importer facture ▾'}</option>
+                <option value="foodflow">Foodflow (PDF)</option>
+                <option value="milliet">Milliet (PDF)</option>
+                <option value="lba">LBA (PDF)</option>
+                <option value="excel">Excel</option>
+              </select>
+            </div>
             <input ref={fileRef} type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={handleImportXL} />
             <input ref={pdfRef} type="file" accept=".pdf" multiple className="hidden" onChange={handleImportPDF} />
             <input ref={millietRef} type="file" accept=".pdf" multiple className="hidden" onChange={handleImportMilliet} />
