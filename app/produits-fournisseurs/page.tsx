@@ -676,6 +676,7 @@
     };
 
     const [filterCategorie, setFilterCategorie] = useState<string>('all');
+    const [filterFournisseur, setFilterFournisseur] = useState<string>('all');
     const [filterNonLie, setFilterNonLie] = useState(false);
 
     const handleDelete = async (id: string) => {
@@ -687,6 +688,11 @@
     const filtered = ingredients
     .filter(i => i.nom.toLowerCase().includes(search.toLowerCase()))
     .filter(i => filterCategorie === 'all' || i.categorie === filterCategorie)
+    .filter(i => {
+      if (filterFournisseur === 'all') return true;
+      const f = (i as any).fournisseur || ((i as any).foodflowCode ? 'Foodflow' : (i as any).millietCode ? 'Milliet' : (i as any).lbaCode ? 'LBA' : '');
+      return f === filterFournisseur;
+    })
     .filter(i => !filterNonLie || !ingredientParProduit[i.id])
     .sort((a, b) => a.categorie.localeCompare(b.categorie) || a.nom.localeCompare(b.nom));
 
@@ -828,6 +834,13 @@
         <select className="border border-yellow-200 focus:border-yellow-400 focus:outline-none rounded-lg px-3 py-2 text-sm mb-4" value={filterCategorie} onChange={e => setFilterCategorie(e.target.value)}>
             <option value="all">Toutes catégories</option>
             {CATEGORIES.map(c => <option key={c}>{c}</option>)}
+            </select>
+
+            <select className="border border-yellow-200 focus:border-yellow-400 focus:outline-none rounded-lg px-3 py-2 text-sm mb-4" value={filterFournisseur} onChange={e => setFilterFournisseur(e.target.value)}>
+            <option value="all">Tous fournisseurs</option>
+            <option value="Foodflow">Foodflow</option>
+            <option value="Milliet">Milliet</option>
+            <option value="LBA">LBA</option>
             </select>
 
             <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer ml-2">
