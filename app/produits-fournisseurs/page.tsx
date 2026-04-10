@@ -43,6 +43,7 @@
     const [importProgress, setImportProgress] = useState('');
     const fileRef = useRef<HTMLInputElement>(null);
     const pdfRef = useRef<HTMLInputElement>(null);
+    const millietRef = useRef<HTMLInputElement>(null);
     const [histoId, setHistoId] = useState<string | null>(null);
     const [editInlineId, setEditInlineId] = useState<string | null>(null);
     const [editInlineForm, setEditInlineForm] = useState({ nom: '', prix: '', unite: 'kg' as Unite, categorie: 'épicerie' as Categorie, rendement: '100', nbPieces: '1', nbKg: '1' });
@@ -275,6 +276,166 @@
         e.target.value = '';
     };
 
+    const parseMillietPDF = async (file: File, pdfjsLib: any): Promise<{ code: string; nom: string; prix: number; date: string; qte: number }[]> => {
+        const buffer = await file.arrayBuffer();
+        const pdf = await pdfjsLib.getDocument({ data: buffer }).promise;
+        const lignes: { code: string; nom: string; prix: number; date: string; qte: number }[] = [];
+
+        // Extraire la date de facture
+        let dateFacture = new Date().toISOString();
+        const page1 = await pdf.getPage(1);
+        const content1 = await page1.getTextContent();
+        for (const item of content1.items as any[]) {
+        const m = item.str.trim().match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+        if (m) { dateFacture = new Date(`${m[3]}-${m[2]}-${m[1]}`).toISOString(); break; }
+        }
+
+        for (let i = 1; i <= pdf.numPages; i++) {
+        const page = await pdf.getPage(i);
+        const content = await page.getTextContent();
+        const items = (content.items as any[]).map((it: any) => ({
+            str: it.str.trim(),
+            x: Math.round(it.transform[4]),
+            y: Math.round(it.transform[5]),
+        })).filter((it: any) => it.str);
+
+        // Grouper par ligne (même Y ±3px)
+        const rows = new Map<number, typeof items>();
+        for (const it of items) {
+            let foundY = false;
+            for (const [ky] of rows) {
+            if (Math.abs(it.y - ky) <= 3) { rows.get(ky)!.push(it); foundY = true; break; }
+            }
+            if (!foundY) rows.set(it.y, [it]);
+        }
+
+        // Trier les lignes de haut en bas, et les items de gauche à droite
+        const sortedRows = Array.from(rows.entries())
+            .sort(([a], [b]) => b - a)
+            .map(([, items]) => items.sort((a, b) => a.x - b.x).map(it => it.str));
+
+        for (const row of sortedRows) {
+            // Chercher le N° Article (nombre 3-5 chiffres, pas une date, pas un prix)
+            const articleIdx = row.findIndex(s => /^\d{3,5}$/.test(s));
+            if (articleIdx < 0) continue;
+            const code = row[articleIdx];
+
+            // Quantité : premier élément de la ligne (colis)
+            const colisMatch = row[0]?.match(/^(\d+)$/);
+            const colis = colisMatch ? parseInt(colisMatch[1]) : 1;
+            // Conditionnement : x1, x5, x6, x12, x20...
+            const condMatch = row[1]?.match(/^x(\d+)$/i);
+            const cond = condMatch ? parseInt(condMatch[1]) : 1;
+            const qte = colis * cond;
+
+            // Nom du produit : entre le code unité (3e col) et le N° article
+            const nomParts = row.slice(3, articleIdx);
+            const nom = nomParts.join(' ');
+            if (!nom) continue;
+
+            // Filtrer les nombres après le N° article
+            // Exclure les taux TVA (5.50, 20.00) et le % qui pourrait être séparé
+            const afterArticle = row.slice(articleIdx + 1);
+            const tvaRates = new Set([5.5, 20, 5.50, 20.00]);
+            const numbers: number[] = [];
+            for (let idx = 0; idx < afterArticle.length; idx++) {
+            const s = afterArticle[idx].replace(/\s/g, '').replace(',', '.');
+            if (!/^\d+\.?\d*$/.test(s)) continue;
+            const n = parseFloat(s);
+            // Exclure si c'est un taux TVA (suivi ou non de %)
+            const next = afterArticle[idx + 1] || '';
+            if (tvaRates.has(n) && (next === '%' || next.includes('%'))) continue;
+            numbers.push(n);
+            }
+
+            // Le TOTAL HT est le dernier nombre valide
+            if (numbers.length < 1) continue;
+            const totalHT = numbers[numbers.length - 1];
+
+            // Prix unitaire = total / qte
+            const prixUnitaire = totalHT / (qte || 1);
+
+            lignes.push({ code, nom, prix: prixUnitaire, date: dateFacture, qte });
+        }
+        }
+        return lignes;
+    };
+
+    const handleImportMilliet = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const files = Array.from(e.target.files || []);
+        if (!files.length) return;
+        setImporting(true);
+
+        const pdfjsLib = await import('pdfjs-dist');
+        pdfjsLib.GlobalWorkerOptions.workerSrc = new URL('pdfjs-dist/build/pdf.worker.mjs', import.meta.url).toString();
+
+        files.sort((a, b) => a.lastModified - b.lastModified);
+
+        const toutesLignes: { code: string; nom: string; prix: number; date: string; qte: number }[] = [];
+        for (let f = 0; f < files.length; f++) {
+        setImportProgress(`Lecture facture Milliet ${f + 1}/${files.length}...`);
+        const lignes = await parseMillietPDF(files[f], pdfjsLib);
+        toutesLignes.push(...lignes);
+        }
+
+        toutesLignes.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+        setImportProgress('Mise à jour Firestore...');
+        const existingSnap = await getDocs(collection(db, 'produitsFournisseurs'));
+        const existing = existingSnap.docs.map(d => ({ id: d.id, ...d.data() } as any));
+
+        let created = 0;
+        let updated = 0;
+
+        const parCode = new Map<string, typeof toutesLignes>();
+        for (const ligne of toutesLignes) {
+        if (!parCode.has(ligne.code)) parCode.set(ligne.code, []);
+        parCode.get(ligne.code)!.push(ligne);
+        }
+
+        for (const [code, lignes] of parCode.entries()) {
+        const derniere = lignes[lignes.length - 1];
+        const match = existing.find((ing: any) => ing.millietCode === code);
+        if (match) {
+            const historiqueExistant = match.historiquesPrix || [];
+            const datesExistantes = new Set(historiqueExistant.map((h: any) => h.date));
+            const nouveauxHistorique = lignes
+            .map(l => ({ date: l.date, prix: l.prix }))
+            .filter(h => !datesExistantes.has(h.date));
+            if (nouveauxHistorique.length > 0) {
+            await updateDoc(doc(db, 'produitsFournisseurs', match.id), {
+                prix: derniere.prix,
+                historiquesPrix: [...historiqueExistant, ...nouveauxHistorique],
+                updatedAt: nouveauxHistorique[nouveauxHistorique.length - 1].date,
+            });
+            }
+            updated++;
+        } else {
+            const uniteDetectee = detectUnite(derniere.nom);
+            const matchPieces = derniere.nom.match(/[xX](\d+)/);
+            const nbPieces = uniteDetectee === 'pièce' && matchPieces ? parseInt(matchPieces[1]) : 1;
+            await addDoc(collection(db, 'produitsFournisseurs'), {
+            nom: derniere.nom,
+            prix: derniere.prix,
+            unite: uniteDetectee,
+            categorie: detectCategorie(derniere.nom),
+            rendement: 1,
+            nbPieces,
+            millietCode: code,
+            historiquesPrix: lignes.map(l => ({ date: l.date, prix: l.prix })),
+            updatedAt: derniere.date,
+            });
+            created++;
+        }
+        }
+
+        setImporting(false);
+        setImportProgress('');
+        alert(`✅ Milliet : ${created} produits créés, ${updated} mis à jour !`);
+        fetchIngredients();
+        e.target.value = '';
+    };
+
     const handleImportXL = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file) return;
@@ -448,11 +609,15 @@
             <button onClick={handleOpenMatching} className="border border-yellow-400 text-yellow-600 hover:bg-yellow-50 font-semibold rounded-lg px-4 py-2 text-sm">
                 Matcher recettes
             </button>
+            <button onClick={() => millietRef.current?.click()} disabled={importing} className="border border-gray-200 text-gray-600 hover:bg-gray-50 font-semibold rounded-lg px-4 py-2 text-sm">
+                {importing ? importProgress || 'Import en cours...' : 'Importer factures Milliet'}
+            </button>
             <button onClick={() => fileRef.current?.click()} className="bg-yellow-400 hover:bg-yellow-500 text-black font-semibold rounded-lg px-4 py-2 text-sm">
                 Importer Excel
             </button>
             <input ref={fileRef} type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={handleImportXL} />
             <input ref={pdfRef} type="file" accept=".pdf" multiple className="hidden" onChange={handleImportPDF} />
+            <input ref={millietRef} type="file" accept=".pdf" multiple className="hidden" onChange={handleImportMilliet} />
             </div>
         </div>
 
