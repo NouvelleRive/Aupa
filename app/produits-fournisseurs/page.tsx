@@ -44,6 +44,7 @@
     const fileRef = useRef<HTMLInputElement>(null);
     const pdfRef = useRef<HTMLInputElement>(null);
     const millietRef = useRef<HTMLInputElement>(null);
+    const lbaRef = useRef<HTMLInputElement>(null);
     const [histoId, setHistoId] = useState<string | null>(null);
     const [editInlineId, setEditInlineId] = useState<string | null>(null);
     const [editInlineForm, setEditInlineForm] = useState({ nom: '', prix: '', unite: 'kg' as Unite, categorie: 'épicerie' as Categorie, rendement: '100', nbPieces: '1', nbKg: '1' });
@@ -436,6 +437,184 @@
         e.target.value = '';
     };
 
+    const parseLBAPDF = async (file: File, pdfjsLib: any): Promise<{ code: string; nom: string; prix: number; date: string }[]> => {
+        const buffer = await file.arrayBuffer();
+        const pdf = await pdfjsLib.getDocument({ data: buffer }).promise;
+        const lignes: { code: string; nom: string; prix: number; date: string }[] = [];
+
+        // Extraire la date de facture
+        let dateFacture = new Date().toISOString();
+        const page1 = await pdf.getPage(1);
+        const content1 = await page1.getTextContent();
+        for (const item of content1.items as any[]) {
+        const m = item.str.trim().match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+        if (m) { dateFacture = new Date(`${m[3]}-${m[2]}-${m[1]}`).toISOString(); break; }
+        }
+
+        for (let i = 1; i <= pdf.numPages; i++) {
+        const page = await pdf.getPage(i);
+        const content = await page.getTextContent();
+        const items = (content.items as any[]).map((it: any) => ({
+            str: it.str.trim(),
+            x: Math.round(it.transform[4]),
+            y: Math.round(it.transform[5]),
+        })).filter((it: any) => it.str);
+
+        // Grouper par ligne (même Y ±3px)
+        const rows = new Map<number, typeof items>();
+        for (const it of items) {
+            let foundY = false;
+            for (const [ky] of rows) {
+            if (Math.abs(it.y - ky) <= 3) { rows.get(ky)!.push(it); foundY = true; break; }
+            }
+            if (!foundY) rows.set(it.y, [it]);
+        }
+
+        const sortedRows = Array.from(rows.entries())
+            .sort(([a], [b]) => b - a)
+            .map(([, items]) => items.sort((a, b) => a.x - b.x).map(it => it.str));
+
+        let stopParsing = false;
+        for (const row of sortedRows) {
+            const joined = row.join(' ');
+            // Arrêter au bloc déconsigne
+            if (joined.toLowerCase().includes('ci-dessous') || joined.toLowerCase().includes('déconsigne sur facture')) {
+            stopParsing = true;
+            continue;
+            }
+            if (stopParsing) continue;
+
+            // Le CODE LBA est un nombre de 4 chiffres en début de ligne
+            if (!/^\d{4}$/.test(row[0])) continue;
+            const code = row[0];
+
+            // Trouver les champs numériques et textuels
+            // Structure: CODE DESIGNATION CDT COLIS COLS PX.U.BT REM% PX.U.NET MT.NT.HT TVA ...
+            // CDT = FUT, UNITE, CAISSE, CARTON, PACK
+            const cdtValues = ['FUT', 'UNITE', 'CAISSE', 'CARTON', 'PACK', 'PAK'];
+            const cdtIdx = row.findIndex((s, idx) => idx > 0 && cdtValues.includes(s.toUpperCase()));
+
+            // Nom = entre CODE et CDT (ou tout le texte non-numérique)
+            let nom = '';
+            const nomEnd = cdtIdx > 0 ? cdtIdx : row.length;
+            for (let j = 1; j < nomEnd; j++) {
+            if (/^\d/.test(row[j])) break;
+            nom += (nom ? ' ' : '') + row[j];
+            }
+            if (!nom) continue;
+            // Ajouter le CDT au nom pour contexte
+            if (cdtIdx > 0) nom += ' ' + row[cdtIdx];
+
+            // Extraire les nombres après le CDT
+            const numStart = cdtIdx > 0 ? cdtIdx + 1 : 2;
+            const nums: number[] = [];
+            for (let j = numStart; j < row.length; j++) {
+            const s = row[j].replace(/\s/g, '').replace(',', '.').replace('%', '');
+            if (/^\d+\.?\d*$/.test(s)) nums.push(parseFloat(s));
+            }
+
+            // nums: [COLIS, COLS, PX.U.BT, REM%, PX.U.NET, MT.NT.HT, TVA, ...]
+            // PX.U.NET est le prix unitaire HT post-remise (par litre, kg, pièce)
+            // MT.NT.HT est juste avant la TVA, PX.U.NET est juste avant MT.NT.HT
+            if (nums.length < 3) continue;
+
+            // Trouver l'index de la TVA (5.50 ou 20.00)
+            let tvaIdx = -1;
+            for (let j = 0; j < nums.length; j++) {
+            if ((nums[j] === 20 || nums[j] === 5.5) && j >= 2) { tvaIdx = j; break; }
+            }
+            if (tvaIdx < 2) continue;
+
+            // PX.U.NET = 2 positions avant la TVA, MT.NT.HT = 1 position avant
+            const pxUNet = nums[tvaIdx - 2];
+            if (pxUNet <= 0) continue;
+
+            // MT.DROITS.UNIT = juste après la TVA (accises alcool, 0 si absent)
+            const droits = (tvaIdx + 1 < nums.length) ? nums[tvaIdx + 1] : 0;
+            // Prix réel = prix net + droits unitaires
+            const prixReel = pxUNet + droits;
+
+            lignes.push({ code, nom, prix: prixReel, date: dateFacture });
+        }
+        }
+        return lignes;
+    };
+
+    const handleImportLBA = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const files = Array.from(e.target.files || []);
+        if (!files.length) return;
+        setImporting(true);
+
+        const pdfjsLib = await import('pdfjs-dist');
+        pdfjsLib.GlobalWorkerOptions.workerSrc = new URL('pdfjs-dist/build/pdf.worker.mjs', import.meta.url).toString();
+
+        files.sort((a, b) => a.lastModified - b.lastModified);
+
+        const toutesLignes: { code: string; nom: string; prix: number; date: string }[] = [];
+        for (let f = 0; f < files.length; f++) {
+        setImportProgress(`Lecture facture LBA ${f + 1}/${files.length}...`);
+        const lignes = await parseLBAPDF(files[f], pdfjsLib);
+        toutesLignes.push(...lignes);
+        }
+
+        toutesLignes.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+        setImportProgress('Mise à jour Firestore...');
+        const existingSnap = await getDocs(collection(db, 'produitsFournisseurs'));
+        const existing = existingSnap.docs.map(d => ({ id: d.id, ...d.data() } as any));
+
+        let created = 0;
+        let updated = 0;
+
+        const parCode = new Map<string, typeof toutesLignes>();
+        for (const ligne of toutesLignes) {
+        if (!parCode.has(ligne.code)) parCode.set(ligne.code, []);
+        parCode.get(ligne.code)!.push(ligne);
+        }
+
+        for (const [code, lignes] of parCode.entries()) {
+        const derniere = lignes[lignes.length - 1];
+        const match = existing.find((ing: any) => ing.lbaCode === code);
+        if (match) {
+            const historiqueExistant = match.historiquesPrix || [];
+            const datesExistantes = new Set(historiqueExistant.map((h: any) => h.date));
+            const nouveauxHistorique = lignes
+            .map(l => ({ date: l.date, prix: l.prix }))
+            .filter(h => !datesExistantes.has(h.date));
+            if (nouveauxHistorique.length > 0) {
+            await updateDoc(doc(db, 'produitsFournisseurs', match.id), {
+                prix: derniere.prix,
+                historiquesPrix: [...historiqueExistant, ...nouveauxHistorique],
+                updatedAt: nouveauxHistorique[nouveauxHistorique.length - 1].date,
+            });
+            }
+            updated++;
+        } else {
+            const uniteDetectee = detectUnite(derniere.nom);
+            const matchPieces = derniere.nom.match(/[xX](\d+)/);
+            const nbPieces = uniteDetectee === 'pièce' && matchPieces ? parseInt(matchPieces[1]) : 1;
+            await addDoc(collection(db, 'produitsFournisseurs'), {
+            nom: derniere.nom,
+            prix: derniere.prix,
+            unite: uniteDetectee,
+            categorie: detectCategorie(derniere.nom),
+            rendement: 1,
+            nbPieces,
+            lbaCode: code,
+            historiquesPrix: lignes.map(l => ({ date: l.date, prix: l.prix })),
+            updatedAt: derniere.date,
+            });
+            created++;
+        }
+        }
+
+        setImporting(false);
+        setImportProgress('');
+        alert(`✅ LBA : ${created} produits créés, ${updated} mis à jour !`);
+        fetchIngredients();
+        e.target.value = '';
+    };
+
     const handleImportXL = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file) return;
@@ -610,7 +789,10 @@
                 Matcher recettes
             </button>
             <button onClick={() => millietRef.current?.click()} disabled={importing} className="border border-gray-200 text-gray-600 hover:bg-gray-50 font-semibold rounded-lg px-4 py-2 text-sm">
-                {importing ? importProgress || 'Import en cours...' : 'Importer factures Milliet'}
+                {importing ? importProgress || 'Import en cours...' : 'Importer Milliet'}
+            </button>
+            <button onClick={() => lbaRef.current?.click()} disabled={importing} className="border border-gray-200 text-gray-600 hover:bg-gray-50 font-semibold rounded-lg px-4 py-2 text-sm">
+                {importing ? importProgress || 'Import en cours...' : 'Importer LBA'}
             </button>
             <button onClick={() => fileRef.current?.click()} className="bg-yellow-400 hover:bg-yellow-500 text-black font-semibold rounded-lg px-4 py-2 text-sm">
                 Importer Excel
@@ -618,6 +800,7 @@
             <input ref={fileRef} type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={handleImportXL} />
             <input ref={pdfRef} type="file" accept=".pdf" multiple className="hidden" onChange={handleImportPDF} />
             <input ref={millietRef} type="file" accept=".pdf" multiple className="hidden" onChange={handleImportMilliet} />
+            <input ref={lbaRef} type="file" accept=".pdf" multiple className="hidden" onChange={handleImportLBA} />
             </div>
         </div>
 
