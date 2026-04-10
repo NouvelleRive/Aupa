@@ -48,18 +48,8 @@
     const [histoId, setHistoId] = useState<string | null>(null);
     const [editInlineId, setEditInlineId] = useState<string | null>(null);
     const [editInlineForm, setEditInlineForm] = useState({ nom: '', prix: '', unite: 'kg' as Unite, categorie: 'épicerie' as Categorie, rendement: '100', quantite: '1' });
-    const [showMatching, setShowMatching] = useState(false);
-    const [searchMatch, setSearchMatch] = useState('');
-    const [matchingItems, setMatchingItems] = useState<{
-        ingredientIds: string[];
-        ingredientNom: string;
-        ingredientChoisi: string;
-        recetteIds: string[];
-        done: boolean;
-    }[]>([]);
     const [ingredientsMap, setNomsXLMap] = useState<Map<string, string[]>>(new Map());
     const [ingredientParProduit, setNomsXLParIngredient] = useState<Record<string, string>>({});
-    const [matchingMap, setMatchingMap] = useState<Map<string, string[]>>(new Map());
 
     const fetchIngredients = async () => {
         const [snap, recSnap] = await Promise.all([
@@ -103,51 +93,6 @@
     };
 
     useEffect(() => { fetchIngredients(); }, []);
-
-    const handleOpenMatching = async () => {
-        const recSnap = await getDocs(collection(db, 'recettes'));
-        const recettes = recSnap.docs.map(d => ({ id: d.id, ...d.data() } as any));
-        const map = new Map<string, string[]>();
-        for (const r of recettes) {
-          for (const ing of (r.ingredients || [])) {
-            if (ing.nomIngredient) {
-              if (!map.has(ing.nomIngredient)) map.set(ing.nomIngredient, []);
-              map.get(ing.nomIngredient)!.push(r.id);
-            }
-          }
-          if (r.categorie === 'Préparations') {
-            if (!map.has(r.nom)) map.set(r.nom, []);
-            map.get(r.nom)!.push(r.id);
-          }
-        }
-        setMatchingMap(map);
-        const normalize = (s: string) => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^\w\s]/g, '').trim();
-        const nomsXL = Array.from(map.keys());
-        // Grouper par ingredient : un ingredient → plusieurs ingredientIds possibles
-        const ingredientToItems = new Map<string, { ingredientIds: string[]; ingredientNom: string }>();
-        for (const ing of ingredients) {
-        const match = nomsXL.find(nom => normalize(ing.nom).includes(normalize(nom)) || normalize(nom).includes(normalize(ing.nom.split(' ')[0])));
-        if (!match) continue;
-        if (!ingredientToItems.has(match)) ingredientToItems.set(match, { ingredientIds: [], ingredientNom: match });
-        ingredientToItems.get(match)!.ingredientIds.push(ing.id);
-        }
-        const items = Array.from(map.entries()).map(([ingredient, recetteIds]) => {
-        const existing = ingredientToItems.get(ingredient);
-        const dejaMatche = existing?.ingredientIds?.some(id => {
-          const ing = ingredients.find(i => i.id === id);
-          return ing && (ing as any).ingredient === ingredient;
-        }) || false;
-        return {
-            ingredientIds: existing?.ingredientIds || [],
-            ingredientNom: ingredient,
-            ingredientChoisi: ingredient,
-            recetteIds,
-            done: dejaMatche,
-        };
-        });
-        setMatchingItems(items);
-        setShowMatching(true);
-    };
 
     const parsePDF = async (file: File, pdfjsLib: any): Promise<{ code: string; nom: string; prix: number; date: string }[]> => {
         const buffer = await file.arrayBuffer();
@@ -695,90 +640,6 @@
     })
     .filter(i => !filterNonLie || !ingredientParProduit[i.id])
     .sort((a, b) => a.categorie.localeCompare(b.categorie) || a.nom.localeCompare(b.nom));
-
-    if (showMatching) {
-        const total = matchingItems.length;
-        const done = matchingItems.filter(i => i.done).length;
-        const ingredientsFiltres = ingredients
-        .filter(ing => ing.nom.toLowerCase().includes(searchMatch.toLowerCase()))
-        .filter(ing => matchingItems.some(m => m.ingredientIds.includes(ing.id) && !m.done))
-        .sort((a, b) => a.nom.localeCompare(b.nom));
-        return (
-        <div className="max-w-6xl mx-auto">
-            <div className="flex items-center justify-between mb-6">
-            <div>
-                <h1 className="text-2xl font-bold">Matching produits fournisseur ↔ ingrédients</h1>
-                <p className="text-sm text-gray-400 mt-1">{total} à matcher · {done} validés</p>
-            </div>
-            <button onClick={() => setShowMatching(false)} className="border border-gray-200 text-gray-600 hover:bg-gray-50 font-semibold rounded-lg px-4 py-2 text-sm">Fermer</button>
-            </div>
-            <input className="border border-yellow-200 rounded-lg px-3 py-2 text-sm mb-4 w-64 focus:outline-none focus:border-yellow-400" placeholder="Rechercher produit fournisseur..." value={searchMatch} onChange={e => setSearchMatch(e.target.value)} />
-            <div className="bg-white rounded-xl border border-yellow-100 overflow-hidden">
-            <table className="w-full text-sm">
-                <thead className="bg-yellow-50 text-gray-500 text-xs uppercase">
-                <tr>
-                    <th className="px-4 py-2 text-left">Produit fournisseur</th>
-                    <th className="px-4 py-2 text-left">Ingrédient</th>
-                    <th className="px-4 py-2 text-right">Recettes</th>
-                    <th className="px-4 py-2 text-center">Action</th>
-                </tr>
-                </thead>
-                <tbody className="divide-y divide-yellow-50">
-                {ingredientsFiltres.map(ing => {
-                    const item = matchingItems.find(m => m.ingredientIds.includes(ing.id));
-                    if (!item || item.done) return null;
-                    const realIdx = matchingItems.indexOf(item);
-                    return (
-                    <tr key={ing.id} className={`transition-colors ${item.ingredientChoisi ? 'bg-yellow-50' : 'bg-white'}`}>
-                        <td className="px-4 py-2 font-medium text-sm">{ing.nom}</td>
-                        <td className="px-4 py-2">
-                        <select className="border border-gray-200 rounded-lg px-2 py-1 text-xs w-full"
-                            value={item.ingredientChoisi}
-                            onChange={e => {
-                            const nomChoisi = e.target.value;
-                            setMatchingItems(prev => prev.map((m, i) => i === realIdx
-                                ? { ...m, ingredientChoisi: nomChoisi, recetteIds: matchingMap.get(nomChoisi) || [] }
-                                : m
-                            ));
-                            }}>
-                            <option value="">— Non lié —</option>
-                            {Array.from(matchingMap.keys()).sort().map(nom => <option key={nom} value={nom}>{nom}</option>)}
-                        </select>
-                        </td>
-                        <td className="px-4 py-2 text-right text-gray-400 text-xs">{item.recetteIds.length} recette{item.recetteIds.length > 1 ? 's' : ''}</td>
-                        <td className="px-4 py-2 text-center">
-                        <button disabled={!item.ingredientChoisi} onClick={async () => {
-                            if (!item.ingredientChoisi) return;
-                            const recSnap = await getDocs(collection(db, 'recettes'));
-                            for (const recDoc of recSnap.docs) {
-                            const data = recDoc.data();
-                            const ings = data.ingredients || [];
-                            const hasMatch = ings.some((i: any) => i.nomIngredient === item.ingredientChoisi);
-                            if (!hasMatch) continue;
-                            const newIngs = ings.map((i: any) => {
-                                if (i.nomIngredient !== item.ingredientChoisi) return i;
-                                const existingIds = i.ingredientIds || (i.ingredientId ? [i.ingredientId] : []);
-                                const mergedIds = [...new Set([...existingIds, ing.id])];
-                                return { ingredientIds: mergedIds, grammage: i.grammage, nomIngredient: i.nomIngredient };
-                            });
-                            await updateDoc(doc(db, 'recettes', recDoc.id), { ingredients: newIngs });
-                            }
-                            await updateDoc(doc(db, 'produitsFournisseurs', ing.id), { ingredient: item.ingredientChoisi });
-                            setMatchingItems(prev => prev.map((m, i) => i === realIdx ? { ...m, done: true } : m));
-                        }}
-                            className={`w-7 h-7 rounded-full border-2 flex items-center justify-center transition-colors ${item.ingredientChoisi ? 'bg-green-500 border-green-500 text-white hover:bg-green-600' : 'border-gray-200 text-gray-300'}`}>
-                            ✓
-                        </button>
-                        </td>
-                    </tr>
-                    );
-                })}
-                </tbody>
-            </table>
-            </div>
-        </div>
-        );
-    }
 
     return (
         <div className="max-w-5xl mx-auto">
