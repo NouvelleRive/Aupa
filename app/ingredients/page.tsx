@@ -328,7 +328,7 @@ export default function IngredientsPage() {
                       >
                         <option value="">— Choisir —</option>
                         {pfOptions[ing.id].map(pf => (
-                          <option key={pf.id} value={pf.id}>{pf.fournisseur || '?'} — {pf.nom} ({pf.prixUnit.toFixed(2)} €/{ing.unite})</option>
+                          <option key={pf.id} value={pf.id}>{pf.fournisseur || '?'}</option>
                         ))}
                       </select>
                     ) : (

@@ -872,10 +872,10 @@
                     return (
                     <tr key={ing.id} className={`transition-colors ${isEditing ? 'bg-yellow-50' : 'hover:bg-yellow-50'}`}>
                     <td className="px-4 py-3 font-medium">
-                        {isEditing ? <input className="border border-yellow-200 rounded px-2 py-1 text-sm w-full" value={editInlineForm.nom} onChange={e => setEditInlineForm({ ...editInlineForm, nom: e.target.value })} /> : ing.nom}
+                        {isEditing ? <div><span className="text-xs text-gray-400 block mb-1">Nom</span><input className="border border-yellow-200 rounded px-2 py-1 text-sm w-full" value={editInlineForm.nom} onChange={e => setEditInlineForm({ ...editInlineForm, nom: e.target.value })} /></div> : ing.nom}
                     </td>
                     <td className="px-4 py-3 text-gray-500">
-                        {isEditing ? <select className="border border-yellow-200 rounded px-2 py-1 text-sm" value={editInlineForm.categorie} onChange={e => setEditInlineForm({ ...editInlineForm, categorie: e.target.value as Categorie })}>{CATEGORIES.map(c => <option key={c}>{c}</option>)}</select> : ing.categorie}
+                        {isEditing ? <div><span className="text-xs text-gray-400 block mb-1">Catégorie</span><select className="border border-yellow-200 rounded px-2 py-1 text-sm" value={editInlineForm.categorie} onChange={e => setEditInlineForm({ ...editInlineForm, categorie: e.target.value as Categorie })}>{CATEGORIES.map(c => <option key={c}>{c}</option>)}</select></div> : ing.categorie}
                     </td>
                     <td className="px-4 py-3 text-xs">
                       <select className="border border-gray-200 rounded px-2 py-1 text-xs w-full max-w-[160px]"
@@ -905,16 +905,16 @@
                       </select>
                     </td>
                     <td className="px-4 py-3 text-right">
-                        {isEditing ? <input className="border border-yellow-200 rounded px-2 py-1 text-sm w-20 text-right" type="number" value={editInlineForm.prix} onChange={e => setEditInlineForm({ ...editInlineForm, prix: e.target.value })} /> : <>{ing.prix.toFixed(2)} €</>}
+                        {isEditing ? <div><span className="text-xs text-gray-400 block mb-1">Prix (€)</span><input className="border border-yellow-200 rounded px-2 py-1 text-sm w-20 text-right" type="number" value={editInlineForm.prix} onChange={e => setEditInlineForm({ ...editInlineForm, prix: e.target.value })} /></div> : <>{ing.prix.toFixed(2)} €</>}
                     </td>
                     <td className="px-4 py-3 text-gray-500">
-                        {isEditing ? <select className="border border-yellow-200 rounded px-2 py-1 text-sm" value={editInlineForm.unite} onChange={e => setEditInlineForm({ ...editInlineForm, unite: e.target.value as Unite })}>{UNITES.map(u => <option key={u}>{u}</option>)}</select> : ing.unite}
+                        {isEditing ? <div><span className="text-xs text-gray-400 block mb-1">Unité</span><select className="border border-yellow-200 rounded px-2 py-1 text-sm" value={editInlineForm.unite} onChange={e => setEditInlineForm({ ...editInlineForm, unite: e.target.value as Unite })}>{UNITES.map(u => <option key={u}>{u}</option>)}</select></div> : ing.unite}
                     </td>
                     <td className="px-4 py-3 text-right">
-                        {isEditing ? <div className="flex items-center justify-end gap-1"><input className="border border-yellow-200 rounded px-2 py-1 text-sm w-16 text-right" type="number" min="1" max="100" value={editInlineForm.rendement} onChange={e => setEditInlineForm({ ...editInlineForm, rendement: e.target.value })} /><span className="text-xs text-gray-400">%</span></div> : <>{Math.round(ing.rendement * 100)}%</>}
+                        {isEditing ? <div><span className="text-xs text-gray-400 block mb-1">Rendement</span><div className="flex items-center justify-end gap-1"><input className="border border-yellow-200 rounded px-2 py-1 text-sm w-16 text-right" type="number" min="1" max="100" value={editInlineForm.rendement} onChange={e => setEditInlineForm({ ...editInlineForm, rendement: e.target.value })} /><span className="text-xs text-gray-400">%</span></div></div> : <>{Math.round(ing.rendement * 100)}%</>}
                     </td>
                     <td className="px-4 py-3 text-right">
-                        {isEditing ? <input className="border border-yellow-200 rounded px-2 py-1 text-sm w-16 text-right" type="number" step="0.01" min="0.01" value={editInlineForm.nbKg} onChange={e => setEditInlineForm({ ...editInlineForm, nbKg: e.target.value })} /> : <>{(ing as any).nbKg && (ing as any).nbKg !== 1 ? (ing as any).nbKg : <span className="text-gray-300">1</span>}</>}
+                        {isEditing ? <div><span className="text-xs text-gray-400 block mb-1">Nb kg</span><input className="border border-yellow-200 rounded px-2 py-1 text-sm w-16 text-right" type="number" step="0.01" min="0.01" value={editInlineForm.nbKg} onChange={e => setEditInlineForm({ ...editInlineForm, nbKg: e.target.value })} /></div> : <>{(ing as any).nbKg && (ing as any).nbKg !== 1 ? (ing as any).nbKg : <span className="text-gray-300">1</span>}</>}
                     </td>
                     <td className="px-4 py-3 text-right font-semibold text-yellow-600">
                         {(ing.prix / ((ing as any).nbKg || 1) / ing.rendement / ((ing as any).nbPieces || 1)).toFixed(2)} €
