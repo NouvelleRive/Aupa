@@ -100,7 +100,12 @@ export default function RecettesPage() {
       getDocs(collection(db, 'produitsFournisseurs')),
       getDocs(collection(db, 'preparations')),
     ]);
-    setRecettes(rSnap.docs.map(d => ({ id: d.id, ...d.data() } as Recette)));
+    setRecettes(rSnap.docs.map(d => {
+      const data = d.data();
+      const ings = data.ingredients || [];
+      const needsIngredients = ings.length === 0 || !ings.some((i: any) => i.grammage > 0);
+      return { id: d.id, ...data, needsIngredients } as Recette & { needsIngredients: boolean };
+    }));
     setIngredients(iSnap.docs.map(d => ({ id: d.id, ...d.data() } as Ingredient)));
     setProduitsFournisseurs(pfSnap.docs.map(d => ({ id: d.id, ...d.data() } as ProduitFournisseur)));
     setPreparations(pSnap.docs.map(d => ({ id: d.id, ...d.data() } as Preparation)));
