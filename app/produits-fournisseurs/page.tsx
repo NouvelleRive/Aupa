@@ -16,7 +16,7 @@
     if (n.includes('500g') || n.includes('150g') || n.includes('125g') || n.match(/\d+g[^r]/)) return 'g';
     if (n.includes('1l') || n.includes('5l') || n.includes('1.5l') || n.match(/\d+l$/)) return 'L';
     if (n.includes('cl')) return 'cL';
-    if (n.includes('botte') || n.includes('pièce') || n.includes('x90') || n.includes('x50') || n.includes('x6') || n.includes('x8')) return 'pièce';
+    if (n.includes('botte') || n.includes('pièce') || n.match(/x\s?\d+/)) return 'pièce';
     if (n.includes('lot')) return 'lot';
     return 'pièce';
     };
@@ -253,7 +253,7 @@
             updated++;
         } else {
             const uniteDetectee = detectUnite(derniere.nom);
-            const matchPieces = derniere.nom.match(/[xX](\d+)/);
+            const matchPieces = derniere.nom.match(/[xX]\s?(\d+)/);
             const nbPieces = uniteDetectee === 'pièce' && matchPieces ? parseInt(matchPieces[1]) : 1;
             await addDoc(collection(db, 'produitsFournisseurs'), {
             nom: derniere.nom,
@@ -414,7 +414,7 @@
             updated++;
         } else {
             const uniteDetectee = detectUnite(derniere.nom);
-            const matchPieces = derniere.nom.match(/[xX](\d+)/);
+            const matchPieces = derniere.nom.match(/[xX]\s?(\d+)/);
             const nbPieces = uniteDetectee === 'pièce' && matchPieces ? parseInt(matchPieces[1]) : 1;
             await addDoc(collection(db, 'produitsFournisseurs'), {
             nom: derniere.nom,
@@ -593,7 +593,7 @@
             updated++;
         } else {
             const uniteDetectee = detectUnite(derniere.nom);
-            const matchPieces = derniere.nom.match(/[xX](\d+)/);
+            const matchPieces = derniere.nom.match(/[xX]\s?(\d+)/);
             const nbPieces = uniteDetectee === 'pièce' && matchPieces ? parseInt(matchPieces[1]) : 1;
             await addDoc(collection(db, 'produitsFournisseurs'), {
             nom: derniere.nom,
@@ -659,7 +659,7 @@
     };
 
     const handleEdit = (ing: ProduitFournisseur) => {
-        const matchPieces = ing.nom.match(/[xX](\d+)/);
+        const matchPieces = ing.nom.match(/[xX]\s?(\d+)/);
         const nbPieces = (ing as any).nbPieces || (matchPieces ? parseInt(matchPieces[1]) : 1);
         setEditInlineId(ing.id);
         setEditInlineForm({ nom: ing.nom, prix: String(ing.prix), unite: ing.unite, categorie: ing.categorie, rendement: String(Math.round(ing.rendement * 100)), nbPieces: String(nbPieces), nbKg: String((ing as any).nbKg || 1) });
