@@ -85,6 +85,7 @@ export default function RecettesPage() {
   const [importing, setImporting] = useState(false);
   const xlRef = useRef<HTMLInputElement>(null);
   const [filterType, setFilterType] = useState<string>('all');
+  const [search, setSearch] = useState('');
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkType, setBulkType] = useState<TypePlat>('food');
   const [showBulk, setShowBulk] = useState(false);
@@ -460,6 +461,7 @@ export default function RecettesPage() {
   };
 
   const filtered = recettes.filter(r =>
+    r.nom.toLowerCase().includes(search.toLowerCase()) &&
     (filterCat === 'all' || r.categorie === filterCat) &&
     (filterType === 'all' || (filterType === 'food' ? (!r.type || r.type === 'food') : filterType === 'afaire' ? (r as any).needsIngredients : r.type === filterType))
   ).sort((a, b) => a.categorie.localeCompare(b.categorie) || a.nom.localeCompare(b.nom));
@@ -681,6 +683,7 @@ export default function RecettesPage() {
       )}
 
       <div className="flex gap-3 mb-4 flex-wrap items-center">
+        <input className="border border-yellow-200 focus:border-yellow-400 focus:outline-none rounded-lg px-3 py-2 text-sm w-64" placeholder="Rechercher..." value={search} onChange={e => setSearch(e.target.value)} />
         <select className="border border-yellow-200 focus:border-yellow-400 focus:outline-none rounded-lg px-3 py-2 text-sm" value={filterCat} onChange={e => setFilterCat(e.target.value)}>
           <option value="all">Toutes catégories</option>
           {CATEGORIES.map(c => <option key={c}>{c}</option>)}
