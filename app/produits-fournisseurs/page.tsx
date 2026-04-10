@@ -5,6 +5,7 @@
     import { db } from '@/lib/firebase';
     import { ProduitFournisseur, Unite, Categorie } from '@/lib/types';
     import { INGREDIENTS } from '@/lib/ingredient';
+    import { recalculerTousLesCouts } from '@/lib/recalculCouts';
 
     const UNITES: Unite[] = ['kg', 'g', 'L', 'cL', 'pièce', 'lot'];
     const CATEGORIES: Categorie[] = ['viande', 'poisson', 'légume', 'fruit', 'laitage', 'épicerie', 'boisson', 'consommable', 'autre'];
@@ -219,6 +220,7 @@
         setImporting(false);
         setImportProgress('');
         alert(`✅ ${created} ingrédients créés, ${updated} mis à jour !`);
+        await recalculerTousLesCouts();
         fetchIngredients();
         e.target.value = '';
     };
@@ -380,6 +382,7 @@
         setImporting(false);
         setImportProgress('');
         alert(`✅ Milliet : ${created} produits créés, ${updated} mis à jour !`);
+        await recalculerTousLesCouts();
         fetchIngredients();
         e.target.value = '';
     };
@@ -559,6 +562,7 @@
         setImporting(false);
         setImportProgress('');
         alert(`✅ LBA : ${created} produits créés, ${updated} mis à jour !`);
+        await recalculerTousLesCouts();
         fetchIngredients();
         e.target.value = '';
     };
@@ -617,6 +621,7 @@
             quantite, updatedAt: new Date().toISOString(),
         });
         setEditInlineId(null);
+        await recalculerTousLesCouts();
         fetchIngredients();
     };
 
@@ -765,6 +770,7 @@
                             await updateDoc(doc(db, 'recettes', recDoc.id), { ingredients: newIngs });
                           }
                           await updateDoc(doc(db, 'produitsFournisseurs', ing.id), { ingredient: nomChoisi });
+                          await recalculerTousLesCouts();
                           fetchIngredients();
                         }}>
                         <option value="">— Non lié —</option>

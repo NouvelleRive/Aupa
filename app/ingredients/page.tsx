@@ -5,6 +5,7 @@ import { collection, getDocs, addDoc, deleteDoc, doc, updateDoc } from 'firebase
 import { db } from '@/lib/firebase';
 import { Ingredient, Unite, Categorie } from '@/lib/types';
 import { PREPARATIONS } from '@/lib/ingredient';
+import { recalculerTousLesCouts } from '@/lib/recalculCouts';
 
 const UNITES: Unite[] = ['kg', 'g', 'L', 'cL', 'pièce', 'lot'];
 const CATEGORIES: Categorie[] = ['viande', 'poisson', 'légume', 'fruit', 'laitage', 'épicerie', 'boisson', 'autre'];
@@ -174,6 +175,7 @@ export default function IngredientsPage() {
 
   const handleSetFournisseurRef = async (ingId: string, pfId: string) => {
     await updateDoc(doc(db, 'ingredients', ingId), { fournisseurRefId: pfId || null });
+    await recalculerTousLesCouts();
     fetchAll();
   };
 
