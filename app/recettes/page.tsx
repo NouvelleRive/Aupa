@@ -689,8 +689,11 @@ export default function RecettesPage() {
           <option value="all">Food & Boisson</option>
           <option value="food">Food</option>
           <option value="boisson">Boisson</option>
-          <option value="afaire">A faire</option>
         </select>
+        <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
+          <input type="checkbox" checked={filterType === 'afaire'} onChange={e => setFilterType(e.target.checked ? 'afaire' : 'all')} className="accent-yellow-400" />
+          A faire
+        </label>
         {selected.size > 0 && (
           <div className="flex items-center gap-2 ml-auto">
             <span className="text-sm text-gray-500">{selected.size} sélectionnées</span>
