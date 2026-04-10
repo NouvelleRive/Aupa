@@ -15,6 +15,7 @@ export interface Ingredient {
   nom: string;
   unite: Unite;
   categorie: Categorie;
+  fournisseurRefId?: string;
 }
 
 export interface ProduitFournisseur {

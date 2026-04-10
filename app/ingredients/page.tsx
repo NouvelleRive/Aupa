@@ -34,7 +34,7 @@ export default function IngredientsPage() {
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ nom: '', unite: 'kg' as Unite, categorie: 'épicerie' as Categorie });
   const [editId, setEditId] = useState<string | null>(null);
-  const [pfNames, setPfNames] = useState<Record<string, string[]>>({});
+  const [pfOptions, setPfOptions] = useState<Record<string, { id: string; nom: string; prixUnit: number }[]>>({});
   const [pfPrix, setPfPrix] = useState<Record<string, number>>({});
   const [recetteNames, setRecetteNames] = useState<Record<string, string[]>>({});
 
@@ -98,30 +98,36 @@ export default function IngredientsPage() {
     }).sort((a, b) => a.nom.localeCompare(b.nom));
     setPreparations(prepsData);
 
-    // Collecter les noms des produits fournisseurs liés (pour bruts uniquement)
-    const pf: Record<string, string[]> = {};
+    // Collecter les produits fournisseurs liés (pour bruts uniquement)
+    const pfOpts: Record<string, { id: string; nom: string; prixUnit: number }[]> = {};
     for (const d of pfSnap.docs) {
       const data = d.data();
       const nomIngredient = data.ingredient;
       if (nomIngredient) {
         const ing = brutIngredients.find(i => i.nom === nomIngredient);
         if (ing) {
-          if (!pf[ing.id]) pf[ing.id] = [];
+          if (!pfOpts[ing.id]) pfOpts[ing.id] = [];
           const nomProduit = data.nom || data.designation || nomIngredient;
-          pf[ing.id].push(nomProduit);
+          const prixUnit = data.prix / (data.nbKg || 1) / (data.rendement || 1) / (data.nbPieces || 1);
+          pfOpts[ing.id].push({ id: d.id, nom: nomProduit, prixUnit });
         }
       }
     }
-    setPfNames(pf);
+    setPfOptions(pfOpts);
 
-    // Calculer le prix/kg par ingrédient brut
+    // Calculer le prix par ingrédient brut (fournisseur de réf si défini, sinon le plus récent)
     const prix: Record<string, number> = {};
     for (const ing of brutIngredients) {
-      const pfsDocs = pfSnap.docs.filter(d => d.data().ingredient === ing.nom);
-      if (pfsDocs.length > 0) {
-        const plusRecent = pfsDocs.sort((a, b) => new Date(b.data().updatedAt).getTime() - new Date(a.data().updatedAt).getTime())[0];
-        const data = plusRecent.data();
-        prix[ing.id] = data.prix / (data.nbKg || 1) / (data.rendement || 1) / (data.nbPieces || 1);
+      const refId = (ing as any).fournisseurRefId;
+      if (refId && pfOpts[ing.id]?.find(p => p.id === refId)) {
+        prix[ing.id] = pfOpts[ing.id].find(p => p.id === refId)!.prixUnit;
+      } else {
+        const pfsDocs = pfSnap.docs.filter(d => d.data().ingredient === ing.nom);
+        if (pfsDocs.length > 0) {
+          const plusRecent = pfsDocs.sort((a, b) => new Date(b.data().updatedAt).getTime() - new Date(a.data().updatedAt).getTime())[0];
+          const data = plusRecent.data();
+          prix[ing.id] = data.prix / (data.nbKg || 1) / (data.rendement || 1) / (data.nbPieces || 1);
+        }
       }
     }
     setPfPrix(prix);
@@ -162,6 +168,11 @@ export default function IngredientsPage() {
     }
     setForm({ nom: '', unite: 'kg', categorie: 'épicerie' });
     setShowForm(false);
+    fetchAll();
+  };
+
+  const handleSetFournisseurRef = async (ingId: string, pfId: string) => {
+    await updateDoc(doc(db, 'ingredients', ingId), { fournisseurRefId: pfId || null });
     fetchAll();
   };
 
@@ -289,7 +300,7 @@ export default function IngredientsPage() {
                 <th className="px-4 py-3 text-left">Unité</th>
                 <th className="px-4 py-3 text-left">Catégorie</th>
                 <th className="px-4 py-3 text-right">Prix/unité</th>
-                <th className="px-4 py-3 text-left">Produits fournisseurs</th>
+                <th className="px-4 py-3 text-left">Fournisseur de réf</th>
                 <th className="px-4 py-3 text-left">Recettes liées</th>
                 <th className="px-4 py-3"></th>
               </tr>
@@ -308,14 +319,19 @@ export default function IngredientsPage() {
                     )}
                   </td>
                   <td className="px-4 py-3">
-                    {pfNames[ing.id]?.length ? (
-                      <div className="flex flex-wrap gap-1">
-                        {pfNames[ing.id].map((nom, i) => (
-                          <span key={i} className="bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full text-xs font-medium">{nom}</span>
+                    {pfOptions[ing.id]?.length ? (
+                      <select
+                        className="border border-yellow-200 focus:border-yellow-400 focus:outline-none rounded-lg px-2 py-1 text-xs w-full max-w-[200px]"
+                        value={ing.fournisseurRefId || ''}
+                        onChange={e => handleSetFournisseurRef(ing.id, e.target.value)}
+                      >
+                        <option value="">— Choisir —</option>
+                        {pfOptions[ing.id].map(pf => (
+                          <option key={pf.id} value={pf.id}>{pf.nom} ({pf.prixUnit.toFixed(2)} €/{ing.unite})</option>
                         ))}
-                      </div>
+                      </select>
                     ) : (
-                      <span className="text-gray-300">—</span>
+                      <span className="text-gray-300 text-xs">Aucun PF</span>
                     )}
                   </td>
                   <td className="px-4 py-3">
