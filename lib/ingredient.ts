@@ -1,7 +1,7 @@
 export const INGREDIENTS: string[] = [
   'Ail', 'Ail semoule', 'Alex', 'Aneth', 'Aperol', 'Armagnac',
   'Aubergine', 'Avocat', 'Baileys', 'Basilic', 'Beurre',
-  'Beurre salé', 'Bière du moment', 'Bière sans alcool', 'Blanche', 'Bœuf', 'Burrata', 'Cachaca',
+  'Beurre salé', 'Bière du moment', 'Bière sans alcool', 'Blanche', 'Butternut', 'Bœuf', 'Burrata', 'Cachaca',
   'Café', 'Café déca', 'Calva', 'Camembert', 'Canard', 'Canelle de metro',
   'Canneberge', 'Capres', 'Carotte', 'Champignon de paris', 'Chantilly',
   'Cheddar', 'Chèvre', 'Chicorée', 'Chocolat', 'Chou rouge', 'Ciboulette',
@@ -19,7 +19,7 @@ export const INGREDIENTS: string[] = [
   'Mozzarella', 'Moutarde', 'Moutarde à l\'ancienne', 'Muscade de metro',
   'Myrtille', 'Noisette', 'Noix', 'Nutella', 'Œuf', 'Oignon jaune',
   'Oignon rouge', 'Olives', 'Orange', 'Ouzo', 'Paprika de metro',
-  'Paprika fumée metro', 'Parmesan', 'Pastrami', 'Pastis', 'Pdt', 'Perrier 1L', 'Perrier 33cl',
+  'Panais', 'Paprika fumée metro', 'Parmesan', 'Pastrami', 'Pastis', 'Patate douce', 'Pdt', 'Perrier 1L', 'Perrier 33cl',
   'Persil', 'Picon', 'Pignon', 'Poivre', 'Poivron rouge', 'Polenta',
   'Pomme', 'Porc', 'Portobello', 'Potimarron', 'Poudre amande', 'Poudre chai',
   'Poulet', 'Praliné', 'Raclette', 'Rhum cocktail', 'Rhum digestif', 'Riz', 'Romarin',
