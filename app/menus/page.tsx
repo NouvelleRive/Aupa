@@ -16,6 +16,7 @@
 
     import { CATEGORIES } from '@/lib/categories';
     import { CAISSE_MAP, normalizeCaisse } from '@/lib/caisseMap';
+    import { recalculerTousLesCouts } from '@/lib/recalculCouts';
 
     const matchPlat = (nomPopina: string, nomMenu: string): boolean => {
     const caisse = normalizeCaisse(nomPopina);
@@ -216,6 +217,10 @@
         <div className="flex items-center justify-between mb-6">
             <h1 className="text-2xl font-bold">Menus</h1>
             <div className="flex gap-3">
+            <button onClick={async () => { await recalculerTousLesCouts(); fetchAll(); }}
+                className="border border-gray-200 text-gray-600 hover:bg-gray-50 font-semibold rounded-lg px-4 py-2 text-sm">
+                Mettre à jour
+            </button>
             <button onClick={() => setShowCreerMenu(!showCreerMenu)}
                 className="border border-gray-200 text-gray-600 hover:bg-gray-50 font-semibold rounded-lg px-4 py-2 text-sm">
                 + Nouveau menu

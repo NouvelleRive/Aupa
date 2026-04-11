@@ -563,6 +563,9 @@ export default function RecettesPage() {
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold">Recettes</h1>
         <div className="flex gap-3">
+          <button onClick={async () => { await recalculerTousLesCouts(); fetchAll(); }} className="border border-gray-200 text-gray-600 hover:bg-gray-50 font-semibold rounded-lg px-4 py-2 text-sm">
+            Mettre à jour
+          </button>
           <button onClick={() => xlRef.current?.click()} disabled={importing} className="border border-gray-200 text-gray-600 hover:bg-gray-50 font-semibold rounded-lg px-4 py-2 text-sm">
             {importing ? 'Import en cours...' : 'Importer Excel'}
           </button>
