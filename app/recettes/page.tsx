@@ -764,7 +764,7 @@ export default function RecettesPage() {
         </select>
         <select className="border border-yellow-200 focus:border-yellow-400 focus:outline-none rounded-lg px-3 py-2 text-sm" value={filterMenu} onChange={e => setFilterMenu(e.target.value)}>
           <option value="all">Toutes les cartes</option>
-          {menus.sort((a, b) => b.nom.localeCompare(a.nom)).map(m => <option key={m.id} value={m.id}>{m.nom}</option>)}
+          {menus.sort((a, b) => (b.dateDebut || '').localeCompare(a.dateDebut || '')).map(m => <option key={m.id} value={m.id}>{m.nom}</option>)}
         </select>
         <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
           <input type="checkbox" checked={filterType === 'afaire'} onChange={e => setFilterType(e.target.checked ? 'afaire' : 'all')} className="accent-yellow-400" />
@@ -783,6 +783,56 @@ export default function RecettesPage() {
           </div>
         )}
       </div>
+
+      {!loading && filterMenu !== 'all' && (() => {
+        const calcFC = (type: 'food' | 'boisson') => {
+          const items = filtered.filter(r => (type === 'food' ? (!r.type || r.type === 'food') : r.type === 'boisson'));
+          let totalCout = 0, totalHT = 0, count = 0;
+          for (const r of items) {
+            const pv = menuPrix[r.id] !== undefined ? menuPrix[r.id] : r.prixVente;
+            if (!pv) continue;
+            const ht = pv / 1.1;
+            const cout = (r.ingredients || []).reduce((total: number, i: any) => {
+              if (i.nomIngredient) {
+                const prep = recettes.find(x => x.categorie === 'Préparations' && x.nom === i.nomIngredient) as any;
+                if (prep) {
+                  if (prep.coutAuKg) return total + prep.coutAuKg * i.grammage;
+                  if (prep.coutCalcule && prep.quantiteProduite) return total + (prep.coutCalcule / prep.quantiteProduite) * i.grammage;
+                  return total;
+                }
+                const pfs = produitsFournisseurs.filter(pf => (pf as any).ingredient === i.nomIngredient);
+                if (pfs.length > 0) {
+                  const plusRecent = pfs.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())[0];
+                  return total + prixUnitPF(plusRecent) * i.grammage;
+                }
+              }
+              if (i.ingredientId) {
+                const prix = getPrixProduitFournisseur(i.ingredientId);
+                if (prix > 0) return total + prix * i.grammage;
+              }
+              return total;
+            }, 0);
+            if (cout > 0) { totalCout += cout; totalHT += ht; count++; }
+          }
+          return { fc: totalHT > 0 ? (totalCout / totalHT * 100) : 0, count, totalCout, totalHT };
+        };
+        const food = calcFC('food');
+        const boisson = calcFC('boisson');
+        return (
+          <div className="grid grid-cols-2 gap-4 mb-4">
+            <div className="bg-white rounded-xl border border-yellow-100 p-4">
+              <div className="text-xs text-gray-500 uppercase mb-1">Food cost Food</div>
+              <div className={`text-2xl font-bold ${food.fc > 32 ? 'text-red-500' : 'text-gray-900'}`}>{food.fc > 0 ? food.fc.toFixed(1) + '%' : '—'}</div>
+              <div className="text-xs text-gray-400 mt-1">{food.count} recettes avec coût | Marge : {food.totalHT > 0 ? (food.totalHT - food.totalCout).toFixed(0) + ' €' : '—'}</div>
+            </div>
+            <div className="bg-white rounded-xl border border-blue-100 p-4">
+              <div className="text-xs text-gray-500 uppercase mb-1">Food cost Boisson</div>
+              <div className={`text-2xl font-bold ${boisson.fc > 20 ? 'text-red-500' : 'text-gray-900'}`}>{boisson.fc > 0 ? boisson.fc.toFixed(1) + '%' : '—'}</div>
+              <div className="text-xs text-gray-400 mt-1">{boisson.count} boissons avec coût | Marge : {boisson.totalHT > 0 ? (boisson.totalHT - boisson.totalCout).toFixed(0) + ' €' : '—'}</div>
+            </div>
+          </div>
+        );
+      })()}
 
       {loading ? <p className="text-gray-400">Chargement...</p> : (
         <div className="bg-white rounded-xl border border-yellow-100 overflow-hidden">
