@@ -652,25 +652,33 @@
         let created = 0;
         let updated = 0;
 
+        // Récupérer les ingrédients pour lier par ingredientId
+        const ingSnap = await getDocs(collection(db, 'ingredients'));
+        const ingMap: Record<string, string> = {};
+        for (const d of ingSnap.docs) ingMap[d.data().nom] = d.id;
+
         for (const ligne of toutesLignes) {
           const quantiteLitres = ligne.qte * 20; // chaque fût = 20L
+          const ingredientId = ingMap[ligne.ingredient] || null;
           const match = existing.find((p: any) => p.fournisseur === 'Les Assembleurs' && p.ingredient === ligne.ingredient);
 
           if (match) {
             const historiqueExistant = match.historiquesPrix || [];
             const datesExistantes = new Set(historiqueExistant.map((h: any) => h.date));
+            const updateData: any = {
+              nom: ligne.nom,
+              prix: ligne.prix,
+              quantite: quantiteLitres,
+              updatedAt: ligne.date,
+            };
             if (!datesExistantes.has(ligne.date)) {
-              await updateDoc(doc(db, 'produitsFournisseurs', match.id), {
-                nom: ligne.nom,
-                prix: ligne.prix,
-                quantite: quantiteLitres,
-                historiquesPrix: [...historiqueExistant, { date: ligne.date, prix: ligne.prix }],
-                updatedAt: ligne.date,
-              });
+              updateData.historiquesPrix = [...historiqueExistant, { date: ligne.date, prix: ligne.prix }];
             }
+            if (ingredientId && !match.ingredientId) updateData.ingredientId = ingredientId;
+            await updateDoc(doc(db, 'produitsFournisseurs', match.id), updateData);
             updated++;
           } else {
-            await addDoc(collection(db, 'produitsFournisseurs'), {
+            const data: any = {
               nom: ligne.nom,
               ingredient: ligne.ingredient,
               prix: ligne.prix,
@@ -681,7 +689,9 @@
               fournisseur: 'Les Assembleurs',
               historiquesPrix: [{ date: ligne.date, prix: ligne.prix }],
               updatedAt: ligne.date,
-            });
+            };
+            if (ingredientId) data.ingredientId = ingredientId;
+            await addDoc(collection(db, 'produitsFournisseurs'), data);
             created++;
           }
         }
