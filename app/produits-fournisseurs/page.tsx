@@ -844,6 +844,7 @@
             <option value="Milliet">Milliet</option>
             <option value="LBA">LBA</option>
             <option value="Lidl">Lidl</option>
+            <option value="Les Assembleurs">Les Assembleurs</option>
             </select>
 
             <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer ml-2">
