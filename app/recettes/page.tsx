@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { collection, getDocs, addDoc, deleteDoc, doc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Recette, Ingredient, ProduitFournisseur, Preparation, CategorieRecette, TypePlat } from '@/lib/types';
+import { MenuDoc } from '@/lib/menuTypes';
 import { CATEGORIES } from '@/lib/categories';
 import { recalculerTousLesCouts } from '@/lib/recalculCouts';
 
@@ -88,6 +89,8 @@ export default function RecettesPage() {
   const xlRef = useRef<HTMLInputElement>(null);
   const [filterType, setFilterType] = useState<string>('all');
   const [search, setSearch] = useState('');
+  const [menus, setMenus] = useState<MenuDoc[]>([]);
+  const [filterMenu, setFilterMenu] = useState<string>('all');
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkType, setBulkType] = useState<TypePlat>('food');
   const [showBulk, setShowBulk] = useState(false);
@@ -97,11 +100,12 @@ export default function RecettesPage() {
   const [searchIngredients, setSearchIngredients] = useState<Record<number, string>>({});
 
   const fetchAll = async () => {
-    const [rSnap, iSnap, pfSnap, pSnap] = await Promise.all([
+    const [rSnap, iSnap, pfSnap, pSnap, mSnap] = await Promise.all([
       getDocs(collection(db, 'recettes')),
       getDocs(collection(db, 'ingredients')),
       getDocs(collection(db, 'produitsFournisseurs')),
       getDocs(collection(db, 'preparations')),
+      getDocs(collection(db, 'menus')),
     ]);
     setRecettes(rSnap.docs.map(d => {
       const data = d.data();
@@ -112,6 +116,7 @@ export default function RecettesPage() {
     setIngredients(iSnap.docs.map(d => ({ id: d.id, ...d.data() } as Ingredient)));
     setProduitsFournisseurs(pfSnap.docs.map(d => ({ id: d.id, ...d.data() } as ProduitFournisseur)));
     setPreparations(pSnap.docs.map(d => ({ id: d.id, ...d.data() } as Preparation)));
+    setMenus(mSnap.docs.map(d => ({ id: d.id, ...d.data() } as MenuDoc)));
     setLoading(false);
   };
 
@@ -504,10 +509,24 @@ export default function RecettesPage() {
     fetchAll();
   };
 
+  // Construire le map recetteId → prixVente pour le menu sélectionné
+  const menuSelectionne = menus.find(m => m.id === filterMenu);
+  const menuPrix: Record<string, number> = {};
+  const menuRecetteIds = new Set<string>();
+  if (menuSelectionne) {
+    for (const cat of menuSelectionne.categories || []) {
+      for (const mr of cat.recettes || []) {
+        menuPrix[mr.id] = mr.prixVente;
+        menuRecetteIds.add(mr.id);
+      }
+    }
+  }
+
   const filtered = recettes.filter(r =>
     r.nom.toLowerCase().includes(search.toLowerCase()) &&
     (filterCat === 'all' || r.categorie === filterCat) &&
-    (filterType === 'all' || (filterType === 'food' ? (!r.type || r.type === 'food') : filterType === 'afaire' ? (r as any).needsIngredients : r.type === filterType))
+    (filterType === 'all' || (filterType === 'food' ? (!r.type || r.type === 'food') : filterType === 'afaire' ? (r as any).needsIngredients : r.type === filterType)) &&
+    (filterMenu === 'all' || menuRecetteIds.has(r.id))
   ).sort((a, b) => a.categorie.localeCompare(b.categorie) || a.nom.localeCompare(b.nom));
 
   const coutPreview = calculerCout();
@@ -743,6 +762,10 @@ export default function RecettesPage() {
           <option value="food">Food</option>
           <option value="boisson">Boisson</option>
         </select>
+        <select className="border border-yellow-200 focus:border-yellow-400 focus:outline-none rounded-lg px-3 py-2 text-sm" value={filterMenu} onChange={e => setFilterMenu(e.target.value)}>
+          <option value="all">Toutes les cartes</option>
+          {menus.sort((a, b) => b.nom.localeCompare(a.nom)).map(m => <option key={m.id} value={m.id}>{m.nom}</option>)}
+        </select>
         <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
           <input type="checkbox" checked={filterType === 'afaire'} onChange={e => setFilterType(e.target.checked ? 'afaire' : 'all')} className="accent-yellow-400" />
           A faire
@@ -799,9 +822,13 @@ export default function RecettesPage() {
                   </td>
                   <td className="px-4 py-3 text-gray-500">{r.categorie}</td>
                   <td className="px-4 py-3 text-right">
-                    {r.prixVente ? <><div>{r.prixVente.toFixed(2)} €</div><div className="text-xs text-gray-400">{(r.prixVente / 1.1).toFixed(2)} € HT</div></> : <span className="text-gray-300">—</span>}
+                    {(() => {
+                      const pv = filterMenu !== 'all' && menuPrix[r.id] !== undefined ? menuPrix[r.id] : r.prixVente;
+                      return pv ? <><div>{pv.toFixed(2)} €</div><div className="text-xs text-gray-400">{(pv / 1.1).toFixed(2)} € HT</div></> : <span className="text-gray-300">—</span>;
+                    })()}
                   </td>
                   {(() => {
+                    const prixVenteEffectif = filterMenu !== 'all' && menuPrix[r.id] !== undefined ? menuPrix[r.id] : r.prixVente;
                     const cout = (r.ingredients || []).reduce((total: number, i: any) => {
                       if (i.ingredientId || i.ingredientIds?.length > 0) {
                         const ids = i.ingredientIds || [i.ingredientId];
@@ -847,7 +874,7 @@ export default function RecettesPage() {
                       }
                       return total;
                     }, 0);
-                    const ht = r.prixVente ? r.prixVente / 1.1 : 0;
+                    const ht = prixVenteEffectif ? prixVenteEffectif / 1.1 : 0;
                     const fc = cout > 0 && ht > 0 ? cout / ht * 100 : 0;
                     return <>
                       <td className="px-4 py-3 text-right">
