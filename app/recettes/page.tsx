@@ -5,6 +5,7 @@ import { collection, getDocs, addDoc, deleteDoc, doc, updateDoc } from 'firebase
 import { db } from '@/lib/firebase';
 import { Recette, Ingredient, ProduitFournisseur, Preparation, CategorieRecette, TypePlat } from '@/lib/types';
 import { CATEGORIES } from '@/lib/categories';
+import { recalculerTousLesCouts } from '@/lib/recalculCouts';
 
 const TYPES_PLAT = ['food', 'boisson'] as const;
 interface ImportPreviewItem {
@@ -407,6 +408,7 @@ export default function RecettesPage() {
     }
     if (editId) { await updateDoc(doc(db, 'recettes', editId), data); setEditId(null); }
     else { await addDoc(collection(db, 'recettes'), data); }
+    await recalculerTousLesCouts();
     setForm(emptyForm); setLignes([]); setShowForm(false); fetchAll();
   };
 

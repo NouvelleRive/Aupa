@@ -170,6 +170,7 @@ export default function IngredientsPage() {
     }
     setForm({ nom: '', unite: 'kg', categorie: 'épicerie' });
     setShowForm(false);
+    await recalculerTousLesCouts();
     fetchAll();
   };
 
