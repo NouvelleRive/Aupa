@@ -84,6 +84,7 @@ export default function RecettesPage() {
   const [editId, setEditId] = useState<string | null>(null);
   const [filterCat, setFilterCat] = useState<string>('all');
   const [importing, setImporting] = useState(false);
+  const [updating, setUpdating] = useState(false);
   const xlRef = useRef<HTMLInputElement>(null);
   const [filterType, setFilterType] = useState<string>('all');
   const [search, setSearch] = useState('');
@@ -563,8 +564,8 @@ export default function RecettesPage() {
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold">Recettes</h1>
         <div className="flex gap-3">
-          <button onClick={async () => { await recalculerTousLesCouts(); fetchAll(); }} className="border border-gray-200 text-gray-600 hover:bg-gray-50 font-semibold rounded-lg px-4 py-2 text-sm">
-            Mettre à jour
+          <button disabled={updating} onClick={async () => { setUpdating(true); await recalculerTousLesCouts(); await fetchAll(); setUpdating(false); }} className="border border-gray-200 text-gray-600 hover:bg-gray-50 font-semibold rounded-lg px-4 py-2 text-sm">
+            {updating ? 'Mise à jour...' : 'Mettre à jour'}
           </button>
           <button onClick={() => xlRef.current?.click()} disabled={importing} className="border border-gray-200 text-gray-600 hover:bg-gray-50 font-semibold rounded-lg px-4 py-2 text-sm">
             {importing ? 'Import en cours...' : 'Importer Excel'}
