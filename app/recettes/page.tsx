@@ -772,9 +772,11 @@ export default function RecettesPage() {
                             if (direct) prices.push(direct.prix / ((direct as any).quantite || (direct as any).nbKg || (direct as any).nbPieces || 1) / direct.rendement);
                           }
                         }
-                        if (prices.length === 0) return total;
-                        const prixMoyen = prices.reduce((s, p) => s + p, 0) / prices.length;
-                        return total + prixMoyen * i.grammage;
+                        if (prices.length > 0) {
+                          const prixMoyen = prices.reduce((s, p) => s + p, 0) / prices.length;
+                          return total + prixMoyen * i.grammage;
+                        }
+                        // Pas de PF trouvé par ingredientId → fallback par nomIngredient ci-dessous
                       }
                       if (i.recetteId) {
                         const prep = recettes.find(x => x.id === i.recetteId) as any;
