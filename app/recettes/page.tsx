@@ -327,12 +327,23 @@ export default function RecettesPage() {
     e.target.value = '';
   };
 
+  const convertQte = (qte: number, unite: string): number => {
+    if (unite === 'g') return qte / 1000;
+    if (unite === 'cL') return qte / 100;
+    return qte;
+  };
+
+  const prixUnitPF = (pf: any): number => {
+    const qte = convertQte((pf as any).quantite || (pf as any).nbKg || (pf as any).nbPieces || 1, (pf as any).unite || 'kg');
+    return pf.prix / qte / (pf.rendement || 1);
+  };
+
   const getPrixProduitFournisseur = (ingredientId: string): number => {
     // Cherche dans produitsFournisseurs les produits liés à cet ingrédient canonique par ingredientId
     const pfs = produitsFournisseurs.filter(pf => pf.ingredientId === ingredientId);
     if (pfs.length > 0) {
       const plusRecent = pfs.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())[0];
-      return plusRecent.prix / ((plusRecent as any).quantite || (plusRecent as any).nbKg || (plusRecent as any).nbPieces || 1) / plusRecent.rendement;
+      return prixUnitPF(plusRecent);
     }
     // Fallback : chercher par le champ ingredient (nom canonique) via l'ingrédient canonique
     const ingCanon = ingredients.find(i => i.id === ingredientId);
@@ -340,12 +351,12 @@ export default function RecettesPage() {
       const pfsByNom = produitsFournisseurs.filter(pf => (pf as any).ingredient === ingCanon.nom);
       if (pfsByNom.length > 0) {
         const plusRecent = pfsByNom.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())[0];
-        return plusRecent.prix / ((plusRecent as any).quantite || (plusRecent as any).nbKg || (plusRecent as any).nbPieces || 1) / plusRecent.rendement;
+        return prixUnitPF(plusRecent);
       }
     }
     // Fallback : chercher directement par id
     const directMatch = produitsFournisseurs.find(pf => pf.id === ingredientId);
-    if (directMatch) return directMatch.prix / ((directMatch as any).quantite || (directMatch as any).nbKg || (directMatch as any).nbPieces || 1) / directMatch.rendement;
+    if (directMatch) return prixUnitPF(directMatch);
     return 0;
   };
 
@@ -767,10 +778,10 @@ export default function RecettesPage() {
                           const pfs = produitsFournisseurs.filter(pf => pf.ingredientId === id);
                           if (pfs.length > 0) {
                             const plusRecent = pfs.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())[0];
-                            prices.push(plusRecent.prix / ((plusRecent as any).quantite || (plusRecent as any).nbKg || (plusRecent as any).nbPieces || 1) / plusRecent.rendement);
+                            prices.push(prixUnitPF(plusRecent));
                           } else {
                             const direct = produitsFournisseurs.find(pf => pf.id === id);
-                            if (direct) prices.push(direct.prix / ((direct as any).quantite || (direct as any).nbKg || (direct as any).nbPieces || 1) / direct.rendement);
+                            if (direct) prices.push(prixUnitPF(direct));
                           }
                         }
                         if (prices.length > 0) {
@@ -799,7 +810,7 @@ export default function RecettesPage() {
                         const pfs = produitsFournisseurs.filter(pf => (pf as any).ingredient === i.nomIngredient);
                         if (pfs.length > 0) {
                           const plusRecent = pfs.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())[0];
-                          return total + (plusRecent.prix / ((plusRecent as any).quantite || (plusRecent as any).nbKg || (plusRecent as any).nbPieces || 1) / plusRecent.rendement) * i.grammage;
+                          return total + prixUnitPF(plusRecent) * i.grammage;
                         }
                       }
                       return total;

@@ -10,11 +10,18 @@ export async function recalculerTousLesCouts() {
   const recettes = recSnap.docs.map(d => ({ id: d.id, ...d.data() } as any));
   const pfs = pfSnap.docs.map(d => ({ id: d.id, ...d.data() } as any));
 
+  const convertQuantite = (qte: number, unite: string): number => {
+    if (unite === 'g') return qte / 1000;
+    if (unite === 'cL') return qte / 100;
+    return qte;
+  };
+
   const getPrixPF = (ingredientNom: string): number => {
     const matches = pfs.filter((p: any) => p.ingredient === ingredientNom);
     if (matches.length === 0) return 0;
     const plusRecent = matches.sort((a: any, b: any) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())[0];
-    return plusRecent.prix / (plusRecent.quantite || plusRecent.nbKg || plusRecent.nbPieces || 1) / (plusRecent.rendement || 1);
+    const qte = convertQuantite(plusRecent.quantite || plusRecent.nbKg || plusRecent.nbPieces || 1, plusRecent.unite || 'kg');
+    return plusRecent.prix / qte / (plusRecent.rendement || 1);
   };
 
   // D'abord recalculer les préparations (elles peuvent dépendre de PF)

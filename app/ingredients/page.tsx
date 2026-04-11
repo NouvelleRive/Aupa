@@ -99,6 +99,13 @@ export default function IngredientsPage() {
     }).sort((a, b) => a.nom.localeCompare(b.nom));
     setPreparations(prepsData);
 
+    // Conversion g→kg, cL→L pour obtenir un prix par unité de base
+    const convertQte = (qte: number, unite: string): number => {
+      if (unite === 'g') return qte / 1000;
+      if (unite === 'cL') return qte / 100;
+      return qte;
+    };
+
     // Collecter les produits fournisseurs liés (pour bruts uniquement)
     const pfOpts: Record<string, { id: string; nom: string; fournisseur: string; prixUnit: number }[]> = {};
     for (const d of pfSnap.docs) {
@@ -110,7 +117,8 @@ export default function IngredientsPage() {
           if (!pfOpts[ing.id]) pfOpts[ing.id] = [];
           const nomProduit = data.nom || data.designation || nomIngredient;
           const fournisseur = data.fournisseur || (data.foodflowCode ? 'Foodflow' : data.millietCode ? 'Milliet' : data.lbaCode ? 'LBA' : '');
-          const prixUnit = data.prix / (data.quantite || data.nbKg || data.nbPieces || 1) / (data.rendement || 1);
+          const qte = convertQte(data.quantite || data.nbKg || data.nbPieces || 1, data.unite || 'kg');
+          const prixUnit = data.prix / qte / (data.rendement || 1);
           pfOpts[ing.id].push({ id: d.id, nom: nomProduit, fournisseur, prixUnit });
         }
       }
@@ -128,7 +136,8 @@ export default function IngredientsPage() {
         if (pfsDocs.length > 0) {
           const plusRecent = pfsDocs.sort((a, b) => new Date(b.data().updatedAt).getTime() - new Date(a.data().updatedAt).getTime())[0];
           const data = plusRecent.data();
-          prix[ing.id] = data.prix / (data.quantite || data.nbKg || data.nbPieces || 1) / (data.rendement || 1);
+          const qte = convertQte(data.quantite || data.nbKg || data.nbPieces || 1, data.unite || 'kg');
+          prix[ing.id] = data.prix / qte / (data.rendement || 1);
         }
       }
     }
