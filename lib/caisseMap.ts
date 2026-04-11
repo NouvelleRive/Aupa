@@ -97,12 +97,21 @@ export const CAISSE_MAP: Record<string, string> = {
   'coca zero': 'coca zero',
   'orangina': 'orangina',
   'perrier 33': 'perrier bouteille',
+  'perrier 1l': 'perrier 1l',
 
   // --- LES BINOUZ ---
+  'alex 33cl': 'alex demi',
+  'alex demi': 'alex demi',
+  'alex pinte': 'alex pinte',
+  '33 neipa': 'biere du moment demi',
+  'season demi neipa': 'biere du moment demi',
+  'season pinte neipa': 'biere du moment pinte',
   'cidre pinte': 'cidre pinte',
+  'demi cidre': 'cidre demi',
   'corona': 'corona',
   'ipa demi': 'ipa',
   'ipa pinte': 'ipa pinte',
+  'monaco pinte': 'monaco pinte',
   'triple': 'triple pinte',
 
   // --- LES COCKTAILZ ---

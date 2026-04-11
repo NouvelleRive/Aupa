@@ -1,0 +1,1098 @@
+[
+  {
+    "nom": "Forestier",
+    "categorie": "Croger",
+    "type": "food",
+    "prixVente": 11.9,
+    "ingredients": [
+      { "nomIngredient": "Croissant", "grammage": 2.0, "unite": "1" },
+      { "nomIngredient": "Emmental", "grammage": 0.03, "unite": "1" },
+      { "nomIngredient": "Portobello", "grammage": 0.07, "unite": "1" },
+      { "nomIngredient": "Prépa champi paris", "grammage": 0.04, "unite": "7.265" },
+      { "nomIngredient": "Tomate", "grammage": 0.03, "unite": "1" },
+      { "nomIngredient": "Pickles oignon", "grammage": 0.003, "unite": "4.9" },
+      { "nomIngredient": "Pickles concombre", "grammage": 0.005, "unite": "4.5" }
+    ]
+  },
+  {
+    "nom": "sup for",
+    "categorie": "Croger",
+    "type": "food",
+    "prixVente": 3.9,
+    "ingredients": [
+      { "nomIngredient": "Prépa champi paris", "grammage": 0.1, "unite": "7.265" }
+    ]
+  },
+  {
+    "nom": "Raclette",
+    "categorie": "Croger",
+    "type": "food",
+    "prixVente": 13.9,
+    "ingredients": [
+      { "nomIngredient": "Croissant", "grammage": 2.0, "unite": "1" },
+      { "nomIngredient": "Raclette lidl", "grammage": 0.05, "unite": "0.4" },
+      { "nomIngredient": "Jambon cru", "grammage": 0.045, "unite": "0.5" },
+      { "nomIngredient": "Pdt", "grammage": 0.045, "unite": "1" },
+      { "nomIngredient": "Prépa oignon", "grammage": 0.01, "unite": "1" },
+      { "nomIngredient": "Prépa champi paris", "grammage": 0.04, "unite": "7.265" },
+      { "nomIngredient": "Tomate", "grammage": 0.03, "unite": "1" },
+      { "nomIngredient": "Pickles oignon", "grammage": 0.003, "unite": "4.9" },
+      { "nomIngredient": "Pickles concombre", "grammage": 0.005, "unite": "4.5" },
+      { "nomIngredient": "Mayonnaise", "grammage": 0.01, "unite": "1.25" }
+    ]
+  },
+  {
+    "nom": "sup rac",
+    "categorie": "Croger",
+    "type": "food",
+    "prixVente": 3.9,
+    "ingredients": [
+      { "nomIngredient": "Prépa raclette", "grammage": 0.1, "unite": "0.3" }
+    ]
+  },
+  {
+    "nom": "Bourguignon",
+    "categorie": "Croger",
+    "type": "food",
+    "prixVente": 13.9,
+    "ingredients": [
+      { "nomIngredient": "Croissant", "grammage": 2.0, "unite": "1" },
+      { "nomIngredient": "Comté", "grammage": 0.05, "unite": "1" },
+      { "nomIngredient": "Prépa bœuf", "grammage": 0.12, "unite": "7.855" },
+      { "nomIngredient": "Tomate", "grammage": 0.03, "unite": "1" },
+      { "nomIngredient": "Pickles oignon", "grammage": 0.003, "unite": "4.9" },
+      { "nomIngredient": "Pickles concombre", "grammage": 0.005, "unite": "4.5" },
+      { "nomIngredient": "Mayonnaise", "grammage": 0.01, "unite": "1.25" }
+    ]
+  },
+  {
+    "nom": "Pulled pork",
+    "categorie": "Croger",
+    "type": "food",
+    "prixVente": 12.9,
+    "ingredients": [
+      { "nomIngredient": "Croissant", "grammage": 2.0, "unite": "1" },
+      { "nomIngredient": "Cheddar", "grammage": 0.03, "unite": "1" },
+      { "nomIngredient": "Prépa porc", "grammage": 0.12, "unite": "20.07" },
+      { "nomIngredient": "Tomate", "grammage": 0.03, "unite": "1" },
+      { "nomIngredient": "Pickles oignon", "grammage": 0.003, "unite": "4.9" },
+      { "nomIngredient": "Pickles concombre", "grammage": 0.005, "unite": "4.5" },
+      { "nomIngredient": "Mayonnaise", "grammage": 0.01, "unite": "1.25" },
+      { "nomIngredient": "Ketchup", "grammage": 0.01, "unite": "1" }
+    ]
+  },
+  {
+    "nom": "Poulet",
+    "categorie": "Croger",
+    "type": "food",
+    "prixVente": 12.9,
+    "ingredients": [
+      { "nomIngredient": "Croissant", "grammage": 2.0, "unite": "1" },
+      { "nomIngredient": "Emmental", "grammage": 0.03, "unite": "1" },
+      { "nomIngredient": "Prépa poulet", "grammage": 0.12, "unite": "3" },
+      { "nomIngredient": "Tomate", "grammage": 0.03, "unite": "1" },
+      { "nomIngredient": "Pickles oignon", "grammage": 0.003, "unite": "4.9" },
+      { "nomIngredient": "Pickles concombre", "grammage": 0.005, "unite": "4.5" },
+      { "nomIngredient": "Aioli", "grammage": 0.01, "unite": "4.395" }
+    ]
+  },
+  {
+    "nom": "Thon",
+    "categorie": "Croger",
+    "type": "food",
+    "prixVente": 9.9,
+    "ingredients": [
+      { "nomIngredient": "Croissant", "grammage": 2.0, "unite": "1" },
+      { "nomIngredient": "Emmental", "grammage": 0.03, "unite": "1" },
+      { "nomIngredient": "Tomate", "grammage": 0.03, "unite": "1" },
+      { "nomIngredient": "Pickles oignon", "grammage": 0.003, "unite": "4.9" },
+      { "nomIngredient": "Pickles concombre", "grammage": 0.005, "unite": "4.5" }
+    ]
+  },
+  {
+    "nom": "Pastrami",
+    "categorie": "Croger",
+    "type": "food",
+    "prixVente": 13.9,
+    "ingredients": [
+      { "nomIngredient": "Croissant", "grammage": 2.0, "unite": "1" },
+      { "nomIngredient": "Cheddar", "grammage": 0.03, "unite": "1" },
+      { "nomIngredient": "Pastrami", "grammage": 0.02, "unite": "1" },
+      { "nomIngredient": "Roti de bœuf", "grammage": 0.08, "unite": "1" },
+      { "nomIngredient": "Prépa coleslaw", "grammage": 0.02, "unite": "14.95" },
+      { "nomIngredient": "Tomate", "grammage": 0.03, "unite": "1" },
+      { "nomIngredient": "Pickles oignon", "grammage": 0.003, "unite": "4.9" },
+      { "nomIngredient": "Pickles concombre", "grammage": 0.005, "unite": "4.5" },
+      { "nomIngredient": "Mayonnaise", "grammage": 0.01, "unite": "1.25" },
+      { "nomIngredient": "Ketchup", "grammage": 0.01, "unite": "1" }
+    ]
+  },
+  {
+    "nom": "Caprese",
+    "categorie": "Croger",
+    "type": "food",
+    "prixVente": 10.9,
+    "ingredients": [
+      { "nomIngredient": "Croissant", "grammage": 2.0, "unite": "1" },
+      { "nomIngredient": "Mozzarella", "grammage": 0.05, "unite": "1" },
+      { "nomIngredient": "Aubergine", "grammage": 0.055, "unite": "1" },
+      { "nomIngredient": "Tomate", "grammage": 0.03, "unite": "1" },
+      { "nomIngredient": "Pickles oignon", "grammage": 0.003, "unite": "4.9" },
+      { "nomIngredient": "Pickles concombre", "grammage": 0.005, "unite": "4.5" }
+    ]
+  },
+  {
+    "nom": "Ratatouille",
+    "categorie": "Croger",
+    "type": "food",
+    "prixVente": 9.9,
+    "ingredients": [
+      { "nomIngredient": "Croissant", "grammage": 2.0, "unite": "1" },
+      { "nomIngredient": "Emmental", "grammage": 0.03, "unite": "1" },
+      { "nomIngredient": "Prépa ratatouille", "grammage": 0.15, "unite": "7.335" },
+      { "nomIngredient": "Tomate", "grammage": 0.03, "unite": "1" },
+      { "nomIngredient": "Pickles oignon", "grammage": 0.003, "unite": "4.9" },
+      { "nomIngredient": "Pickles concombre", "grammage": 0.005, "unite": "4.5" },
+      { "nomIngredient": "Aioli", "grammage": 0.01, "unite": "4.395" }
+    ]
+  },
+  {
+    "nom": "Dinde",
+    "categorie": "Croger",
+    "type": "food",
+    "prixVente": 13.9,
+    "ingredients": [
+      { "nomIngredient": "Croissant", "grammage": 2.0, "unite": "1" },
+      { "nomIngredient": "Emmental", "grammage": 0.03, "unite": "1" },
+      { "nomIngredient": "Dinde", "grammage": 0.1, "unite": "1" },
+      { "nomIngredient": "Guaca", "grammage": 0.05, "unite": "1.015" },
+      { "nomIngredient": "Tomate", "grammage": 0.03, "unite": "1" },
+      { "nomIngredient": "Pickles oignon", "grammage": 0.003, "unite": "4.9" },
+      { "nomIngredient": "Pickles concombre", "grammage": 0.005, "unite": "4.5" },
+      { "nomIngredient": "Mayonnaise", "grammage": 0.02, "unite": "1.25" }
+    ]
+  },
+  {
+    "nom": "Jambon",
+    "categorie": "Croger",
+    "type": "food",
+    "prixVente": 7.9,
+    "ingredients": [
+      { "nomIngredient": "Croissant", "grammage": 2.0, "unite": "1" },
+      { "nomIngredient": "Emmental", "grammage": 0.03, "unite": "1" },
+      { "nomIngredient": "Jambon blanc", "grammage": 0.08, "unite": "1" },
+      { "nomIngredient": "Tomate", "grammage": 0.03, "unite": "1" },
+      { "nomIngredient": "Pickles oignon", "grammage": 0.003, "unite": "4.9" },
+      { "nomIngredient": "Pickles concombre", "grammage": 0.005, "unite": "4.5" },
+      { "nomIngredient": "Mayonnaise", "grammage": 0.02, "unite": "1.25" }
+    ]
+  },
+  {
+    "nom": "Canard",
+    "categorie": "Croger",
+    "type": "food",
+    "prixVente": 15.9,
+    "ingredients": [
+      { "nomIngredient": "Croissant", "grammage": 2.0, "unite": "1" },
+      { "nomIngredient": "Chèvre", "grammage": 0.05, "unite": "0.48" },
+      { "nomIngredient": "Canard", "grammage": 0.1, "unite": "1.5" },
+      { "nomIngredient": "Tomate", "grammage": 0.03, "unite": "1" },
+      { "nomIngredient": "Pickles oignon", "grammage": 0.003, "unite": "4.9" },
+      { "nomIngredient": "Pickles concombre", "grammage": 0.005, "unite": "4.5" },
+      { "nomIngredient": "Mayonnaise", "grammage": 0.02, "unite": "1.25" },
+      { "nomIngredient": "Miel", "grammage": 0.01, "unite": "0.5" }
+    ]
+  },
+  {
+    "nom": "Polpette",
+    "categorie": "Croger",
+    "type": "food",
+    "prixVente": 13.9,
+    "ingredients": [
+      { "nomIngredient": "Croissant", "grammage": 2.0, "unite": "1" },
+      { "nomIngredient": "Cheddar", "grammage": 0.03, "unite": "1" },
+      { "nomIngredient": "Steak boeuf", "grammage": 0.125, "unite": "0.125" },
+      { "nomIngredient": "Prépa polpette", "grammage": 1.0, "unite": "25" },
+      { "nomIngredient": "Tomate", "grammage": 0.03, "unite": "1" },
+      { "nomIngredient": "Pickles oignon", "grammage": 0.003, "unite": "4.9" },
+      { "nomIngredient": "Pickles concombre", "grammage": 0.005, "unite": "4.5" },
+      { "nomIngredient": "Aioli", "grammage": 0.02, "unite": "4.395" }
+    ]
+  },
+  {
+    "nom": "Tartare",
+    "categorie": "Croger",
+    "type": "food",
+    "prixVente": 0,
+    "ingredients": [
+      { "nomIngredient": "Croissant", "grammage": 2.0, "unite": "1" }
+    ]
+  },
+  {
+    "nom": "Rougail",
+    "categorie": "Croger",
+    "type": "food",
+    "prixVente": 13.9,
+    "ingredients": [
+      { "nomIngredient": "Croissant", "grammage": 2.0, "unite": "1" },
+      { "nomIngredient": "Emmental", "grammage": 0.03, "unite": "1" },
+      { "nomIngredient": "Prépa rougail", "grammage": 0.25, "unite": "1" },
+      { "nomIngredient": "Tomate", "grammage": 0.03, "unite": "1" },
+      { "nomIngredient": "Pickles oignon", "grammage": 0.003, "unite": "4.9" },
+      { "nomIngredient": "Pickles concombre", "grammage": 0.005, "unite": "4.5" },
+      { "nomIngredient": "Mayonnaise", "grammage": 0.02, "unite": "1.25" }
+    ]
+  },
+  {
+    "nom": "Camembertha",
+    "categorie": "Croger",
+    "type": "food",
+    "prixVente": 15.9,
+    "ingredients": [
+      { "nomIngredient": "Croissant", "grammage": 2.0, "unite": "1" },
+      { "nomIngredient": "Camembert d'isigny", "grammage": 0.075, "unite": "0.15" },
+      { "nomIngredient": "Poires", "grammage": 0.07, "unite": "1" },
+      { "nomIngredient": "Noix", "grammage": 0.006, "unite": "1" },
+      { "nomIngredient": "Epinards (du mesclun)", "grammage": 0.006, "unite": "1" },
+      { "nomIngredient": "Tomate", "grammage": 0.2065, "unite": "1" },
+      { "nomIngredient": "Pickles oignon", "grammage": 0.003, "unite": "4.9" },
+      { "nomIngredient": "Mayonnaise", "grammage": 0.02, "unite": "1.25" }
+    ]
+  },
+  {
+    "nom": "PLANCHE",
+    "categorie": "Croger",
+    "type": "food",
+    "prixVente": 14.9,
+    "ingredients": [
+      { "nomIngredient": "Croissant", "grammage": 1.0, "unite": "1" },
+      { "nomIngredient": "Prépa bœuf", "grammage": 0.05, "unite": "7.855" },
+      { "nomIngredient": "Prépa porc", "grammage": 0.05, "unite": "20.07" },
+      { "nomIngredient": "Prépa poulet", "grammage": 0.05, "unite": "3" }
+    ]
+  },
+  {
+    "nom": "Forestier",
+    "categorie": "Mini Croger",
+    "type": "food",
+    "prixVente": 6.633333333,
+    "ingredients": [
+      { "nomIngredient": "Croissant", "grammage": 2.0, "unite": "1" },
+      { "nomIngredient": "Emmental", "grammage": 0.015, "unite": "1" },
+      { "nomIngredient": "Portobello", "grammage": 0.035, "unite": "1" },
+      { "nomIngredient": "Prépa champi paris", "grammage": 0.02, "unite": "7.265" },
+      { "nomIngredient": "Tomate", "grammage": 0.015, "unite": "1" },
+      { "nomIngredient": "Pickles concombre", "grammage": 0.005, "unite": "4.5" }
+    ]
+  },
+  {
+    "nom": "Raclette",
+    "categorie": "Mini Croger",
+    "type": "food",
+    "prixVente": 6.633333333,
+    "ingredients": [
+      { "nomIngredient": "Croissant", "grammage": 2.0, "unite": "1" },
+      { "nomIngredient": "Raclette", "grammage": 0.025, "unite": "0.4" },
+      { "nomIngredient": "Jambon cru", "grammage": 0.0225, "unite": "0.5" },
+      { "nomIngredient": "Pdt", "grammage": 0.0225, "unite": "1" },
+      { "nomIngredient": "Prépa oignon", "grammage": 0.005, "unite": "1" },
+      { "nomIngredient": "Prépa champi paris", "grammage": 0.02, "unite": "7.265" },
+      { "nomIngredient": "Tomate", "grammage": 0.015, "unite": "1" },
+      { "nomIngredient": "Pickles concombre", "grammage": 0.005, "unite": "4.5" },
+      { "nomIngredient": "Mayonnaise", "grammage": 0.005, "unite": "1.25" }
+    ]
+  },
+  {
+    "nom": "Bourguignon",
+    "categorie": "Mini Croger",
+    "type": "food",
+    "prixVente": 6.633333333,
+    "ingredients": [
+      { "nomIngredient": "Croissant", "grammage": 2.0, "unite": "1" },
+      { "nomIngredient": "Comté", "grammage": 0.025, "unite": "1" },
+      { "nomIngredient": "Prépa bœuf", "grammage": 0.06, "unite": "7.855" },
+      { "nomIngredient": "Tomate", "grammage": 0.015, "unite": "1" },
+      { "nomIngredient": "Pickles concombre", "grammage": 0.005, "unite": "4.5" },
+      { "nomIngredient": "Mayonnaise", "grammage": 0.005, "unite": "1.25" }
+    ]
+  },
+  {
+    "nom": "Pulled pork",
+    "categorie": "Mini Croger",
+    "type": "food",
+    "prixVente": 6.633333333,
+    "ingredients": [
+      { "nomIngredient": "Croissant", "grammage": 2.0, "unite": "1" },
+      { "nomIngredient": "Cheddar", "grammage": 0.015, "unite": "1" },
+      { "nomIngredient": "Prépa porc", "grammage": 0.06, "unite": "20.07" },
+      { "nomIngredient": "Tomate", "grammage": 0.015, "unite": "1" },
+      { "nomIngredient": "Pickles concombre", "grammage": 0.005, "unite": "4.5" },
+      { "nomIngredient": "Mayonnaise", "grammage": 0.005, "unite": "1.25" },
+      { "nomIngredient": "Ketchup", "grammage": 0.005, "unite": "1" }
+    ]
+  },
+  {
+    "nom": "Poulet",
+    "categorie": "Mini Croger",
+    "type": "food",
+    "prixVente": 6.633333333,
+    "ingredients": [
+      { "nomIngredient": "Croissant", "grammage": 2.0, "unite": "1" },
+      { "nomIngredient": "Emmental", "grammage": 0.015, "unite": "1" },
+      { "nomIngredient": "Prépa poulet", "grammage": 0.06, "unite": "3" },
+      { "nomIngredient": "Tomate", "grammage": 0.015, "unite": "1" },
+      { "nomIngredient": "Pickles concombre", "grammage": 0.005, "unite": "4.5" },
+      { "nomIngredient": "Aioli", "grammage": 0.005, "unite": "4.395" }
+    ]
+  },
+  {
+    "nom": "Thon",
+    "categorie": "Mini Croger",
+    "type": "food",
+    "prixVente": 9.9,
+    "ingredients": [
+      { "nomIngredient": "Croissant", "grammage": 2.0, "unite": "1" },
+      { "nomIngredient": "Emmental", "grammage": 0.015, "unite": "1" },
+      { "nomIngredient": "Tomate", "grammage": 0.015, "unite": "1" },
+      { "nomIngredient": "Pickles concombre", "grammage": 0.005, "unite": "4.5" }
+    ]
+  },
+  {
+    "nom": "Pastrami",
+    "categorie": "Mini Croger",
+    "type": "food",
+    "prixVente": 13.9,
+    "ingredients": [
+      { "nomIngredient": "Croissant", "grammage": 2.0, "unite": "1" },
+      { "nomIngredient": "Cheddar", "grammage": 0.015, "unite": "1" },
+      { "nomIngredient": "Pastrami", "grammage": 0.01, "unite": "1" },
+      { "nomIngredient": "Roti de bœuf", "grammage": 0.04, "unite": "1" },
+      { "nomIngredient": "Prépa coleslaw", "grammage": 0.01, "unite": "14.95" },
+      { "nomIngredient": "Tomate", "grammage": 0.015, "unite": "1" },
+      { "nomIngredient": "Pickles concombre", "grammage": 0.005, "unite": "4.5" },
+      { "nomIngredient": "Mayonnaise", "grammage": 0.005, "unite": "1.25" },
+      { "nomIngredient": "Ketchup", "grammage": 0.005, "unite": "1" }
+    ]
+  },
+  {
+    "nom": "Caprese",
+    "categorie": "Mini Croger",
+    "type": "food",
+    "prixVente": 10.9,
+    "ingredients": [
+      { "nomIngredient": "Croissant", "grammage": 2.0, "unite": "1" },
+      { "nomIngredient": "Mozzarella", "grammage": 0.025, "unite": "1" },
+      { "nomIngredient": "Aubergine", "grammage": 0.0275, "unite": "1" },
+      { "nomIngredient": "Tomate", "grammage": 0.015, "unite": "1" },
+      { "nomIngredient": "Pickles concombre", "grammage": 0.005, "unite": "4.5" }
+    ]
+  },
+  {
+    "nom": "Ratatouille",
+    "categorie": "Mini Croger",
+    "type": "food",
+    "prixVente": 9.9,
+    "ingredients": [
+      { "nomIngredient": "Croissant", "grammage": 2.0, "unite": "1" },
+      { "nomIngredient": "Emmental", "grammage": 0.015, "unite": "1" },
+      { "nomIngredient": "Prépa ratatouille", "grammage": 0.075, "unite": "7.335" },
+      { "nomIngredient": "Tomate", "grammage": 0.015, "unite": "1" },
+      { "nomIngredient": "Pickles concombre", "grammage": 0.005, "unite": "4.5" },
+      { "nomIngredient": "Aioli", "grammage": 0.005, "unite": "4.395" }
+    ]
+  },
+  {
+    "nom": "Dinde",
+    "categorie": "Mini Croger",
+    "type": "food",
+    "prixVente": 13.9,
+    "ingredients": [
+      { "nomIngredient": "Croissant", "grammage": 2.0, "unite": "1" },
+      { "nomIngredient": "Emmental", "grammage": 0.015, "unite": "1" },
+      { "nomIngredient": "Dinde", "grammage": 0.05, "unite": "1" },
+      { "nomIngredient": "Guaca", "grammage": 0.025, "unite": "1.015" },
+      { "nomIngredient": "Tomate", "grammage": 0.015, "unite": "1" },
+      { "nomIngredient": "Pickles concombre", "grammage": 0.005, "unite": "4.5" },
+      { "nomIngredient": "Mayonnaise", "grammage": 0.01, "unite": "1.25" }
+    ]
+  },
+  {
+    "nom": "Jambon",
+    "categorie": "Mini Croger",
+    "type": "food",
+    "prixVente": 7.9,
+    "ingredients": [
+      { "nomIngredient": "Croissant", "grammage": 2.0, "unite": "1" },
+      { "nomIngredient": "Emmental", "grammage": 0.015, "unite": "1" },
+      { "nomIngredient": "Jambon blanc", "grammage": 0.04, "unite": "1" },
+      { "nomIngredient": "Tomate", "grammage": 0.015, "unite": "1" },
+      { "nomIngredient": "Pickles concombre", "grammage": 0.005, "unite": "4.5" },
+      { "nomIngredient": "Mayonnaise", "grammage": 0.01, "unite": "1.25" }
+    ]
+  },
+  {
+    "nom": "Canard",
+    "categorie": "Mini Croger",
+    "type": "food",
+    "prixVente": 6.633333333,
+    "ingredients": [
+      { "nomIngredient": "Croissant", "grammage": 2.0, "unite": "1" },
+      { "nomIngredient": "Chèvre", "grammage": 0.025, "unite": "0.48" },
+      { "nomIngredient": "Canard", "grammage": 0.05, "unite": "1.5" },
+      { "nomIngredient": "Tomate", "grammage": 0.015, "unite": "1" },
+      { "nomIngredient": "Pickles concombre", "grammage": 0.005, "unite": "4.5" },
+      { "nomIngredient": "Mayonnaise", "grammage": 0.01, "unite": "1.25" },
+      { "nomIngredient": "Miel", "grammage": 0.005, "unite": "0.5" }
+    ]
+  },
+  {
+    "nom": "Polpette",
+    "categorie": "Mini Croger",
+    "type": "food",
+    "prixVente": 13.9,
+    "ingredients": [
+      { "nomIngredient": "Croissant", "grammage": 2.0, "unite": "1" },
+      { "nomIngredient": "Cheddar", "grammage": 0.015, "unite": "1" },
+      { "nomIngredient": "Steak boeuf", "grammage": 0.0625, "unite": "0.125" },
+      { "nomIngredient": "Prépa polpette", "grammage": 0.5, "unite": "25" },
+      { "nomIngredient": "Tomate", "grammage": 0.015, "unite": "1" },
+      { "nomIngredient": "Pickles concombre", "grammage": 0.005, "unite": "4.5" },
+      { "nomIngredient": "Aioli", "grammage": 0.01, "unite": "4.395" }
+    ]
+  },
+  {
+    "nom": "Burrata",
+    "categorie": "Entrées",
+    "type": "food",
+    "prixVente": 9.0,
+    "ingredients": [
+      { "nomIngredient": "Croissant", "grammage": 1.0, "unite": "1" },
+      { "nomIngredient": "Burrata", "grammage": 0.12, "unite": "1" },
+      { "nomIngredient": "Pesto", "grammage": 0.01, "unite": "1.265" }
+    ]
+  },
+  {
+    "nom": "Avocado",
+    "categorie": "Entrées",
+    "type": "food",
+    "prixVente": 8.9,
+    "ingredients": [
+      { "nomIngredient": "Croissant", "grammage": 1.0, "unite": "1" },
+      { "nomIngredient": "Œuf", "grammage": 1.0, "unite": "1" },
+      { "nomIngredient": "Guaca", "grammage": 0.08, "unite": "0.07" }
+    ]
+  },
+  {
+    "nom": "Salmon",
+    "categorie": "Entrées",
+    "type": "food",
+    "prixVente": 8.9,
+    "ingredients": [
+      { "nomIngredient": "Croissant", "grammage": 1.0, "unite": "1" },
+      { "nomIngredient": "Saumon", "grammage": 0.04, "unite": "1" },
+      { "nomIngredient": "Tzatziki", "grammage": 0.075, "unite": "1" }
+    ]
+  },
+  {
+    "nom": "Œuf",
+    "categorie": "Entrées",
+    "type": "food",
+    "prixVente": 7.9,
+    "ingredients": [
+      { "nomIngredient": "Œuf", "grammage": 1.0, "unite": "1" },
+      { "nomIngredient": "Prépa champi paris", "grammage": 0.15, "unite": "0.005" }
+    ]
+  },
+  {
+    "nom": "Camembert",
+    "categorie": "Entrées",
+    "type": "food",
+    "prixVente": 6.9,
+    "ingredients": [
+      { "nomIngredient": "Camembert", "grammage": 0.5, "unite": "1" },
+      { "nomIngredient": "Miel", "grammage": 0.02, "unite": "0.5" }
+    ]
+  },
+  {
+    "nom": "Guaca",
+    "categorie": "Entrées",
+    "type": "food",
+    "prixVente": 7.0,
+    "ingredients": [
+      { "nomIngredient": "Guaca", "grammage": 0.13, "unite": "0.07" }
+    ]
+  },
+  {
+    "nom": "Velouté",
+    "categorie": "Entrées",
+    "type": "food",
+    "prixVente": 7.5,
+    "ingredients": [
+      { "nomIngredient": "Croissant", "grammage": 0.3, "unite": "1" },
+      { "nomIngredient": "Comté", "grammage": 0.006, "unite": "1" }
+    ]
+  },
+  {
+    "nom": "Potatoes",
+    "categorie": "Sides",
+    "type": "food",
+    "prixVente": 5.9,
+    "ingredients": [
+      { "nomIngredient": "Pdt", "grammage": 0.2, "unite": "1" }
+    ]
+  },
+  {
+    "nom": "Salade pdt",
+    "categorie": "Sides",
+    "type": "food",
+    "prixVente": 5.9,
+    "ingredients": [
+      { "nomIngredient": "Pdt", "grammage": 0.2, "unite": "1" }
+    ]
+  },
+  {
+    "nom": "Polenta",
+    "categorie": "Sides",
+    "type": "food",
+    "prixVente": 5.9,
+    "ingredients": [
+      { "nomIngredient": "Prépa polenta", "grammage": 0.2, "unite": "6.8" }
+    ]
+  },
+  {
+    "nom": "Fraicheur",
+    "categorie": "Sides",
+    "type": "food",
+    "prixVente": 4.9,
+    "ingredients": [
+      { "nomIngredient": "Mesclun", "grammage": 0.025, "unite": "1" },
+      { "nomIngredient": "Tomate cerise", "grammage": 0.05, "unite": "3" },
+      { "nomIngredient": "Concombre", "grammage": 0.03, "unite": "0.4" }
+    ]
+  },
+  {
+    "nom": "Micuit",
+    "categorie": "Desserts",
+    "type": "food",
+    "prixVente": 6.9,
+    "ingredients": [
+      { "nomIngredient": "Farine", "grammage": 0.19, "unite": "1" },
+      { "nomIngredient": "Sucre", "grammage": 0.48, "unite": "1" },
+      { "nomIngredient": "Chocolat", "grammage": 0.9, "unite": "5" },
+      { "nomIngredient": "Speculoos", "grammage": 0.072, "unite": "1.1" },
+      { "nomIngredient": "Poudre amande", "grammage": 0.325, "unite": "1" },
+      { "nomIngredient": "Œuf", "grammage": 14.0, "unite": "1" },
+      { "nomIngredient": "Beurre", "grammage": 0.5, "unite": "1" },
+      { "nomIngredient": "Prépa caramel beurre salé", "grammage": 0.168, "unite": "1.5" }
+    ]
+  },
+  {
+    "nom": "Crumble",
+    "categorie": "Desserts",
+    "type": "food",
+    "prixVente": 5.9,
+    "ingredients": [
+      { "nomIngredient": "Farine", "grammage": 2.0, "unite": "1" },
+      { "nomIngredient": "Sucre", "grammage": 2.0, "unite": "1" },
+      { "nomIngredient": "Sucre cassonade", "grammage": 0.5, "unite": "1" },
+      { "nomIngredient": "Beurre", "grammage": 1.0, "unite": "1" },
+      { "nomIngredient": "Pomme", "grammage": 8.0, "unite": "1" },
+      { "nomIngredient": "Myrtille", "grammage": 0.25, "unite": "0.125" }
+    ]
+  },
+  {
+    "nom": "Crème Brulée",
+    "categorie": "Desserts",
+    "type": "food",
+    "prixVente": 4.9,
+    "ingredients": [
+      { "nomIngredient": "Sucre", "grammage": 0.4, "unite": "1" },
+      { "nomIngredient": "Jaune Œuf", "grammage": 0.4, "unite": "1" },
+      { "nomIngredient": "Crème 30%", "grammage": 2.0, "unite": "1" }
+    ]
+  },
+  {
+    "nom": "Croissant choco",
+    "categorie": "Desserts",
+    "type": "food",
+    "prixVente": 8.9,
+    "ingredients": [
+      { "nomIngredient": "Noisette", "grammage": 0.003, "unite": "1" },
+      { "nomIngredient": "Praliné", "grammage": 0.02, "unite": "1" },
+      { "nomIngredient": "Nutella", "grammage": 0.02, "unite": "0.83" }
+    ]
+  },
+  {
+    "nom": "Croissant perdu",
+    "categorie": "Desserts",
+    "type": "food",
+    "prixVente": 8.9,
+    "ingredients": [
+      { "nomIngredient": "Canelle", "grammage": 0.005, "unite": "1" },
+      { "nomIngredient": "Prépa caramel beurre salé", "grammage": 0.005, "unite": "1.5" },
+      { "nomIngredient": "Chantilly", "grammage": 0.03, "unite": "0.5" }
+    ]
+  },
+  {
+    "nom": "Café gour",
+    "categorie": "Desserts",
+    "type": "food",
+    "prixVente": 9.9,
+    "ingredients": [
+      { "nomIngredient": "Micuit", "grammage": 0.3, "unite": "1" },
+      { "nomIngredient": "Crumble", "grammage": 0.3, "unite": "1" },
+      { "nomIngredient": "Croissant", "grammage": 0.5, "unite": "1" },
+      { "nomIngredient": "Café", "grammage": 1.0, "unite": "1" }
+    ]
+  },
+  {
+    "nom": "Forestier",
+    "categorie": "Bols",
+    "type": "food",
+    "prixVente": 14.9,
+    "ingredients": [
+      { "nomIngredient": "Riz", "grammage": 0.1, "unite": "1" },
+      { "nomIngredient": "Portobello", "grammage": 0.07, "unite": "2" },
+      { "nomIngredient": "Prépa champi paris", "grammage": 0.07, "unite": "7.265" },
+      { "nomIngredient": "Prépa ratatouille", "grammage": 0.1, "unite": "7.335" }
+    ]
+  },
+  {
+    "nom": "Raclette",
+    "categorie": "Bols",
+    "type": "food",
+    "prixVente": 14.9,
+    "ingredients": [
+      { "nomIngredient": "Pdt", "grammage": 0.2, "unite": "1" },
+      { "nomIngredient": "Prépa raclette", "grammage": 0.2, "unite": "0.2" },
+      { "nomIngredient": "Jambon cru", "grammage": 0.045, "unite": "0.5" },
+      { "nomIngredient": "Prépa ratatouille", "grammage": 0.1, "unite": "7.335" },
+      { "nomIngredient": "Pickles oignon", "grammage": 0.02, "unite": "4.9" }
+    ]
+  },
+  {
+    "nom": "Bourguignon",
+    "categorie": "Bols",
+    "type": "food",
+    "prixVente": 14.9,
+    "ingredients": [
+      { "nomIngredient": "Riz", "grammage": 0.1, "unite": "1" },
+      { "nomIngredient": "Prépa bœuf", "grammage": 0.2, "unite": "7.855" },
+      { "nomIngredient": "Prépa ratatouille", "grammage": 0.1, "unite": "7.335" }
+    ]
+  },
+  {
+    "nom": "Pulled pork",
+    "categorie": "Bols",
+    "type": "food",
+    "prixVente": 14.9,
+    "ingredients": [
+      { "nomIngredient": "Riz", "grammage": 0.1, "unite": "1" },
+      { "nomIngredient": "Prépa porc", "grammage": 0.2, "unite": "20.07" },
+      { "nomIngredient": "Prépa ratatouille", "grammage": 0.1, "unite": "7.335" }
+    ]
+  },
+  {
+    "nom": "Poulet",
+    "categorie": "Bols",
+    "type": "food",
+    "prixVente": 14.9,
+    "ingredients": [
+      { "nomIngredient": "Riz", "grammage": 0.1, "unite": "1" },
+      { "nomIngredient": "Prépa poulet", "grammage": 0.2, "unite": "3" },
+      { "nomIngredient": "Prépa ratatouille", "grammage": 0.1, "unite": "7.335" }
+    ]
+  },
+  {
+    "nom": "Thon",
+    "categorie": "Bols",
+    "type": "food",
+    "prixVente": 14.9,
+    "ingredients": [
+      { "nomIngredient": "Riz", "grammage": 0.1, "unite": "1" },
+      { "nomIngredient": "Prépa thon", "grammage": 0.2, "unite": "0.8" },
+      { "nomIngredient": "Prépa ratatouille", "grammage": 0.1, "unite": "7.335" }
+    ]
+  },
+  {
+    "nom": "Pastrami",
+    "categorie": "Bols",
+    "type": "food",
+    "prixVente": 14.9,
+    "ingredients": [
+      { "nomIngredient": "Riz", "grammage": 0.1, "unite": "1" },
+      { "nomIngredient": "Pastrami", "grammage": 0.02, "unite": "1" },
+      { "nomIngredient": "Roti de bœuf", "grammage": 0.08, "unite": "1" },
+      { "nomIngredient": "Prépa ratatouille", "grammage": 0.1, "unite": "7.335" }
+    ]
+  },
+  {
+    "nom": "Caprese",
+    "categorie": "Bols",
+    "type": "food",
+    "prixVente": 14.9,
+    "ingredients": [
+      { "nomIngredient": "Riz", "grammage": 0.1, "unite": "1" },
+      { "nomIngredient": "Aubergine", "grammage": 0.07, "unite": "1" },
+      { "nomIngredient": "Prépa ratatouille", "grammage": 0.1, "unite": "7.335" }
+    ]
+  },
+  {
+    "nom": "Ratatouille",
+    "categorie": "Bols",
+    "type": "food",
+    "prixVente": 14.9,
+    "ingredients": [
+      { "nomIngredient": "Riz", "grammage": 0.1, "unite": "1" },
+      { "nomIngredient": "Prépa ratatouille", "grammage": 0.1, "unite": "7.335" }
+    ]
+  },
+  {
+    "nom": "Dinde",
+    "categorie": "Bols",
+    "type": "food",
+    "prixVente": 14.9,
+    "ingredients": [
+      { "nomIngredient": "Riz", "grammage": 0.1, "unite": "1" },
+      { "nomIngredient": "Jambon cru", "grammage": 0.1, "unite": "0.5" },
+      { "nomIngredient": "Dinde", "grammage": 0.1, "unite": "1" },
+      { "nomIngredient": "Prépa ratatouille", "grammage": 0.1, "unite": "7.335" }
+    ]
+  },
+  {
+    "nom": "Jambon",
+    "categorie": "Bols",
+    "type": "food",
+    "prixVente": 14.9,
+    "ingredients": [
+      { "nomIngredient": "Riz", "grammage": 0.1, "unite": "1" },
+      { "nomIngredient": "Jambon blanc", "grammage": 0.08, "unite": "1" },
+      { "nomIngredient": "Prépa ratatouille", "grammage": 0.1, "unite": "7.335" }
+    ]
+  },
+  {
+    "nom": "Rougail",
+    "categorie": "Bols",
+    "type": "food",
+    "prixVente": 14.9,
+    "ingredients": [
+      { "nomIngredient": "Riz", "grammage": 0.1, "unite": "1" },
+      { "nomIngredient": "Prépa rougail", "grammage": 0.25, "unite": "1" },
+      { "nomIngredient": "Prépa ratatouille", "grammage": 0.1, "unite": "7.335" }
+    ]
+  },
+  {
+    "nom": "Pickles concombre",
+    "categorie": "Préparations",
+    "type": "food",
+    "prixVente": 0,
+    "quantiteProduite": 4.5,
+    "ingredients": [
+      { "nomIngredient": "Concombre", "grammage": 3.0, "unite": "p" },
+      { "nomIngredient": "Sucre blanc", "grammage": 0.25, "unite": "kg" },
+      { "nomIngredient": "Vinaigre blanc", "grammage": 0.5, "unite": "kg" },
+      { "nomIngredient": "Eau", "grammage": 0.75, "unite": "l" }
+    ]
+  },
+  {
+    "nom": "Pickles oignon",
+    "categorie": "Préparations",
+    "type": "food",
+    "prixVente": 0,
+    "quantiteProduite": 4.9,
+    "ingredients": [
+      { "nomIngredient": "Oignon rouge", "grammage": 3.4, "unite": "kg" },
+      { "nomIngredient": "Sucre blanc", "grammage": 0.25, "unite": "kg" },
+      { "nomIngredient": "Vinaigre blanc", "grammage": 0.5, "unite": "kg" },
+      { "nomIngredient": "Eau", "grammage": 0.75, "unite": "l" }
+    ]
+  },
+  {
+    "nom": "Mayonnaise",
+    "categorie": "Préparations",
+    "type": "food",
+    "prixVente": 0,
+    "quantiteProduite": 1.25,
+    "ingredients": [
+      { "nomIngredient": "Œuf", "grammage": 3.0, "unite": "pièce" },
+      { "nomIngredient": "Huile", "grammage": 1.0, "unite": "kg" },
+      { "nomIngredient": "Moutarde", "grammage": 0.045, "unite": "kg" }
+    ]
+  },
+  {
+    "nom": "Mayonnaise moutarde à l'ancienne",
+    "categorie": "Préparations",
+    "type": "food",
+    "prixVente": 0,
+    "quantiteProduite": 1.25,
+    "ingredients": [
+      { "nomIngredient": "Œuf", "grammage": 3.0, "unite": "pièce" },
+      { "nomIngredient": "Huile", "grammage": 1.0, "unite": "kg" },
+      { "nomIngredient": "Moutarde à l'ancienne", "grammage": 0.045, "unite": "kg" }
+    ]
+  },
+  {
+    "nom": "Pesto",
+    "categorie": "Préparations",
+    "type": "food",
+    "prixVente": 0,
+    "quantiteProduite": 1.265,
+    "ingredients": [
+      { "nomIngredient": "Pignon", "grammage": 0.1, "unite": "kg" },
+      { "nomIngredient": "Parmesan", "grammage": 0.125, "unite": "l" },
+      { "nomIngredient": "Basilic", "grammage": 0.03, "unite": "kg" },
+      { "nomIngredient": "Ail", "grammage": 0.01, "unite": "kg" },
+      { "nomIngredient": "Huile olive", "grammage": 1.0, "unite": "L" }
+    ]
+  },
+  {
+    "nom": "Mayonnaise harissa",
+    "categorie": "Préparations",
+    "type": "food",
+    "prixVente": 0,
+    "quantiteProduite": 4.075,
+    "ingredients": [
+      { "nomIngredient": "Œuf", "grammage": 3.0, "unite": "pièce" },
+      { "nomIngredient": "Huile", "grammage": 1.0, "unite": "kg" },
+      { "nomIngredient": "Moutarde", "grammage": 0.045, "unite": "kg" },
+      { "nomIngredient": "Harissa", "grammage": 0.03, "unite": "kg" }
+    ]
+  },
+  {
+    "nom": "Aioli",
+    "categorie": "Préparations",
+    "type": "food",
+    "prixVente": 0,
+    "quantiteProduite": 4.395,
+    "ingredients": [
+      { "nomIngredient": "Œuf", "grammage": 3.0, "unite": "pièce" },
+      { "nomIngredient": "Huile", "grammage": 1.0, "unite": "kg" },
+      { "nomIngredient": "Moutarde", "grammage": 0.045, "unite": "kg" },
+      { "nomIngredient": "Ail", "grammage": 0.35, "unite": "kg" },
+      { "nomIngredient": "Persil", "grammage": 0.005, "unite": "kg" }
+    ]
+  },
+  {
+    "nom": "Bourguignon",
+    "categorie": "Préparations",
+    "type": "food",
+    "prixVente": 0,
+    "quantiteProduite": 7.855,
+    "ingredients": [
+      { "nomIngredient": "Bœuf", "grammage": 10.0, "unite": "kg" },
+      { "nomIngredient": "Vin", "grammage": 5.0, "unite": "L" },
+      { "nomIngredient": "Jus de veau", "grammage": 0.09, "unite": "kg" },
+      { "nomIngredient": "Oignon jaune", "grammage": 0.4, "unite": "kg" }
+    ]
+  },
+  {
+    "nom": "Poulet basquaise",
+    "categorie": "Préparations",
+    "type": "food",
+    "prixVente": 0,
+    "quantiteProduite": 4.27,
+    "ingredients": [
+      { "nomIngredient": "Poulet", "grammage": 2.5, "unite": "kg" },
+      { "nomIngredient": "Oignon jaune", "grammage": 0.37, "unite": "kg" },
+      { "nomIngredient": "Tomate", "grammage": 0.5, "unite": "kg" },
+      { "nomIngredient": "Poivron rouge", "grammage": 0.6, "unite": "kg" },
+      { "nomIngredient": "Concentré tomate", "grammage": 0.05, "unite": "kg" },
+      { "nomIngredient": "Paprika de metro", "grammage": 0.05, "unite": "kg" },
+      { "nomIngredient": "Curry de metro", "grammage": 0.05, "unite": "kg" },
+      { "nomIngredient": "Ail semoule", "grammage": 0.05, "unite": "kg" },
+      { "nomIngredient": "Gingembre de metro", "grammage": 0.05, "unite": "kg" },
+      { "nomIngredient": "Cumin de metro", "grammage": 0.05, "unite": "kg" }
+    ]
+  },
+  {
+    "nom": "Puled pork",
+    "categorie": "Préparations",
+    "type": "food",
+    "prixVente": 0,
+    "quantiteProduite": 20.07,
+    "ingredients": [
+      { "nomIngredient": "Porc", "grammage": 15.0, "unite": "kg" },
+      { "nomIngredient": "Eau", "grammage": 1.0, "unite": "l" },
+      { "nomIngredient": "Ketchup", "grammage": 5.0, "unite": "l" },
+      { "nomIngredient": "epices roti de metro", "grammage": 0.07, "unite": "kg" }
+    ]
+  },
+  {
+    "nom": "Guaca",
+    "categorie": "Préparations",
+    "type": "food",
+    "prixVente": 0,
+    "quantiteProduite": 1.015,
+    "ingredients": [
+      { "nomIngredient": "Avocat", "grammage": 1.0, "unite": "p" },
+      { "nomIngredient": "Oignon rouges", "grammage": 0.005, "unite": "kg" },
+      { "nomIngredient": "Epices guaca de metro", "grammage": 0.005, "unite": "kg" },
+      { "nomIngredient": "Citron jaune", "grammage": 0.005, "unite": "kg" },
+      { "nomIngredient": "Ciboulette", "grammage": 0.005, "unite": "kg" }
+    ]
+  },
+  {
+    "nom": "Crème de champi",
+    "categorie": "Préparations",
+    "type": "food",
+    "prixVente": 0,
+    "quantiteProduite": 7.265,
+    "ingredients": [
+      { "nomIngredient": "Champignon de paris", "grammage": 3.0, "unite": "kg" },
+      { "nomIngredient": "Beurre de lidl", "grammage": 0.25, "unite": "kg" },
+      { "nomIngredient": "Crème 18%", "grammage": 4.0, "unite": "l" },
+      { "nomIngredient": "Jus de veau", "grammage": 0.015, "unite": "kg" }
+    ]
+  },
+  {
+    "nom": "Ratatouille",
+    "categorie": "Préparations",
+    "type": "food",
+    "prixVente": 0,
+    "quantiteProduite": 7.335,
+    "ingredients": [
+      { "nomIngredient": "Oignon jaune", "grammage": 0.37, "unite": "kg" },
+      { "nomIngredient": "Aubergine", "grammage": 1.65, "unite": "kg" },
+      { "nomIngredient": "Carotte", "grammage": 0.6, "unite": "kg" },
+      { "nomIngredient": "Poivron rouge", "grammage": 0.95, "unite": "kg" },
+      { "nomIngredient": "Courgette", "grammage": 2.25, "unite": "kg" },
+      { "nomIngredient": "Sauce tomate", "grammage": 1.5, "unite": "kg" },
+      { "nomIngredient": "Concentré tomate", "grammage": 0.015, "unite": "kg" }
+    ]
+  },
+  {
+    "nom": "Tzatziki",
+    "categorie": "Préparations",
+    "type": "food",
+    "prixVente": 0,
+    "quantiteProduite": 1.41,
+    "ingredients": [
+      { "nomIngredient": "Yahourt grec", "grammage": 1.0, "unite": "kg" },
+      { "nomIngredient": "Concombre", "grammage": 0.4, "unite": "kg" },
+      { "nomIngredient": "Aneth", "grammage": 0.01, "unite": "kg" }
+    ]
+  },
+  {
+    "nom": "Coleslaw",
+    "categorie": "Préparations",
+    "type": "food",
+    "prixVente": 0,
+    "quantiteProduite": 14.95,
+    "ingredients": [
+      { "nomIngredient": "Carotte", "grammage": 2.0, "unite": "kg" },
+      { "nomIngredient": "Chou rouge", "grammage": 2.0, "unite": "kg" },
+      { "nomIngredient": "Oignon rouge", "grammage": 9.4, "unite": "kg" },
+      { "nomIngredient": "Moutarde à l'ancienne", "grammage": 0.15, "unite": "kg" },
+      { "nomIngredient": "mayo", "grammage": 1.0, "unite": "kg" },
+      { "nomIngredient": "ketchup", "grammage": 0.4, "unite": "kg" }
+    ]
+  },
+  {
+    "nom": "Velouté",
+    "categorie": "Préparations",
+    "type": "food",
+    "prixVente": 0,
+    "quantiteProduite": 4.006,
+    "ingredients": [
+      { "nomIngredient": "Potimarron", "grammage": 1.5, "unite": "kg" },
+      { "nomIngredient": "Echalotte", "grammage": 0.3, "unite": "l" },
+      { "nomIngredient": "Crème 18%", "grammage": 2.0, "unite": "l" },
+      { "nomIngredient": "Beurre", "grammage": 0.2, "unite": "kg" },
+      { "nomIngredient": "Comté", "grammage": 0.006, "unite": "kg" }
+    ]
+  },
+  {
+    "nom": "Caramel beurre salé",
+    "categorie": "Préparations",
+    "type": "food",
+    "prixVente": 0,
+    "quantiteProduite": 2.45,
+    "ingredients": [
+      { "nomIngredient": "Sucre", "grammage": 1.0, "unite": "kg" },
+      { "nomIngredient": "Eau", "grammage": 0.25, "unite": "kg" },
+      { "nomIngredient": "Beurre salé de lidl", "grammage": 0.2, "unite": "kg" },
+      { "nomIngredient": "Crème 18%", "grammage": 1.0, "unite": "l" }
+    ]
+  },
+  {
+    "nom": "Prépa raclette",
+    "categorie": "Préparations",
+    "type": "food",
+    "prixVente": 0,
+    "quantiteProduite": 0.3,
+    "ingredients": [
+      { "nomIngredient": "Raclette", "grammage": 0.2, "unite": "kg" },
+      { "nomIngredient": "Crème 18%", "grammage": 0.1, "unite": "l" }
+    ]
+  },
+  {
+    "nom": "Polenta",
+    "categorie": "Préparations",
+    "type": "food",
+    "prixVente": 0,
+    "quantiteProduite": 7.4,
+    "ingredients": [
+      { "nomIngredient": "Polenta", "grammage": 1.0, "unite": "kg" },
+      { "nomIngredient": "Lait entier", "grammage": 3.0, "unite": "l" },
+      { "nomIngredient": "Crème 18%", "grammage": 2.0, "unite": "l" },
+      { "nomIngredient": "Eau", "grammage": 1.0, "unite": "l" },
+      { "nomIngredient": "Beurre de lidl", "grammage": 0.25, "unite": "kg" },
+      { "nomIngredient": "Ciboulette", "grammage": 0.05, "unite": "kg" },
+      { "nomIngredient": "Persil", "grammage": 0.1, "unite": "kg" }
+    ]
+  },
+  {
+    "nom": "Prépa polpette",
+    "categorie": "Préparations",
+    "type": "food",
+    "prixVente": 0,
+    "quantiteProduite": 1.275,
+    "ingredients": [
+      { "nomIngredient": "Oignon jaune", "grammage": 0.37, "unite": "kg" },
+      { "nomIngredient": "Ail", "grammage": 0.02, "unite": "kg" },
+      { "nomIngredient": "Thym", "grammage": 0.005, "unite": "kg" },
+      { "nomIngredient": "Romarin", "grammage": 0.005, "unite": "kg" },
+      { "nomIngredient": "Sauce tomate", "grammage": 0.85, "unite": "kg" },
+      { "nomIngredient": "Concentreé tomate", "grammage": 0.015, "unite": "kg" },
+      { "nomIngredient": "epices roti lidl", "grammage": 0.005, "unite": "kg" },
+      { "nomIngredient": "Paprika de metro", "grammage": 0.005, "unite": "kg" }
+    ]
+  },
+  {
+    "nom": "Prépa croissant perdu",
+    "categorie": "Préparations",
+    "type": "food",
+    "prixVente": 0,
+    "quantiteProduite": 1.405,
+    "ingredients": [
+      { "nomIngredient": "Lait entier", "grammage": 1.0, "unite": "l" },
+      { "nomIngredient": "Jaune d'Œuf", "grammage": 0.06, "unite": "l" },
+      { "nomIngredient": "Sucre", "grammage": 0.2, "unite": "kg" },
+      { "nomIngredient": "Vanille liquide", "grammage": 0.01, "unite": "l" },
+      { "nomIngredient": "Canelle de metro", "grammage": 0.005, "unite": "kg" },
+      { "nomIngredient": "Muscade de metro", "grammage": 0.005, "unite": "kg" },
+      { "nomIngredient": "Beurre demi sel", "grammage": 0.125, "unite": "kg" }
+    ]
+  },
+  {
+    "nom": "Prépa rougail",
+    "categorie": "Préparations",
+    "type": "food",
+    "prixVente": 0,
+    "quantiteProduite": 9.59,
+    "ingredients": [
+      { "nomIngredient": "Saucisse fumée", "grammage": 5.4, "unite": "kg" },
+      { "nomIngredient": "Sauce tomate", "grammage": 2.0, "unite": "kg" },
+      { "nomIngredient": "Poivron rouge", "grammage": 1.5, "unite": "kg" },
+      { "nomIngredient": "Concentré tomate", "grammage": 0.4, "unite": "kg" },
+      { "nomIngredient": "Ail pelé", "grammage": 0.1, "unite": "kg" },
+      { "nomIngredient": "Ail semoule", "grammage": 0.075, "unite": "kg" },
+      { "nomIngredient": "Epices curry", "grammage": 0.005, "unite": "kg" },
+      { "nomIngredient": "Paprika fumée metro", "grammage": 0.075, "unite": "kg" },
+      { "nomIngredient": "Poivre", "grammage": 0.025, "unite": "kg" },
+      { "nomIngredient": "Cumin metro", "grammage": 0.01, "unite": "kg" },
+      { "nomIngredient": "Laurier", "grammage": 1.0, "unite": "botte" },
+      { "nomIngredient": "Coriandre", "grammage": 1.0, "unite": "botte" }
+    ]
+  }
+]
