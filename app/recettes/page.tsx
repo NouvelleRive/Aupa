@@ -80,7 +80,7 @@ export default function RecettesPage() {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState<typeof emptyForm>(emptyForm);
-  const [lignes, setLignes] = useState<{ type: 'ingredient' | 'preparation'; id: string; grammage: string }[]>([]);
+  const [lignes, setLignes] = useState<{ type: 'ingredient' | 'preparation'; id: string; grammage: string; unite?: string }[]>([]);
   const [editId, setEditId] = useState<string | null>(null);
   const [filterCat, setFilterCat] = useState<string>('all');
   const [importing, setImporting] = useState(false);
@@ -333,6 +333,33 @@ export default function RecettesPage() {
     return qte;
   };
 
+  // Convertir grammage base (kg/L) → unité d'affichage
+  const toDisplay = (grammage: number, unite: string): number => {
+    if (unite === 'g') return grammage * 1000;
+    if (unite === 'cL') return grammage * 100;
+    return grammage;
+  };
+  // Convertir unité d'affichage → grammage base (kg/L)
+  const toBase = (val: number, unite: string): number => {
+    if (unite === 'g') return val / 1000;
+    if (unite === 'cL') return val / 100;
+    return val;
+  };
+  // Unité par défaut selon le type de recette et l'unité de l'ingrédient
+  const defaultUnite = (ingUnite: string, recType: string): string => {
+    if (recType === 'boisson') {
+      if (ingUnite === 'L') return 'cL';
+      if (ingUnite === 'kg') return 'g';
+    }
+    return ingUnite || 'kg';
+  };
+  // Options d'unité disponibles selon l'unité de base
+  const uniteOptions = (ingUnite: string): string[] => {
+    if (ingUnite === 'L' || ingUnite === 'cL') return ['L', 'cL'];
+    if (ingUnite === 'kg' || ingUnite === 'g') return ['kg', 'g'];
+    return [ingUnite || 'kg'];
+  };
+
   const prixUnitPF = (pf: any): number => {
     const qte = convertQte((pf as any).quantite || (pf as any).nbKg || (pf as any).nbPieces || 1, (pf as any).unite || 'kg');
     return pf.prix / qte / (pf.rendement || 1);
@@ -362,7 +389,7 @@ export default function RecettesPage() {
 
   const calculerCout = () => {
     const coutLignes = lignes.reduce((total, ligne) => {
-      const grammage = parseFloat(ligne.grammage) || 0;
+      const grammage = toBase(parseFloat(ligne.grammage) || 0, ligne.unite || 'kg');
       if (ligne.type === 'ingredient') {
         const prix = getPrixProduitFournisseur(ligne.id);
         return total + prix * grammage;
@@ -403,11 +430,12 @@ export default function RecettesPage() {
       prixVente: parseFloat((form as any).prixVente) || 0,
       ingredients: [
         ...lignes.map(l => {
+          const grammageBase = toBase(parseFloat(l.grammage) || 0, l.unite || 'kg');
           if (l.type === 'ingredient') {
-            return { ingredientId: l.id, nomIngredient: ingredients.find(i => i.id === l.id)?.nom || l.id, grammage: parseFloat(l.grammage) };
+            return { ingredientId: l.id, nomIngredient: ingredients.find(i => i.id === l.id)?.nom || l.id, grammage: grammageBase };
           }
           const prepNom = recettes.find(r => r.id === l.id)?.nom || l.id;
-          return { recetteId: l.id, nomIngredient: prepNom, grammage: parseFloat(l.grammage) };
+          return { recetteId: l.id, nomIngredient: prepNom, grammage: grammageBase };
         }),
         ...nomIngredients.map(n => ({ nomIngredient: n.nom, grammage: n.grammage, unite: n.unite })),
       ],
@@ -431,23 +459,25 @@ export default function RecettesPage() {
     const unresolvedNoms: typeof nomIngredients = [];
     for (const i of (r.ingredients as any[])) {
       if (i.recetteId) {
-        resolvedLignes.push({ type: 'preparation', id: i.recetteId, grammage: String(i.grammage) });
+        resolvedLignes.push({ type: 'preparation', id: i.recetteId, grammage: String(i.grammage), unite: 'kg' });
         continue;
       }
       if (i.ingredientId && ingredients.find(x => x.id === i.ingredientId)) {
-        resolvedLignes.push({ type: 'ingredient', id: i.ingredientId, grammage: String(i.grammage) });
+        const ing = ingredients.find(x => x.id === i.ingredientId)!;
+        const u = defaultUnite(ing.unite, r.type || 'food');
+        resolvedLignes.push({ type: 'ingredient', id: i.ingredientId, grammage: String(toDisplay(i.grammage, u)), unite: u });
         continue;
       }
       if (i.nomIngredient) {
-        // Chercher d'abord dans les préparations (recettes), puis dans les ingrédients canoniques
         const prep = recettes.find(x => x.categorie === 'Préparations' && x.nom === i.nomIngredient);
         if (prep) {
-          resolvedLignes.push({ type: 'preparation', id: prep.id, grammage: String(i.grammage) });
+          resolvedLignes.push({ type: 'preparation', id: prep.id, grammage: String(i.grammage), unite: 'kg' });
           continue;
         }
         const canonique = ingredients.find(x => x.nom === i.nomIngredient);
         if (canonique) {
-          resolvedLignes.push({ type: 'ingredient', id: canonique.id, grammage: String(i.grammage) });
+          const u = defaultUnite(canonique.unite, r.type || 'food');
+          resolvedLignes.push({ type: 'ingredient', id: canonique.id, grammage: String(toDisplay(i.grammage, u)), unite: u });
           continue;
         }
         unresolvedNoms.push({ nom: i.nomIngredient, grammage: i.grammage, unite: i.unite || 'kg' });
@@ -631,7 +661,7 @@ export default function RecettesPage() {
             <div className="flex items-center justify-between mb-2">
               <span className="text-sm font-medium text-gray-700">Ingrédients & Préparations</span>
               <div className="flex gap-2">
-                <button onClick={() => setLignes([...lignes, { type: 'ingredient', id: ingredients[0]?.id || '', grammage: '' }])} className="text-xs border border-yellow-200 hover:bg-yellow-50 rounded px-2 py-1">+ Ingrédient</button>
+                <button onClick={() => { const ing = ingredients[0]; const u = ing ? defaultUnite(ing.unite, form.type) : 'kg'; setLignes([...lignes, { type: 'ingredient', id: ing?.id || '', grammage: '', unite: u }]); }} className="text-xs border border-yellow-200 hover:bg-yellow-50 rounded px-2 py-1">+ Ingrédient</button>
                 <button onClick={() => {
                   const preps = recettes.filter(r => r.categorie === 'Préparations');
                   setLignes([...lignes, { type: 'preparation', id: preps[0]?.id || '', grammage: '' }]);
@@ -642,12 +672,12 @@ export default function RecettesPage() {
               {lignes.map((ligne, i) => {
                 const ingCanon = ingredients.find(x => x.id === ligne.id);
                 const prep = recettes.find(x => x.id === ligne.id) as any;
-                const grammage = parseFloat(ligne.grammage) || 0;
+                const grammageBase = toBase(parseFloat(ligne.grammage) || 0, ligne.unite || 'kg');
                 const prixUnit = ligne.type === 'ingredient' ? getPrixProduitFournisseur(ligne.id) : 0;
                 const coutLigne = ligne.type === 'ingredient'
-                  ? prixUnit * grammage
+                  ? prixUnit * grammageBase
                   : ligne.type === 'preparation' && prep?.coutAuKg
-                  ? prep.coutAuKg * grammage
+                  ? prep.coutAuKg * grammageBase
                   : 0;
                 const prixLabel = ligne.type === 'ingredient' && prixUnit > 0
                   ? `${prixUnit.toFixed(2)} €/${ingCanon?.unite || 'kg'}`
@@ -656,7 +686,7 @@ export default function RecettesPage() {
                   : null;
                 return (
                   <div key={i} className="flex gap-2 items-center">
-                    <select className="border border-yellow-200 rounded-lg px-3 py-2 text-sm flex-1" value={ligne.id} onChange={e => { const n = [...lignes]; n[i].id = e.target.value; n[i].type = recettes.find(r => r.id === e.target.value) ? 'preparation' : 'ingredient'; setLignes(n); }}>
+                    <select className="border border-yellow-200 rounded-lg px-3 py-2 text-sm flex-1" value={ligne.id} onChange={e => { const n = [...lignes]; n[i].id = e.target.value; const isPrep = !!recettes.find(r => r.id === e.target.value); n[i].type = isPrep ? 'preparation' : 'ingredient'; if (!isPrep) { const newIng = ingredients.find(x => x.id === e.target.value); n[i].unite = newIng ? defaultUnite(newIng.unite, form.type) : 'kg'; } else { n[i].unite = 'kg'; } setLignes(n); }}>
                       <optgroup label="Ingrédients">
                         {ingredients.slice().sort((a, b) => a.nom.localeCompare(b.nom)).map(ing => <option key={ing.id} value={ing.id}>{ing.nom}</option>)}
                       </optgroup>
@@ -665,7 +695,9 @@ export default function RecettesPage() {
                       </optgroup>
                     </select>
                     <input className="border border-yellow-200 rounded-lg px-3 py-2 text-sm w-24" placeholder="Qté" type="number" value={ligne.grammage} onChange={e => { const n = [...lignes]; n[i].grammage = e.target.value; setLignes(n); }} />
-                    <span className="text-xs text-gray-500 w-8">{ligne.type === 'ingredient' ? (ingCanon?.unite || 'kg') : 'kg'}</span>
+                    <select className="text-xs text-gray-500 w-10 border-none bg-transparent cursor-pointer" value={ligne.unite || 'kg'} onChange={e => { const n = [...lignes]; n[i].unite = e.target.value; setLignes(n); }}>
+                      {(ligne.type === 'ingredient' ? uniteOptions(ingCanon?.unite || 'kg') : ['kg', 'g']).map(u => <option key={u} value={u}>{u}</option>)}
+                    </select>
                     <span className="text-xs text-gray-400 w-20 text-right">{prixLabel || ''}</span>
                     <span className="text-xs font-semibold text-yellow-600 w-16 text-right">{coutLigne > 0 ? coutLigne.toFixed(3) + ' €' : ''}</span>
                     <button onClick={() => setLignes(lignes.filter((_, j) => j !== i))} className="text-gray-400 hover:text-yellow-500 text-sm">✕</button>
