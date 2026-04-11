@@ -15,12 +15,14 @@
     }
 
     import { CATEGORIES } from '@/lib/categories';
+    import { CAISSE_MAP, normalizeCaisse } from '@/lib/caisseMap';
 
     const matchPlat = (nomPopina: string, nomMenu: string): boolean => {
-    const a = nomPopina.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-    const b = nomMenu.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-    const mots = b.split(' ').filter(m => m.length > 3);
-    return mots.some(m => a.includes(m)) || a.includes(b.split(' ')[0].toLowerCase());
+    const caisse = normalizeCaisse(nomPopina);
+    const recette = normalizeCaisse(nomMenu).replace(/\s+(ete|hiver)$/, '');
+    const mapped = CAISSE_MAP[caisse];
+    if (!mapped) return false;
+    return mapped === recette;
     };
 
     export default function MenusPage() {

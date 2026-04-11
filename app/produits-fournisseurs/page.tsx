@@ -46,6 +46,7 @@
     const pdfRef = useRef<HTMLInputElement>(null);
     const millietRef = useRef<HTMLInputElement>(null);
     const lbaRef = useRef<HTMLInputElement>(null);
+    const assembleursRef = useRef<HTMLInputElement>(null);
     const [histoId, setHistoId] = useState<string | null>(null);
     const [editInlineId, setEditInlineId] = useState<string | null>(null);
     const [editInlineForm, setEditInlineForm] = useState({ nom: '', prix: '', unite: 'kg' as Unite, categorie: 'épicerie' as Categorie, rendement: '100', quantite: '1' });
@@ -567,6 +568,131 @@
         e.target.value = '';
     };
 
+    // Mapping produit Les Assembleurs → ingrédient (chaque fût = 20L)
+    const ASSEMBLEURS_MAP: Record<string, string> = {
+      'chardonnay': 'Vin blanc',
+      'cotes-du-rhone rouge': 'Vin rouge',
+      'cotes du rhone rouge': 'Vin rouge',
+      'frizzante': 'Frizzante',
+    };
+
+    const parseAssembleursPDF = async (file: File, pdfjsLib: any): Promise<{ nom: string; ingredient: string; prix: number; qte: number; date: string }[]> => {
+        const buffer = await file.arrayBuffer();
+        const pdf = await pdfjsLib.getDocument({ data: buffer }).promise;
+        const lignes: { nom: string; ingredient: string; prix: number; qte: number; date: string }[] = [];
+
+        const page1 = await pdf.getPage(1);
+        const content1 = await page1.getTextContent();
+        const items1 = content1.items.map((item: any) => item.str.trim()).filter(Boolean);
+
+        let dateFacture = new Date().toISOString();
+        for (const item of items1) {
+          const m = item.match(/(\d{2})\/(\d{2})\/(\d{4})/);
+          if (m) { dateFacture = new Date(`${m[3]}-${m[2]}-${m[1]}`).toISOString(); break; }
+        }
+
+        for (let i = 1; i <= pdf.numPages; i++) {
+          const page = await pdf.getPage(i);
+          const content = await page.getTextContent();
+          const items = content.items.map((item: any) => item.str.trim()).filter(Boolean);
+
+          for (let j = 0; j < items.length; j++) {
+            const nomLigne = items[j];
+            const nomLower = nomLigne.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+            const matchedKey = Object.keys(ASSEMBLEURS_MAP).find(k => nomLower.includes(k));
+            if (!matchedKey) continue;
+
+            // Chercher qté et montant HT dans les items suivants
+            let qte = 0;
+            let prix = 0;
+            for (let k = j + 1; k < Math.min(j + 6, items.length); k++) {
+              const val = items[k].replace(',', '.').replace(/\s/g, '');
+              const num = parseFloat(val);
+              if (isNaN(num)) continue;
+              if (qte === 0) { qte = num; }
+              else if (val.includes('€') || (num > qte && prix === 0)) { prix = num; break; }
+            }
+
+            if (prix > 0 && qte > 0) {
+              lignes.push({
+                nom: nomLigne,
+                ingredient: ASSEMBLEURS_MAP[matchedKey],
+                prix,
+                qte, // nombre de fûts
+                date: dateFacture,
+              });
+            }
+          }
+        }
+        return lignes;
+    };
+
+    const handleImportAssembleurs = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const files = Array.from(e.target.files || []);
+        if (!files.length) return;
+        setImporting(true);
+
+        const pdfjsLib = await import('pdfjs-dist');
+        pdfjsLib.GlobalWorkerOptions.workerSrc = new URL('pdfjs-dist/build/pdf.worker.mjs', import.meta.url).toString();
+
+        const toutesLignes: { nom: string; ingredient: string; prix: number; qte: number; date: string }[] = [];
+        for (let f = 0; f < files.length; f++) {
+          setImportProgress(`Lecture facture Assembleurs ${f + 1}/${files.length}...`);
+          const lignes = await parseAssembleursPDF(files[f], pdfjsLib);
+          toutesLignes.push(...lignes);
+        }
+
+        toutesLignes.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+        setImportProgress('Mise à jour Firestore...');
+        const existingSnap = await getDocs(collection(db, 'produitsFournisseurs'));
+        const existing = existingSnap.docs.map(d => ({ id: d.id, ...d.data() } as any));
+
+        let created = 0;
+        let updated = 0;
+
+        for (const ligne of toutesLignes) {
+          const quantiteLitres = ligne.qte * 20; // chaque fût = 20L
+          const match = existing.find((p: any) => p.fournisseur === 'Les Assembleurs' && p.ingredient === ligne.ingredient);
+
+          if (match) {
+            const historiqueExistant = match.historiquesPrix || [];
+            const datesExistantes = new Set(historiqueExistant.map((h: any) => h.date));
+            if (!datesExistantes.has(ligne.date)) {
+              await updateDoc(doc(db, 'produitsFournisseurs', match.id), {
+                nom: ligne.nom,
+                prix: ligne.prix,
+                quantite: quantiteLitres,
+                historiquesPrix: [...historiqueExistant, { date: ligne.date, prix: ligne.prix }],
+                updatedAt: ligne.date,
+              });
+            }
+            updated++;
+          } else {
+            await addDoc(collection(db, 'produitsFournisseurs'), {
+              nom: ligne.nom,
+              ingredient: ligne.ingredient,
+              prix: ligne.prix,
+              quantite: quantiteLitres,
+              unite: 'L',
+              categorie: 'boisson',
+              rendement: 1,
+              fournisseur: 'Les Assembleurs',
+              historiquesPrix: [{ date: ligne.date, prix: ligne.prix }],
+              updatedAt: ligne.date,
+            });
+            created++;
+          }
+        }
+
+        setImporting(false);
+        setImportProgress('');
+        alert(`✅ Les Assembleurs : ${created} produits créés, ${updated} mis à jour !`);
+        await recalculerTousLesCouts();
+        fetchIngredients();
+        e.target.value = '';
+    };
+
     const handleImportXL = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file) return;
@@ -664,6 +790,7 @@
                   if (v === 'foodflow') pdfRef.current?.click();
                   else if (v === 'milliet') millietRef.current?.click();
                   else if (v === 'lba') lbaRef.current?.click();
+                  else if (v === 'assembleurs') assembleursRef.current?.click();
                   else if (v === 'excel') fileRef.current?.click();
                   e.target.value = '';
                 }}
@@ -672,6 +799,7 @@
                 <option value="foodflow">Foodflow (PDF)</option>
                 <option value="milliet">Milliet (PDF)</option>
                 <option value="lba">LBA (PDF)</option>
+                <option value="assembleurs">Les Assembleurs (PDF)</option>
                 <option value="excel">Excel</option>
               </select>
             </div>
@@ -679,6 +807,7 @@
             <input ref={pdfRef} type="file" accept=".pdf" multiple className="hidden" onChange={handleImportPDF} />
             <input ref={millietRef} type="file" accept=".pdf" multiple className="hidden" onChange={handleImportMilliet} />
             <input ref={lbaRef} type="file" accept=".pdf" multiple className="hidden" onChange={handleImportLBA} />
+            <input ref={assembleursRef} type="file" accept=".pdf" multiple className="hidden" onChange={handleImportAssembleurs} />
             </div>
         </div>
 
