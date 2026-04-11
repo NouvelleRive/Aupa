@@ -574,7 +574,7 @@
       'cotes-du-rhone rouge': 'Vin rouge',
       'cotes du rhone rouge': 'Vin rouge',
       'frizzante': 'Frizzante',
-      'rosé': 'Vin rosé',
+      'rose': 'Vin rosé',
     };
 
     const parseAssembleursPDF = async (file: File, pdfjsLib: any): Promise<{ nom: string; ingredient: string; prix: number; qte: number; date: string }[]> => {
