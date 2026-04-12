@@ -372,7 +372,8 @@
 
                 const ventsCat = platsCategorie.map(p => {
                     const v = getVentesPourPlat(p.nom);
-                    return { ...p, vendus: v.reduce((s, x) => s + x.quantity, 0), caReel: v.reduce((s, x) => s + x.ttc, 0) };
+                    const nomsCaisse = [...new Set(v.map(x => x.nom))].filter(n => normalizeCaisse(n) !== normalizeCaisse(p.nom));
+                    return { ...p, vendus: v.reduce((s, x) => s + x.quantity, 0), caReel: v.reduce((s, x) => s + x.ttc, 0), nomsCaisse };
                 });
                 const totalVendusCat = ventsCat.reduce((s, p) => s + p.vendus, 0);
 
@@ -451,7 +452,10 @@
                             const fc = pHT > 0 ? (plat.coutCalcule / pHT) * 100 : 0;
                             return (
                                 <tr key={i} className="hover:bg-yellow-50 transition-colors">
-                                <td className="px-4 py-3 font-medium">{plat.nom}</td>
+                                <td className="px-4 py-3 font-medium">
+                                    {plat.nom}
+                                    {plat.nomsCaisse.length > 0 && <span className="ml-2 text-xs text-orange-400" title={plat.nomsCaisse.join(', ')}>({plat.nomsCaisse.join(', ')})</span>}
+                                </td>
                                 <td className="px-4 py-3 text-right text-gray-500">{plat.prixVente.toFixed(2)} €</td>
                                 <td className="px-4 py-3 text-right text-gray-500">{plat.coutCalcule > 0 ? plat.coutCalcule.toFixed(2) + ' €' : '—'}</td>
                                 <td className="px-4 py-3 text-right">
