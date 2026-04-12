@@ -13,6 +13,7 @@ export const CAISSE_MAP: Record<string, string> = {
 
   // --- CROGER ---
   'bourguignon croger': 'bourguignon croger',
+  'bourmignon croger': 'bourguignon croger',
   'camem bertha': 'camembertha croger',
   'canard croger': 'canard croger',
   'champi croger': 'forestier croger',
