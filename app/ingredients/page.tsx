@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react';
 import { collection, getDocs, addDoc, deleteDoc, doc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Ingredient, Unite, Categorie } from '@/lib/types';
-import { PREPARATIONS } from '@/lib/ingredient';
 import { recalculerTousLesCouts } from '@/lib/recalculCouts';
 
 const UNITES: Unite[] = ['kg', 'g', 'L', 'cL', 'pièce', 'lot'];
@@ -54,12 +53,7 @@ export default function IngredientsPage() {
     setPrepNoms(prepNomsSet);
 
     // Séparer ingrédients bruts (exclure ceux qui sont des prépas)
-    // On exclut si le nom matche une prépa Firestore OU la liste PREPARATIONS
-    const prepLower = new Set(PREPARATIONS.map(p => p.toLowerCase()));
-    const brutIngredients = ings.filter(i => {
-      const lower = i.nom.toLowerCase();
-      return !prepNomsSet.has(i.nom) && !prepLower.has(`prépa ${lower}`);
-    });
+    const brutIngredients = ings.filter(i => !prepNomsSet.has(i.nom));
     setIngredients(brutIngredients);
 
     // Construire les données préparations

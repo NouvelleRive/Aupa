@@ -4,7 +4,6 @@
     import { collection, getDocs, deleteDoc, doc, addDoc, updateDoc } from 'firebase/firestore';
     import { db } from '@/lib/firebase';
     import { ProduitFournisseur, Unite, Categorie } from '@/lib/types';
-    import { INGREDIENTS } from '@/lib/ingredient';
     import { recalculerTousLesCouts } from '@/lib/recalculCouts';
 
     const UNITES: Unite[] = ['kg', 'g', 'L', 'cL', 'pièce', 'lot'];
@@ -55,9 +54,10 @@
     const [ingredientParProduit, setNomsXLParIngredient] = useState<Record<string, string>>({});
 
     const fetchIngredients = async () => {
-        const [snap, recSnap] = await Promise.all([
+        const [snap, recSnap, ingSnap] = await Promise.all([
         getDocs(collection(db, 'produitsFournisseurs')),
         getDocs(collection(db, 'recettes')),
+        getDocs(collection(db, 'ingredients')),
         ]);
         setIngredients(snap.docs.map(d => ({ id: d.id, ...d.data() } as ProduitFournisseur)));
         const map: Record<string, string> = {};
@@ -80,8 +80,9 @@
         }
         setNomsXLParIngredient(map);
         const xlMap = new Map<string, string[]>();
-        for (const nom of INGREDIENTS) {
-          xlMap.set(nom, []);
+        for (const d of ingSnap.docs) {
+          const nom = d.data().nom;
+          if (nom) xlMap.set(nom, []);
         }
         for (const r of recSnap.docs) {
           const data = r.data();
