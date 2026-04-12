@@ -764,7 +764,7 @@ export default function RecettesPage() {
         </select>
         <select className="border border-yellow-200 focus:border-yellow-400 focus:outline-none rounded-lg px-3 py-2 text-sm" value={filterMenu} onChange={e => setFilterMenu(e.target.value)}>
           <option value="all">Toutes les cartes</option>
-          {menus.sort((a, b) => (b.dateDebut || '').localeCompare(a.dateDebut || '')).map(m => <option key={m.id} value={m.id}>{m.nom}</option>)}
+          {[...menus].sort((a, b) => (b.dateDebut || '9999-99-99').localeCompare(a.dateDebut || '9999-99-99')).map(m => <option key={m.id} value={m.id}>{m.nom}</option>)}
         </select>
         <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
           <input type="checkbox" checked={filterType === 'afaire'} onChange={e => setFilterType(e.target.checked ? 'afaire' : 'all')} className="accent-yellow-400" />
