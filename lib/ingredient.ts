@@ -27,7 +27,7 @@ export const INGREDIENTS: string[] = [
   'Sirop citrouille', 'Sirop de sucre de canne', 'Sirop de violette',
   'Speculoos', 'St ger', 'Steak boeuf', 'Sucre', 'Sucre blanc',
   'Sucre cassonade', 'Sucre de canne', 'Suze', 'Thé', 'Thon', 'Thym',
-  'Tomate', 'Tomate cerise', 'Tonic', 'Triple', 'Vanille liquide',
+  'Tomate', 'Tomate cerise', 'Tomme fraîche', 'Tonic', 'Triple', 'Vanille liquide',
   'Vin blanc', 'Vin rosé', 'Vin rouge', 'Vin rouge cubi',
   'Vinaigre blanc', 'Vodka', 'Whisky', 'Yahourt grec',
 ].sort();

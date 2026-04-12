@@ -9,7 +9,8 @@
 
     const UNITES: Unite[] = ['kg', 'g', 'L', 'cL', 'pièce', 'lot'];
     const CATEGORIES: Categorie[] = ['viande', 'poisson', 'légume', 'fruit', 'laitage', 'épicerie', 'boisson', 'consommable', 'autre'];
-    const emptyForm = { nom: '', prix: '', unite: 'kg' as Unite, categorie: 'épicerie' as Categorie, rendement: '100', quantite: '1' };
+    const FOURNISSEURS = ['Foodflow', 'Milliet', 'LBA', 'Lidl', 'Les Assembleurs'] as const;
+    const emptyForm = { nom: '', prix: '', unite: 'kg' as Unite, categorie: 'épicerie' as Categorie, rendement: '100', quantite: '1', fournisseur: '' };
 
     const detectUnite = (nom: string): Unite => {
     const n = nom.toLowerCase();
@@ -738,7 +739,7 @@
     const handleSubmit = async () => {
         if (!form.nom || !form.prix) return;
         const quantite = parseFloat(form.quantite) || 1;
-        const data: any = { nom: form.nom, prix: parseFloat(form.prix), unite: form.unite, categorie: form.categorie, rendement: parseFloat(form.rendement) / 100, quantite, historiquesPrix: [{ date: new Date().toISOString(), prix: parseFloat(form.prix) }], updatedAt: new Date().toISOString() };
+        const data: any = { nom: form.nom, prix: parseFloat(form.prix), unite: form.unite, categorie: form.categorie, rendement: parseFloat(form.rendement) / 100, quantite, historiquesPrix: [{ date: new Date().toISOString(), prix: parseFloat(form.prix) }], updatedAt: new Date().toISOString(), ...(form.fournisseur ? { fournisseur: form.fournisseur } : {}) };
         await addDoc(collection(db, 'produitsFournisseurs'), data);
         setForm(emptyForm); setShowForm(false); fetchIngredients();
     };
@@ -850,6 +851,13 @@
                   {UNITES.map(u => <option key={u}>{u}</option>)}
                   </select>
                 </div>
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs text-gray-500 font-medium">Fournisseur</label>
+                  <select className="border border-yellow-200 focus:border-yellow-400 focus:outline-none rounded-lg px-3 py-2 text-sm" value={form.fournisseur} onChange={e => setForm({ ...form, fournisseur: e.target.value })}>
+                  <option value="">—</option>
+                  {FOURNISSEURS.map(f => <option key={f}>{f}</option>)}
+                  </select>
+                </div>
             </div>
             <div className="flex gap-2">
                 <button onClick={handleSubmit} className="bg-yellow-400 hover:bg-yellow-500 text-black font-semibold rounded-lg px-4 py-2 text-sm">Ajouter</button>
@@ -867,11 +875,7 @@
 
             <select className="border border-yellow-200 focus:border-yellow-400 focus:outline-none rounded-lg px-3 py-2 text-sm mb-4" value={filterFournisseur} onChange={e => setFilterFournisseur(e.target.value)}>
             <option value="all">Tous fournisseurs</option>
-            <option value="Foodflow">Foodflow</option>
-            <option value="Milliet">Milliet</option>
-            <option value="LBA">LBA</option>
-            <option value="Lidl">Lidl</option>
-            <option value="Les Assembleurs">Les Assembleurs</option>
+            {FOURNISSEURS.map(f => <option key={f} value={f}>{f}</option>)}
             </select>
 
             <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer ml-2">
