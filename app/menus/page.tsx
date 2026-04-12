@@ -453,6 +453,50 @@
                     </div>
                 );
                 })}
+
+                {(() => {
+                const allPlatsNoms = menuCourant.categories.flatMap(c => (c.recettes || []).map(mr => {
+                    const r = recettes.find(x => x.id === mr.id);
+                    return r?.nom || '';
+                })).filter(Boolean);
+                const ventesNonAttribuees = ventesMenuActuel.filter(v => {
+                    return !allPlatsNoms.some(nom => matchPlat(v.nom, nom));
+                });
+                // Regrouper par nom
+                const grouped = new Map<string, { quantity: number; ttc: number }>();
+                for (const v of ventesNonAttribuees) {
+                    const existing = grouped.get(v.nom) || { quantity: 0, ttc: 0 };
+                    grouped.set(v.nom, { quantity: existing.quantity + v.quantity, ttc: existing.ttc + v.ttc });
+                }
+                const sorted = [...grouped.entries()].sort((a, b) => b[1].quantity - a[1].quantity);
+                if (sorted.length === 0) return null;
+                return (
+                    <div className="bg-white rounded-xl border border-yellow-100 overflow-hidden">
+                    <div className="flex items-center justify-between px-4 py-3 border-b border-yellow-100">
+                        <h2 className="font-semibold text-gray-700">Non attribué</h2>
+                        <span className="text-xs text-gray-400">{sorted.length} articles · {sorted.reduce((s, [, v]) => s + v.quantity, 0)} vendus</span>
+                    </div>
+                    <table className="w-full text-sm">
+                        <thead className="text-gray-400 text-xs uppercase border-b border-yellow-50">
+                        <tr>
+                            <th className="px-4 py-2 text-left w-[35%]">Nom caisse</th>
+                            <th className="px-4 py-2 text-right w-[13%]">Vendus</th>
+                            <th className="px-4 py-2 text-right w-[13%]">CA TTC</th>
+                        </tr>
+                        </thead>
+                        <tbody className="divide-y divide-yellow-50">
+                        {sorted.map(([nom, v]) => (
+                            <tr key={nom} className="hover:bg-yellow-50 transition-colors">
+                            <td className="px-4 py-3 font-medium">{nom}</td>
+                            <td className="px-4 py-3 text-right font-semibold">{v.quantity}</td>
+                            <td className="px-4 py-3 text-right font-semibold text-yellow-600">{v.ttc.toFixed(0)} €</td>
+                            </tr>
+                        ))}
+                        </tbody>
+                    </table>
+                    </div>
+                );
+                })()}
             </div>
 
             {showAddCat ? (
