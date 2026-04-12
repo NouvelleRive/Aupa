@@ -13,7 +13,7 @@ export const INGREDIENTS: string[] = [
   'Epinards', 'Farine', 'Fleur d\'oranger', 'Frizzante', 'Get 27', 'Get 31',
   'Gin', 'Gingembre', 'Ginger beer', 'Harissa',
   'Huile', 'Huile olive', 'IPA', 'Jambon blanc', 'Jambon cru',
-  'Jaune d\'œuf', 'Jus de veau', 'Ketchup', 'Lait', 'Lait entier',
+  'Jaune d\'œuf', 'Jus de veau', 'Ketchup', 'Lait',
   'Lait végétal', 'Laurier', 'Limonade', 'Limoncello', 'Martini blanc',
   'Martini rouge', 'Matcha', 'Menthe', 'Mesclun', 'Miel',
   'Mozzarella', 'Moutarde', 'Moutarde à l\'ancienne', 'Muscade de metro',
