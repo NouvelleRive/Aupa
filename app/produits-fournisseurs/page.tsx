@@ -884,14 +884,14 @@
             <table className="w-full text-sm">
                 <thead className="bg-yellow-50 text-gray-500 text-xs uppercase">
                 <tr>
-                    <th className="px-4 py-3 text-left">Produit fournisseur</th>
+                    <th className="px-4 py-3 text-left">Nom</th>
                     <th className="px-4 py-3 text-left">Catégorie</th>
+                    <th className="px-4 py-3 text-right">Prix achat</th>
+                    <th className="px-4 py-3 text-right">Quantité</th>
+                    <th className="px-4 py-3 text-left">Unité</th>
                     <th className="px-4 py-3 text-left">Ingrédient</th>
                     <th className="px-4 py-3 text-left">Fournisseur</th>
-                    <th className="px-4 py-3 text-right">Prix achat</th>
-                    <th className="px-4 py-3 text-left">Unité</th>
-                    <th className="px-4 py-3 text-right">Nb pièces/kg/L</th>
-                    <th className="px-4 py-3 text-right">Prix réel</th>
+                    <th className="px-4 py-3 text-right">Prix/unité</th>
                     <th className="px-4 py-3 text-left">Dernière MAJ</th>
                     <th className="px-4 py-3"></th>
                 </tr>
@@ -906,6 +906,15 @@
                     </td>
                     <td className="px-4 py-3 text-gray-500">
                         <select className="bg-transparent text-sm cursor-pointer hover:text-yellow-600" value={ing.categorie} onChange={async e => { await updateDoc(doc(db, 'produitsFournisseurs', ing.id), { categorie: e.target.value }); fetchIngredients(); }}>{CATEGORIES.map(c => <option key={c}>{c}</option>)}</select>
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                        {isEditing ? <div><span className="text-xs text-gray-400 block mb-1">Prix (€)</span><input className="border border-yellow-200 rounded px-2 py-1 text-sm w-20 text-right" type="number" value={editInlineForm.prix} onChange={e => setEditInlineForm({ ...editInlineForm, prix: e.target.value })} /></div> : <>{ing.prix.toFixed(2)} €</>}
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                        {isEditing ? <div><span className="text-xs text-gray-400 block mb-1">Quantité</span><input className="border border-yellow-200 rounded px-2 py-1 text-sm w-16 text-right" type="number" step="0.01" min="0.01" value={editInlineForm.quantite} onChange={e => setEditInlineForm({ ...editInlineForm, quantite: e.target.value })} /></div> : <>{(() => { const q = (ing as any).quantite || (ing as any).nbKg || (ing as any).nbPieces || 1; return q !== 1 ? q : <span className="text-gray-300">1</span>; })()}</>}
+                    </td>
+                    <td className="px-4 py-3 text-gray-500">
+                        {isEditing ? <div><span className="text-xs text-gray-400 block mb-1">Unité</span><select className="border border-yellow-200 rounded px-2 py-1 text-sm" value={editInlineForm.unite} onChange={e => setEditInlineForm({ ...editInlineForm, unite: e.target.value as Unite })}>{UNITES.map(u => <option key={u}>{u}</option>)}</select></div> : ing.unite}
                     </td>
                     <td className="px-4 py-3 text-xs">
                       <select className="border border-gray-200 rounded px-2 py-1 text-xs w-full max-w-[160px]"
@@ -937,15 +946,6 @@
                     </td>
                     <td className="px-4 py-3 text-gray-500 text-xs">
                         {(ing as any).fournisseur || ((ing as any).foodflowCode ? 'Foodflow' : (ing as any).millietCode ? 'Milliet' : (ing as any).lbaCode ? 'LBA' : '—')}
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                        {isEditing ? <div><span className="text-xs text-gray-400 block mb-1">Prix (€)</span><input className="border border-yellow-200 rounded px-2 py-1 text-sm w-20 text-right" type="number" value={editInlineForm.prix} onChange={e => setEditInlineForm({ ...editInlineForm, prix: e.target.value })} /></div> : <>{ing.prix.toFixed(2)} €</>}
-                    </td>
-                    <td className="px-4 py-3 text-gray-500">
-                        {isEditing ? <div><span className="text-xs text-gray-400 block mb-1">Unité</span><select className="border border-yellow-200 rounded px-2 py-1 text-sm" value={editInlineForm.unite} onChange={e => setEditInlineForm({ ...editInlineForm, unite: e.target.value as Unite })}>{UNITES.map(u => <option key={u}>{u}</option>)}</select></div> : ing.unite}
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                        {isEditing ? <div><span className="text-xs text-gray-400 block mb-1">Quantité</span><input className="border border-yellow-200 rounded px-2 py-1 text-sm w-16 text-right" type="number" step="0.01" min="0.01" value={editInlineForm.quantite} onChange={e => setEditInlineForm({ ...editInlineForm, quantite: e.target.value })} /></div> : <>{(() => { const q = (ing as any).quantite || (ing as any).nbKg || (ing as any).nbPieces || 1; return q !== 1 ? q : <span className="text-gray-300">1</span>; })()}</>}
                     </td>
                     <td className="px-4 py-3 text-right font-semibold text-yellow-600">
                         {(ing.prix / ((ing as any).quantite || (ing as any).nbKg || (ing as any).nbPieces || 1) / ing.rendement).toFixed(2)} €
