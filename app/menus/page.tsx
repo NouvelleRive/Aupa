@@ -405,11 +405,12 @@
                         <table className="w-full text-sm">
                         <thead className="text-gray-400 text-xs uppercase border-b border-yellow-50">
                             <tr>
-                            <th className="px-4 py-2 text-left">Plat</th>
-                            <th className="px-4 py-2 text-right">Prix</th>
-                            <th className="px-4 py-2 text-right">Food cost</th>
-                            <th className="px-4 py-2 text-right">Vendus</th>
-                            <th className="px-4 py-2 text-right">CA réel</th>
+                            <th className="px-4 py-2 text-left w-[35%]">Plat</th>
+                            <th className="px-4 py-2 text-right w-[13%]">Prix</th>
+                            <th className="px-4 py-2 text-right w-[13%]">Coût mat.</th>
+                            <th className="px-4 py-2 text-right w-[13%]">Food cost</th>
+                            <th className="px-4 py-2 text-right w-[13%]">Vendus</th>
+                            <th className="px-4 py-2 text-right w-[13%]">CA réel</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-yellow-50">
@@ -420,6 +421,7 @@
                                 <tr key={i} className="hover:bg-yellow-50 transition-colors">
                                 <td className="px-4 py-3 font-medium">{plat.nom}</td>
                                 <td className="px-4 py-3 text-right text-gray-500">{plat.prixVente.toFixed(2)} €</td>
+                                <td className="px-4 py-3 text-right text-gray-500">{plat.coutCalcule > 0 ? plat.coutCalcule.toFixed(2) + ' €' : '—'}</td>
                                 <td className="px-4 py-3 text-right">
                                     <span className={`font-semibold ${fc > 32 ? 'text-yellow-500' : 'text-gray-700'}`}>{fc > 0 ? fc.toFixed(1) + '%' : '—'}</span>
                                 </td>
