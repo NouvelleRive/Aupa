@@ -208,16 +208,34 @@
 
     const menuCourant = menus.find(m => m.id === menuActif);
     const moisDisponibles = [...new Set(ventes.filter(v => v.menuNom === menuCourant?.nom).map(v => v.mois))].sort();
+    const ventesMenuActuel = ventes.filter(v => v.menuNom === menuCourant?.nom && (moisActif === 'all' || v.mois === moisActif));
+
+    // Attribuer chaque vente à un seul plat (le meilleur match)
+    const allPlatsMenu = menuCourant?.categories.flatMap(c => (c.recettes || []).map(mr => {
+        const r = recettes.find(x => x.id === mr.id);
+        return r?.nom || '';
+    })).filter(Boolean) || [];
+
+    const ventesAttribuees = new Map<string, VenteLine[]>();
+    for (const nom of allPlatsMenu) ventesAttribuees.set(nom, []);
+
+    for (const v of ventesMenuActuel) {
+        const caisse = normalizeCaisse(v.nom);
+        const mapped = CAISSE_MAP[caisse];
+        let bestNom = '';
+        let bestScore = 0;
+        for (const nom of allPlatsMenu) {
+            const recette = normalizeCaisse(nom).replace(/\s+(ete|hiver)$/, '');
+            if (mapped && mapped === recette) { bestNom = nom; bestScore = 2; break; }
+            const s = similarity(caisse, recette);
+            if (s > bestScore && s >= 0.75) { bestScore = s; bestNom = nom; }
+        }
+        if (bestNom) ventesAttribuees.get(bestNom)!.push(v);
+    }
 
     const getVentesPourPlat = (nomPlat: string) => {
-        return ventes.filter(v =>
-        v.menuNom === menuCourant?.nom &&
-        (moisActif === 'all' || v.mois === moisActif) &&
-        matchPlat(v.nom, nomPlat)
-        );
+        return ventesAttribuees.get(nomPlat) || [];
     };
-
-    const ventesMenuActuel = ventes.filter(v => v.menuNom === menuCourant?.nom && (moisActif === 'all' || v.mois === moisActif));
     const caReel = ventesMenuActuel.reduce((s, v) => s + v.ttc, 0);
     const totalVendus = ventesMenuActuel.reduce((s, v) => s + v.quantity, 0);
 
