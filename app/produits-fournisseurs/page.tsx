@@ -837,18 +837,18 @@
                   </select>
                 </div>
                 <div className="flex flex-col gap-1">
-                  <label className="text-xs text-gray-500 font-medium">Unité</label>
-                  <select className="border border-yellow-200 focus:border-yellow-400 focus:outline-none rounded-lg px-3 py-2 text-sm" value={form.unite} onChange={e => setForm({ ...form, unite: e.target.value as Unite })}>
-                  {UNITES.map(u => <option key={u}>{u}</option>)}
-                  </select>
-                </div>
-                <div className="flex flex-col gap-1">
                   <label className="text-xs text-gray-500 font-medium">Prix (€)</label>
                   <input className="border border-yellow-200 focus:border-yellow-400 focus:outline-none rounded-lg px-3 py-2 text-sm" placeholder="Prix" type="number" value={form.prix} onChange={e => setForm({ ...form, prix: e.target.value })} />
                 </div>
                 <div className="flex flex-col gap-1">
                   <label className="text-xs text-gray-500 font-medium">Quantité</label>
                   <input className="border border-yellow-200 focus:border-yellow-400 focus:outline-none rounded-lg px-3 py-2 text-sm" placeholder="Qté" type="number" step="0.01" min="0.01" value={form.quantite} onChange={e => setForm({ ...form, quantite: e.target.value })} title="Nb de pièces, kg ou L dans le colis" />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs text-gray-500 font-medium">Unité</label>
+                  <select className="border border-yellow-200 focus:border-yellow-400 focus:outline-none rounded-lg px-3 py-2 text-sm" value={form.unite} onChange={e => setForm({ ...form, unite: e.target.value as Unite })}>
+                  {UNITES.map(u => <option key={u}>{u}</option>)}
+                  </select>
                 </div>
             </div>
             <div className="flex gap-2">
