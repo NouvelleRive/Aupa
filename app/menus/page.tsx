@@ -68,7 +68,7 @@
           const saison = m[1].toUpperCase() === 'ETE' ? 0 : 1;
           return `${annee}-${saison}`;
         };
-        ms.sort((a, b) => saisonOrdre(a.nom).localeCompare(saisonOrdre(b.nom)));
+        ms.sort((a, b) => saisonOrdre(b.nom).localeCompare(saisonOrdre(a.nom)));
         ms.forEach(m => {
             m.categories = (m.categories || []).map((c: any) => {
                 if (c.recetteIds && !c.recettes) {
