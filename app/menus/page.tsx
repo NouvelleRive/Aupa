@@ -51,6 +51,9 @@
     const [editDates, setEditDates] = useState(false);
     const [editDateDebut, setEditDateDebut] = useState('');
     const [editDateFin, setEditDateFin] = useState('');
+    const [showImport, setShowImport] = useState(false);
+    const [importMenu, setImportMenu] = useState('');
+    const [importMois, setImportMois] = useState('');
 
     const fileRef = useRef<HTMLInputElement>(null);
 
@@ -140,24 +143,16 @@
     const handleImportPopina = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file) return;
-        setImporting(true);
 
-        const dateMatch = file.name.match(/(\d{4})(\d{2})(\d{2})/);
-        let mois = '';
-        if (dateMatch) mois = `${dateMatch[1]}-${dateMatch[2]}`;
-
-        const menuTrouve = menus.find(m => {
-        if (!m.dateDebut || !m.dateFin || !mois) return false;
-        const d = mois + '-01';
-        return d >= m.dateDebut && d <= m.dateFin;
-        });
-
-        if (!menuTrouve) {
-        alert(`❌ Aucun menu ne correspond au mois ${mois}. Crée d'abord le menu avec les bonnes dates.`);
-        setImporting(false);
+        const menuTrouve = menus.find(m => m.id === importMenu);
+        if (!menuTrouve || !importMois) {
+        alert('❌ Sélectionne un menu et un mois avant d\'importer.');
         e.target.value = '';
         return;
         }
+
+        setImporting(true);
+        const mois = importMois;
 
         const XLSX = await import('xlsx');
         const buffer = await file.arrayBuffer();
@@ -183,6 +178,7 @@
         const vSnap = await getDocs(collection(db, 'ventes'));
         setVentes(vSnap.docs.map(d => d.data() as VenteLine));
         e.target.value = '';
+        setShowImport(false);
     };
 
     const menuCourant = menus.find(m => m.id === menuActif);
@@ -233,9 +229,9 @@
                 className="border border-gray-200 text-gray-600 hover:bg-gray-50 font-semibold rounded-lg px-4 py-2 text-sm">
                 + Nouveau menu
             </button>
-            <button onClick={() => fileRef.current?.click()} disabled={importing}
+            <button onClick={() => setShowImport(!showImport)}
                 className="border border-gray-200 text-gray-600 hover:bg-gray-50 font-semibold rounded-lg px-4 py-2 text-sm">
-                {importing ? 'Import...' : 'Importer ventes Popina'}
+                Importer ventes
             </button>
             <input ref={fileRef} type="file" accept=".xlsx,.xls" className="hidden" onChange={handleImportPopina} />
             </div>
@@ -259,6 +255,23 @@
             </select>
             <button onClick={handleCreerMenu} className="bg-yellow-400 hover:bg-yellow-500 text-black font-semibold rounded-lg px-4 py-2 text-sm">Créer</button>
             <button onClick={() => setShowCreerMenu(false)} className="text-sm text-gray-400 hover:text-gray-600">Annuler</button>
+            </div>
+        )}
+
+        {showImport && (
+            <div className="bg-white rounded-xl border border-yellow-100 p-4 mb-6 flex gap-3 items-center flex-wrap">
+            <select className="border border-yellow-200 focus:border-yellow-400 focus:outline-none rounded-lg px-3 py-2 text-sm"
+                value={importMenu} onChange={e => setImportMenu(e.target.value)}>
+                <option value="">Menu...</option>
+                {menus.map(m => <option key={m.id} value={m.id}>{m.nom}</option>)}
+            </select>
+            <input className="border border-yellow-200 focus:border-yellow-400 focus:outline-none rounded-lg px-3 py-2 text-sm w-36"
+                type="month" value={importMois} onChange={e => setImportMois(e.target.value)} />
+            <button onClick={() => fileRef.current?.click()} disabled={importing || !importMenu || !importMois}
+                className="bg-yellow-400 hover:bg-yellow-500 disabled:opacity-50 text-black font-semibold rounded-lg px-4 py-2 text-sm">
+                {importing ? 'Import...' : 'Charger fichier'}
+            </button>
+            <button onClick={() => setShowImport(false)} className="text-sm text-gray-400 hover:text-gray-600">Annuler</button>
             </div>
         )}
 
