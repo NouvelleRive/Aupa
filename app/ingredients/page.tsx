@@ -196,13 +196,13 @@ export default function IngredientsPage() {
   };
 
   const filtered = ingredients
-    .filter(i => i.nom.toLowerCase().includes(search.toLowerCase()))
+    .filter(i => i.nom.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').includes(search.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')))
     .filter(i => !filterSansPrix || !pfPrix[i.id])
     .filter(i => !filterSansRecette || !recetteNames[i.id]?.length)
     .sort((a, b) => a.categorie.localeCompare(b.categorie) || a.nom.localeCompare(b.nom));
 
   const filteredPreps = preparations
-    .filter(p => p.nom.toLowerCase().includes(search.toLowerCase()));
+    .filter(p => p.nom.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').includes(search.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')));
 
   return (
     <div className="max-w-5xl mx-auto">

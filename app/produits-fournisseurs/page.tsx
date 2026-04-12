@@ -775,7 +775,7 @@
     };
 
     const filtered = ingredients
-    .filter(i => i.nom.toLowerCase().includes(search.toLowerCase()))
+    .filter(i => i.nom.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').includes(search.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')))
     .filter(i => filterCategorie === 'all' || i.categorie === filterCategorie)
     .filter(i => {
       if (filterFournisseur === 'all') return true;

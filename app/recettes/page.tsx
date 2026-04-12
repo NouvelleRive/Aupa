@@ -515,7 +515,7 @@ export default function RecettesPage() {
   }
 
   const filtered = recettes.filter(r =>
-    r.nom.toLowerCase().includes(search.toLowerCase()) &&
+    r.nom.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').includes(search.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')) &&
     (filterCat === 'all' || r.categorie === filterCat) &&
     (filterType === 'all' || (filterType === 'food' ? (!r.type || r.type === 'food') : filterType === 'afaire' ? (r as any).needsIngredients : r.type === filterType)) &&
     (filterMenu === 'all' || menuRecetteIds.has(r.id))
