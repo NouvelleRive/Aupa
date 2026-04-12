@@ -825,16 +825,33 @@
         {showForm && (
             <div className="bg-white rounded-xl border border-yellow-100 p-6 mb-6">
             <h2 className="font-semibold text-gray-700 mb-4">Nouvel ingrédient</h2>
-            <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
-                <input className="border border-yellow-200 focus:border-yellow-400 focus:outline-none rounded-lg px-3 py-2 text-sm col-span-2" placeholder="Nom" value={form.nom} onChange={e => setForm({ ...form, nom: e.target.value })} />
-                <input className="border border-yellow-200 focus:border-yellow-400 focus:outline-none rounded-lg px-3 py-2 text-sm" placeholder="Prix (€)" type="number" value={form.prix} onChange={e => setForm({ ...form, prix: e.target.value })} />
-                <select className="border border-yellow-200 focus:border-yellow-400 focus:outline-none rounded-lg px-3 py-2 text-sm" value={form.unite} onChange={e => setForm({ ...form, unite: e.target.value as Unite })}>
-                {UNITES.map(u => <option key={u}>{u}</option>)}
-                </select>
-                <select className="border border-yellow-200 focus:border-yellow-400 focus:outline-none rounded-lg px-3 py-2 text-sm" value={form.categorie} onChange={e => setForm({ ...form, categorie: e.target.value as Categorie })}>
-                {CATEGORIES.map(c => <option key={c}>{c}</option>)}
-                </select>
-                <input className="border border-yellow-200 focus:border-yellow-400 focus:outline-none rounded-lg px-3 py-2 text-sm w-20" placeholder="Quantité" type="number" step="0.01" min="0.01" value={form.quantite} onChange={e => setForm({ ...form, quantite: e.target.value })} title="Nb de pièces, kg ou L dans le colis" />
+            <div className="grid grid-cols-2 md:grid-cols-6 gap-3 mb-4">
+                <div className="col-span-2 flex flex-col gap-1">
+                  <label className="text-xs text-gray-500 font-medium">Nom</label>
+                  <input className="border border-yellow-200 focus:border-yellow-400 focus:outline-none rounded-lg px-3 py-2 text-sm" placeholder="Nom" value={form.nom} onChange={e => setForm({ ...form, nom: e.target.value })} />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs text-gray-500 font-medium">Catégorie</label>
+                  <select className="border border-yellow-200 focus:border-yellow-400 focus:outline-none rounded-lg px-3 py-2 text-sm" value={form.categorie} onChange={e => setForm({ ...form, categorie: e.target.value as Categorie })}>
+                  {CATEGORIES.map(c => <option key={c}>{c}</option>)}
+                  </select>
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs text-gray-500 font-medium">Unité</label>
+                  <select className="border border-yellow-200 focus:border-yellow-400 focus:outline-none rounded-lg px-3 py-2 text-sm" value={form.unite} onChange={e => setForm({ ...form, unite: e.target.value as Unite })}>
+                  {UNITES.map(u => <option key={u}>{u}</option>)}
+                  </select>
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs text-gray-500 font-medium">Prix (€)</label>
+                  <input className="border border-yellow-200 focus:border-yellow-400 focus:outline-none rounded-lg px-3 py-2 text-sm" placeholder="Prix" type="number" value={form.prix} onChange={e => setForm({ ...form, prix: e.target.value })} />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs text-gray-500 font-medium">Quantité</label>
+                  <input className="border border-yellow-200 focus:border-yellow-400 focus:outline-none rounded-lg px-3 py-2 text-sm" placeholder="Qté" type="number" step="0.01" min="0.01" value={form.quantite} onChange={e => setForm({ ...form, quantite: e.target.value })} title="Nb de pièces, kg ou L dans le colis" />
+                </div>
+            </div>
+            <div className="flex gap-2">
                 <button onClick={handleSubmit} className="bg-yellow-400 hover:bg-yellow-500 text-black font-semibold rounded-lg px-4 py-2 text-sm">Ajouter</button>
                 <button onClick={() => { setShowForm(false); setForm(emptyForm); }} className="border border-gray-200 rounded-lg px-4 py-2 text-sm text-gray-500 hover:bg-gray-50">Annuler</button>
             </div>
