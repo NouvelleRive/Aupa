@@ -193,7 +193,7 @@
         const nom = row['name'] || '';
         const quantity = row['quantity'] || 0;
         const ttc = row['total ttc'] || row['TTC'] || 0;
-        if (!nom || quantity <= 0) continue;
+        if (!nom || quantity <= 0 || nom.toLowerCase().trim() === 'total') continue;
         await addDoc(collection(db, 'ventes'), { nom, quantity, ttc, menuNom: menuTrouve.nom, mois });
         count++;
         }
