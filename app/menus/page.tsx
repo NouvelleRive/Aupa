@@ -78,11 +78,16 @@
     const fileRef = useRef<HTMLInputElement>(null);
 
     const fetchAll = async () => {
-        const [mSnap, rSnap, vSnap] = await Promise.all([
+        const [mSnap, rSnap, vSnap, cmSnap] = await Promise.all([
         getDocs(collection(db, 'menus')),
         getDocs(collection(db, 'recettes')),
         getDocs(collection(db, 'ventes')),
+        getDocs(collection(db, 'caisseMapCustom')),
         ]);
+        for (const d of cmSnap.docs) {
+            const data = d.data();
+            if (data.caisse && data.recette) CAISSE_MAP[data.caisse] = data.recette;
+        }
         const ms = mSnap.docs.map(d => ({ id: d.id, ...d.data() } as MenuDoc));
         const saisonOrdre = (nom: string) => {
           const m = nom.match(/(ETE|HIVER)(\d+)/i);
@@ -536,7 +541,7 @@
                                     const caisseKey = normalizeCaisse(nom);
                                     const recetteKey = normalizeCaisse(recetteNom).replace(/\s+(ete|hiver)$/, '');
                                     CAISSE_MAP[caisseKey] = recetteKey;
-                                    // Re-render
+                                    await addDoc(collection(db, 'caisseMapCustom'), { caisse: caisseKey, recette: recetteKey, original: nom, recetteNom });
                                     setVentes([...ventes]);
                                 }}>
                                 <option value="">—</option>
