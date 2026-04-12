@@ -61,7 +61,14 @@
         getDocs(collection(db, 'ventes')),
         ]);
         const ms = mSnap.docs.map(d => ({ id: d.id, ...d.data() } as MenuDoc));
-        ms.sort((a, b) => (a.dateDebut || '').localeCompare(b.dateDebut || ''));
+        const saisonOrdre = (nom: string) => {
+          const m = nom.match(/(ETE|HIVER)(\d+)/i);
+          if (!m) return nom;
+          const annee = parseInt(m[2]);
+          const saison = m[1].toUpperCase() === 'ETE' ? 0 : 1;
+          return `${annee}-${saison}`;
+        };
+        ms.sort((a, b) => saisonOrdre(a.nom).localeCompare(saisonOrdre(b.nom)));
         ms.forEach(m => {
             m.categories = (m.categories || []).map((c: any) => {
                 if (c.recetteIds && !c.recettes) {
