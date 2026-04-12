@@ -67,6 +67,7 @@
     const [filterCatEdit, setFilterCatEdit] = useState('all');
     const [editingCatIdx, setEditingCatIdx] = useState<number | null>(null);
     const [showAddCat, setShowAddCat] = useState(false);
+    const [searchRecette, setSearchRecette] = useState('');
     const [editDates, setEditDates] = useState(false);
     const [editDateDebut, setEditDateDebut] = useState('');
     const [editDateFin, setEditDateFin] = useState('');
@@ -231,7 +232,15 @@
         }, 0) / recettesAvecCout.length
         : 0;
 
-    const recettesFiltrees = recettes.filter(r => filterCatEdit === 'all' || r.categorie === filterCatEdit);
+    const normalize = (s: string) => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    const recettesFiltrees = recettes
+        .filter(r => filterCatEdit === 'all' || r.categorie === filterCatEdit)
+        .filter(r => !searchRecette || normalize(r.nom).includes(normalize(searchRecette)))
+        .sort((a, b) => {
+            const aChecked = catRecettes.has(a.id) ? 0 : 1;
+            const bChecked = catRecettes.has(b.id) ? 0 : 1;
+            return aChecked - bChecked || a.nom.localeCompare(b.nom);
+        });
 
     if (loading) return <p className="text-gray-400 p-6">Chargement...</p>;
 
@@ -372,7 +381,7 @@
 
                 const ventsCat = platsCategorie.map(p => {
                     const v = getVentesPourPlat(p.nom);
-                    const nomsCaisse = [...new Set(v.map(x => x.nom))].filter(n => normalizeCaisse(n) !== normalizeCaisse(p.nom));
+                    const nomsCaisse = [...new Set(v.map(x => x.nom))];
                     return { ...p, vendus: v.reduce((s, x) => s + x.quantity, 0), caReel: v.reduce((s, x) => s + x.ttc, 0), nomsCaisse };
                 });
                 const totalVendusCat = ventsCat.reduce((s, p) => s + p.vendus, 0);
@@ -409,8 +418,9 @@
                             </select>
                             <span className="text-sm text-gray-400">{catRecettes.size} sélectionnées</span>
                             <button onClick={handleSauvegarderCategorie} className="bg-yellow-400 hover:bg-yellow-500 text-black font-semibold rounded-lg px-4 py-2 text-sm">Enregistrer</button>
-                            <button onClick={() => { setMenuEdit(''); setCatRecettes(new Map()); setEditingCatIdx(null); }} className="border border-gray-200 rounded-lg px-4 py-2 text-sm text-gray-500">Annuler</button>
+                            <button onClick={() => { setMenuEdit(''); setCatRecettes(new Map()); setEditingCatIdx(null); setSearchRecette(''); }} className="border border-gray-200 rounded-lg px-4 py-2 text-sm text-gray-500">Annuler</button>
                         </div>
+                        <input className="border border-yellow-200 focus:border-yellow-400 focus:outline-none rounded-lg px-3 py-2 text-sm mb-3 w-64" placeholder="Rechercher une recette..." value={searchRecette} onChange={e => setSearchRecette(e.target.value)} />
                         <div className="space-y-2 max-h-80 overflow-y-auto">
                             {recettesFiltrees.map(r => (
                             <div key={r.id} className={`flex items-center gap-3 p-2 rounded-lg border transition-colors ${catRecettes.has(r.id) ? 'border-yellow-400 bg-yellow-50' : 'border-gray-100 hover:border-yellow-200'}`}>
@@ -535,9 +545,10 @@
                             {CATEGORIES.map(c => <option key={c}>{c}</option>)}
                         </select>
                         <span className="text-sm text-gray-400">{catRecettes.size} sélectionnées</span>
-                        <button onClick={async () => { await handleSauvegarderCategorie(); setShowAddCat(false); }} className="bg-yellow-400 hover:bg-yellow-500 text-black font-semibold rounded-lg px-4 py-2 text-sm">Enregistrer</button>
-                        <button onClick={() => { setShowAddCat(false); setCatRecettes(new Map()); }} className="border border-gray-200 rounded-lg px-4 py-2 text-sm text-gray-500">Annuler</button>
+                        <button onClick={async () => { await handleSauvegarderCategorie(); setShowAddCat(false); setSearchRecette(''); }} className="bg-yellow-400 hover:bg-yellow-500 text-black font-semibold rounded-lg px-4 py-2 text-sm">Enregistrer</button>
+                        <button onClick={() => { setShowAddCat(false); setCatRecettes(new Map()); setSearchRecette(''); }} className="border border-gray-200 rounded-lg px-4 py-2 text-sm text-gray-500">Annuler</button>
                     </div>
+                    <input className="border border-yellow-200 focus:border-yellow-400 focus:outline-none rounded-lg px-3 py-2 text-sm mb-3 w-64" placeholder="Rechercher une recette..." value={searchRecette} onChange={e => setSearchRecette(e.target.value)} />
                     <div className="space-y-2 max-h-80 overflow-y-auto">
                         {recettesFiltrees.map(r => (
                             <div key={r.id} className={`flex items-center gap-3 p-2 rounded-lg border transition-colors ${catRecettes.has(r.id) ? 'border-yellow-400 bg-yellow-50' : 'border-gray-100 hover:border-yellow-200'}`}>
