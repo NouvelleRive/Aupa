@@ -212,25 +212,21 @@
         );
     };
 
-    const tousLesIds = menuCourant?.categories.flatMap(c => (c.recettes || []).map(r => r.id)) || [];
-    const toutesRecettesCarte = recettes.filter(r => tousLesIds.includes(r.id));
-
     const ventesMenuActuel = ventes.filter(v => v.menuNom === menuCourant?.nom && (moisActif === 'all' || v.mois === moisActif));
     const caReel = ventesMenuActuel.reduce((s, v) => s + v.ttc, 0);
     const totalVendus = ventesMenuActuel.reduce((s, v) => s + v.quantity, 0);
 
     const allMenuRecettes = menuCourant?.categories.flatMap(c => c.recettes || []) || [];
-    const recettesAvecCout = allMenuRecettes.filter(mr => {
-        if (mr.prixVente <= 0) return false;
-        const r = recettes.find(x => x.id === mr.id);
-        return r && r.coutCalcule > 0;
-    });
-    const foodCostMoyen = recettesAvecCout.length > 0
-        ? recettesAvecCout.reduce((s, mr) => {
-            const r = recettes.find(x => x.id === mr.id)!;
-            return s + (r.coutCalcule / (mr.prixVente / 1.1)) * 100;
-        }, 0) / recettesAvecCout.length
-        : 0;
+    const platsFood = allMenuRecettes.filter(mr => { const r = recettes.find(x => x.id === mr.id); return r && (!r.type || r.type === 'food'); });
+    const platsDrink = allMenuRecettes.filter(mr => { const r = recettes.find(x => x.id === mr.id); return r && r.type === 'boisson'; });
+
+    const calcCostMoyen = (list: typeof allMenuRecettes) => {
+        const avecCout = list.filter(mr => { const r = recettes.find(x => x.id === mr.id); return r && r.coutCalcule > 0 && mr.prixVente > 0; });
+        if (avecCout.length === 0) return 0;
+        return avecCout.reduce((s, mr) => { const r = recettes.find(x => x.id === mr.id)!; return s + (r.coutCalcule / (mr.prixVente / 1.1)) * 100; }, 0) / avecCout.length;
+    };
+    const foodCostMoyen = calcCostMoyen(platsFood);
+    const drinkCostMoyen = calcCostMoyen(platsDrink);
 
     const normalize = (s: string) => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
     const recettesFiltrees = recettes
@@ -352,17 +348,25 @@
                 </div>
             )}
 
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+            <div className="grid grid-cols-3 md:grid-cols-6 gap-4 mb-8">
                 <div className="bg-white rounded-xl border border-yellow-100 p-4">
-                <p className="text-xs text-gray-500 mb-1">Plats sur le menu</p>
-                <p className="text-2xl font-bold">{tousLesIds.length}</p>
+                <p className="text-xs text-gray-500 mb-1">Plats (food)</p>
+                <p className="text-2xl font-bold">{platsFood.length}</p>
                 </div>
                 <div className="bg-white rounded-xl border border-yellow-100 p-4">
-                <p className="text-xs text-gray-500 mb-1">Food cost moyen</p>
+                <p className="text-xs text-gray-500 mb-1">Boissons</p>
+                <p className="text-2xl font-bold">{platsDrink.length}</p>
+                </div>
+                <div className="bg-white rounded-xl border border-yellow-100 p-4">
+                <p className="text-xs text-gray-500 mb-1">Food cost</p>
                 <p className={`text-2xl font-bold ${foodCostMoyen > 32 ? 'text-yellow-500' : ''}`}>{foodCostMoyen > 0 ? foodCostMoyen.toFixed(1) + '%' : '—'}</p>
                 </div>
                 <div className="bg-white rounded-xl border border-yellow-100 p-4">
-                <p className="text-xs text-gray-500 mb-1">CA réel (Popina)</p>
+                <p className="text-xs text-gray-500 mb-1">Drink cost</p>
+                <p className={`text-2xl font-bold ${drinkCostMoyen > 25 ? 'text-yellow-500' : ''}`}>{drinkCostMoyen > 0 ? drinkCostMoyen.toFixed(1) + '%' : '—'}</p>
+                </div>
+                <div className="bg-white rounded-xl border border-yellow-100 p-4">
+                <p className="text-xs text-gray-500 mb-1">CA réel</p>
                 <p className="text-2xl font-bold">{caReel > 0 ? caReel.toFixed(0) + ' €' : '—'}</p>
                 </div>
                 <div className="bg-white rounded-xl border border-yellow-100 p-4">
@@ -513,8 +517,9 @@
                         <thead className="text-gray-400 text-xs uppercase border-b border-yellow-50">
                         <tr>
                             <th className="px-4 py-2 text-left w-[35%]">Nom caisse</th>
-                            <th className="px-4 py-2 text-right w-[13%]">Vendus</th>
-                            <th className="px-4 py-2 text-right w-[13%]">CA TTC</th>
+                            <th className="px-4 py-2 text-right w-[10%]">Vendus</th>
+                            <th className="px-4 py-2 text-right w-[10%]">CA TTC</th>
+                            <th className="px-4 py-2 text-left w-[35%]">Attribuer à</th>
                         </tr>
                         </thead>
                         <tbody className="divide-y divide-yellow-50">
@@ -523,6 +528,21 @@
                             <td className="px-4 py-3 font-medium">{nom}</td>
                             <td className="px-4 py-3 text-right font-semibold">{v.quantity}</td>
                             <td className="px-4 py-3 text-right font-semibold text-yellow-600">{v.ttc.toFixed(0)} €</td>
+                            <td className="px-4 py-3">
+                                <select className="border border-gray-200 rounded-lg px-2 py-1 text-sm w-full" defaultValue=""
+                                onChange={async (e) => {
+                                    if (!e.target.value) return;
+                                    const recetteNom = e.target.value;
+                                    const caisseKey = normalizeCaisse(nom);
+                                    const recetteKey = normalizeCaisse(recetteNom).replace(/\s+(ete|hiver)$/, '');
+                                    CAISSE_MAP[caisseKey] = recetteKey;
+                                    // Re-render
+                                    setVentes([...ventes]);
+                                }}>
+                                <option value="">—</option>
+                                {allPlatsNoms.sort().map(n => <option key={n} value={n}>{n}</option>)}
+                                </select>
+                            </td>
                             </tr>
                         ))}
                         </tbody>
