@@ -633,13 +633,22 @@ export default function RecettesPage() {
         <div className="bg-white rounded-xl border border-yellow-100 p-6 mb-6">
           <h2 className="font-semibold text-gray-700 mb-4">{editId ? 'Modifier la recette' : 'Nouvelle recette'}</h2>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
-            <input className="border border-yellow-200 focus:border-yellow-400 focus:outline-none rounded-lg px-3 py-2 text-sm col-span-2" placeholder="Nom de la recette" value={form.nom} onChange={e => setForm({ ...form, nom: e.target.value })} />
-            <select className="border border-yellow-200 focus:border-yellow-400 focus:outline-none rounded-lg px-3 py-2 text-sm" value={form.categorie} onChange={e => setForm({ ...form, categorie: e.target.value as CategorieRecette })}>
-              {CATEGORIES.map(c => <option key={c}>{c}</option>)}
-            </select>
-            <div className="flex items-center gap-1">
-              <input className="border border-yellow-200 focus:border-yellow-400 focus:outline-none rounded-lg px-3 py-2 text-sm w-full" placeholder="Prix TTC" type="number" value={(form as any).prixVente || ''} onChange={e => setForm({ ...form, prixVente: e.target.value } as any)} />
-              {(form as any).prixVente && <span className="text-xs text-gray-400 whitespace-nowrap">{(parseFloat((form as any).prixVente) / 1.1).toFixed(2)} HT</span>}
+            <div className="col-span-2 flex flex-col gap-1">
+              <label className="text-xs text-gray-500 font-medium">Nom</label>
+              <input className="border border-yellow-200 focus:border-yellow-400 focus:outline-none rounded-lg px-3 py-2 text-sm" placeholder="Nom de la recette" value={form.nom} onChange={e => setForm({ ...form, nom: e.target.value })} />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-xs text-gray-500 font-medium">Catégorie</label>
+              <select className="border border-yellow-200 focus:border-yellow-400 focus:outline-none rounded-lg px-3 py-2 text-sm" value={form.categorie} onChange={e => setForm({ ...form, categorie: e.target.value as CategorieRecette })}>
+                {CATEGORIES.map(c => <option key={c}>{c}</option>)}
+              </select>
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-xs text-gray-500 font-medium">Prix TTC</label>
+              <div className="flex items-center gap-1">
+                <input className="border border-yellow-200 focus:border-yellow-400 focus:outline-none rounded-lg px-3 py-2 text-sm w-full" placeholder="Prix TTC" type="number" value={(form as any).prixVente || ''} onChange={e => setForm({ ...form, prixVente: e.target.value } as any)} />
+                {(form as any).prixVente && <span className="text-xs text-gray-400 whitespace-nowrap">{(parseFloat((form as any).prixVente) / 1.1).toFixed(2)} HT</span>}
+              </div>
             </div>
           </div>
 
