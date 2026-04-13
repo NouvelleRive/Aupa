@@ -484,19 +484,31 @@
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-yellow-50">
-                            {ventsCat.sort((a, b) => b.vendus - a.vendus).map((plat, i) => {
+                            {(() => {
+                            const sortedByVendus = [...ventsCat].sort((a, b) => b.vendus - a.vendus);
+                            const platsAvecVentes = sortedByVendus.filter(p => p.vendus > 0);
+                            const topVendus = new Set(platsAvecVentes.slice(0, Math.max(1, Math.ceil(platsAvecVentes.length * 0.2))).map(p => p.id));
+                            const flopVendus = new Set(platsAvecVentes.slice(-Math.max(1, Math.ceil(platsAvecVentes.length * 0.2))).map(p => p.id));
+                            const platsAvecFc = ventsCat.filter(p => p.coutCalcule > 0 && p.prixVente > 0).map(p => ({ id: p.id, fc: (p.coutCalcule / (p.prixVente / 1.1)) * 100 })).sort((a, b) => a.fc - b.fc);
+                            const topRenta = new Set(platsAvecFc.slice(0, Math.max(1, Math.ceil(platsAvecFc.length * 0.2))).map(p => p.id));
+                            return sortedByVendus.map((plat, i) => {
                             const pHT = plat.prixVente / 1.1;
                             const fc = pHT > 0 ? (plat.coutCalcule / pHT) * 100 : 0;
+                            const isTopVendu = topVendus.has(plat.id);
+                            const isFlopVendu = flopVendus.has(plat.id) && !isTopVendu;
+                            const isTopRenta = topRenta.has(plat.id);
                             return (
                                 <tr key={i} className="hover:bg-yellow-50 transition-colors">
                                 <td className="px-4 py-3 font-medium">
+                                    {isTopVendu && <span className="mr-1" title="Best seller">🔥</span>}
+                                    {isFlopVendu && <span className="mr-1" title="Peu vendu">🥶</span>}
                                     {plat.nom}
                                     {plat.nomsCaisse.length > 0 && <span className="ml-2 text-xs text-orange-400" title={plat.nomsCaisse.join(', ')}>({plat.nomsCaisse.join(', ')})</span>}
                                 </td>
                                 <td className="px-4 py-3 text-right text-gray-500">{plat.prixVente.toFixed(2)} €</td>
                                 <td className="px-4 py-3 text-right text-gray-500">{plat.coutCalcule > 0 ? plat.coutCalcule.toFixed(2) + ' €' : '—'}</td>
                                 <td className="px-4 py-3 text-right">
-                                    <span className={`font-semibold ${fc > 32 ? 'text-yellow-500' : 'text-gray-700'}`}>{fc > 0 ? fc.toFixed(1) + '%' : '—'}</span>
+                                    <span className={`font-semibold ${fc > 32 ? 'text-yellow-500' : 'text-gray-700'}`}>{isTopRenta && '🔥 '}{fc > 0 ? fc.toFixed(1) + '%' : '—'}</span>
                                 </td>
                                 <td className="px-4 py-3 text-right">
                                     {plat.vendus > 0 ? <span className="font-semibold">{plat.vendus}</span> : <span className="text-gray-300">—</span>}
@@ -506,7 +518,8 @@
                                 </td>
                                 </tr>
                             );
-                            })}
+                            });
+                            })()}
                         </tbody>
                         </table>
                     )}
