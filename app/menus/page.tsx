@@ -74,6 +74,9 @@
     const [showImport, setShowImport] = useState(false);
     const [importMenu, setImportMenu] = useState('');
     const [importMois, setImportMois] = useState('');
+    const [showImportRecap, setShowImportRecap] = useState(false);
+    const [recapText, setRecapText] = useState('');
+    const [recapMenu, setRecapMenu] = useState('');
 
     const fileRef = useRef<HTMLInputElement>(null);
 
@@ -206,6 +209,92 @@
         setShowImport(false);
     };
 
+    // Catégories Popina à ignorer (ce sont des totaux, pas des items)
+    const CATEGORIES_POPINA = new Set([
+        'plats', 'bol', 'croger', 'salade', 'boissons froides', 'apéritifs/digestifs',
+        'bière', 'cocktail', 'maison & iced', 'soft & eau', 'vin', 'entrées', 'entrees',
+        'sides et tapas', 'grignotte', 'side', 'desserts', 'tous', 'boissons chaudes',
+        'classic hot drinks', 'crazy hot drinks', 'none', 'suppléments', 'au restau',
+        'parent_category_menu.png', 'dont menus', 'brunch',
+        'aupa - croissant burger (eat)', 'aupa croissant burger eat',
+    ]);
+
+    const parseRecapPopina = (text: string): { articles: { nom: string; quantity: number; ttc: number }[]; date: string } => {
+        const articles: { nom: string; quantity: number; ttc: number }[] = [];
+        // Extraire la date depuis le titre "Rapport de fin de caisse : 12 Avril 2026"
+        let dateStr = new Date().toISOString().slice(0, 10);
+        const mois = { janvier: '01', février: '02', fevrier: '02', mars: '03', avril: '04', mai: '05', juin: '06', juillet: '07', août: '08', aout: '08', septembre: '09', octobre: '10', novembre: '11', décembre: '12', decembre: '12' };
+        const titreMatch = text.match(/Rapport de fin de caisse\s*:\s*(\d{1,2})\s+(\w+)\s+(\d{4})/i);
+        if (titreMatch) {
+            const jour = titreMatch[1].padStart(2, '0');
+            const moisKey = titreMatch[2].toLowerCase() as keyof typeof mois;
+            const annee = titreMatch[3];
+            if (mois[moisKey]) dateStr = `${annee}-${mois[moisKey]}-${jour}`;
+        } else {
+            // Fallback: chercher "12/04/2026"
+            const dmy = text.match(/(\d{2})\/(\d{2})\/(\d{4})/);
+            if (dmy) dateStr = `${dmy[3]}-${dmy[2]}-${dmy[1]}`;
+        }
+
+        // Normaliser : enlever les emojis pour la détection de catégorie, mais garder le nom original
+        const normalize = (s: string) => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/gu, '').replace(/[^\w\s]/g, ' ').replace(/\s+/g, ' ').trim();
+
+        // Parser ligne par ligne, s'arrêter à "Total des ventes"
+        const lines = text.split('\n');
+        for (const line of lines) {
+            if (/Total des ventes/i.test(line)) break;
+            // Format tab-separated ou multi-espaces : "nom\tqty\tprice €"
+            const match = line.match(/^(.+?)\s*\t\s*(\d+)\s*\t\s*([\d,]+)\s*€/);
+            if (!match) continue;
+            const nom = match[1].trim();
+            const quantity = parseInt(match[2]);
+            const ttc = parseFloat(match[3].replace(',', '.'));
+            if (!nom || quantity <= 0 || ttc <= 0) continue;
+            // Skip catégories
+            const nomNorm = normalize(nom);
+            if (CATEGORIES_POPINA.has(nomNorm)) continue;
+            // Skip si le nom contient "planche" + ne match pas un item spécifique (ex: "Sides et Tapas")
+            articles.push({ nom, quantity, ttc });
+        }
+        return { articles, date: dateStr };
+    };
+
+    const handleImportRecap = async () => {
+        if (!recapText.trim() || !recapMenu) {
+            alert('❌ Sélectionne un menu et colle le contenu du mail.');
+            return;
+        }
+        const menuTrouve = menus.find(m => m.id === recapMenu);
+        if (!menuTrouve) return;
+
+        setImporting(true);
+        const { articles, date } = parseRecapPopina(recapText);
+        if (articles.length === 0) {
+            alert('❌ Aucun article détecté. Vérifie le format du texte collé.');
+            setImporting(false);
+            return;
+        }
+
+        // Supprimer les ventes existantes pour cette date précise
+        const existingSnap = await getDocs(query(collection(db, 'ventes'), where('jour', '==', date)));
+        for (const d of existingSnap.docs) await deleteDoc(d.ref);
+
+        const mois = date.slice(0, 7);
+        for (const a of articles) {
+            await addDoc(collection(db, 'ventes'), {
+                nom: a.nom, quantity: a.quantity, ttc: a.ttc,
+                menuNom: menuTrouve.nom, mois, jour: date,
+            });
+        }
+
+        setImporting(false);
+        alert(`✅ ${articles.length} articles importés pour le ${date} → ${menuTrouve.nom}`);
+        const vSnap = await getDocs(collection(db, 'ventes'));
+        setVentes(vSnap.docs.map(d => d.data() as VenteLine));
+        setRecapText('');
+        setShowImportRecap(false);
+    };
+
     const menuCourant = menus.find(m => m.id === menuActif);
     const moisDisponibles = [...new Set(ventes.filter(v => v.menuNom === menuCourant?.nom).map(v => v.mois))].sort();
     const ventesMenuActuel = ventes.filter(v => v.menuNom === menuCourant?.nom && (moisActif === 'all' || v.mois === moisActif));
@@ -278,11 +367,33 @@
             </button>
             <button onClick={() => setShowImport(!showImport)}
                 className="border border-gray-200 text-gray-600 hover:bg-gray-50 font-semibold rounded-lg px-4 py-2 text-sm">
-                Importer ventes
+                Importer XL mensuel
+            </button>
+            <button onClick={() => setShowImportRecap(!showImportRecap)}
+                className="border border-gray-200 text-gray-600 hover:bg-gray-50 font-semibold rounded-lg px-4 py-2 text-sm">
+                Importer récap quotidien
             </button>
             <input ref={fileRef} type="file" accept=".xlsx,.xls" className="hidden" onChange={handleImportPopina} />
             </div>
         </div>
+
+        {showImportRecap && (
+            <div className="bg-white rounded-xl border border-yellow-100 p-4 mb-6">
+            <div className="flex gap-3 items-center mb-3">
+                <select className="border border-yellow-200 focus:border-yellow-400 focus:outline-none rounded-lg px-3 py-2 text-sm"
+                    value={recapMenu} onChange={e => setRecapMenu(e.target.value)}>
+                    <option value="">Menu...</option>
+                    {menus.map(m => <option key={m.id} value={m.id}>{m.nom}</option>)}
+                </select>
+                <button onClick={handleImportRecap} disabled={importing || !recapText.trim() || !recapMenu}
+                    className="bg-yellow-400 hover:bg-yellow-500 disabled:opacity-50 text-black font-semibold rounded-lg px-4 py-2 text-sm">
+                    {importing ? 'Import...' : 'Importer'}
+                </button>
+                <button onClick={() => { setShowImportRecap(false); setRecapText(''); }} className="text-sm text-gray-400 hover:text-gray-600">Annuler</button>
+            </div>
+            <textarea className="w-full border border-yellow-200 focus:border-yellow-400 focus:outline-none rounded-lg px-3 py-2 text-xs font-mono h-64" placeholder="Colle le contenu du mail Popina 'Rapport de fin de caisse' ici..." value={recapText} onChange={e => setRecapText(e.target.value)} />
+            </div>
+        )}
 
         {showCreerMenu && (
             <div className="bg-white rounded-xl border border-yellow-100 p-4 mb-6 flex gap-3 items-center flex-wrap">
