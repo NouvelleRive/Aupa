@@ -98,10 +98,10 @@
 
     useEffect(() => { fetchIngredients(); }, []);
 
-    const parsePDF = async (file: File, pdfjsLib: any): Promise<{ code: string; nom: string; prix: number; date: string }[]> => {
+    const parsePDF = async (file: File, pdfjsLib: any): Promise<{ code: string; nom: string; prix: number; date: string; qte: number; unite: string }[]> => {
         const buffer = await file.arrayBuffer();
         const pdf = await pdfjsLib.getDocument({ data: buffer }).promise;
-        const lignes: { code: string; nom: string; prix: number; date: string }[] = [];
+        const lignes: { code: string; nom: string; prix: number; date: string; qte: number; unite: string }[] = [];
 
         // Extraire la date depuis le nom du fichier ou la première page
         const page1 = await pdf.getPage(1);
@@ -121,25 +121,39 @@
         const content = await page.getTextContent();
         const items = content.items.map((item: any) => item.str.trim()).filter(Boolean);
         for (let j = 0; j < items.length; j++) {
-            const codeMatch = items[j].match(/^(FF-\d+)$/);
+            const codeMatch = items[j].match(/^(FF-\d+|FM-\d+)$/);
         if (codeMatch) {
         const code = codeMatch[1];
-        let nom = items[j + 1] || '';
-        let nomComplet = nom;
-        for (let k = j + 2; k < j + 5; k++) {
-            if (!items[k] || items[k].match(/^\d/)) break;
-            nomComplet += ' ' + items[k];
-        }
+        // Extraire le nom : tous les items après le code jusqu'à trouver "X,XX kg/p/L"
+        let qte = 1;
+        let unite = 'p';
         let prix = 0;
-        for (let k = j + 2; k < Math.min(j + 7, items.length); k++) {
-            const prixMatch = items[k].replace(',', '.').match(/^(\d+\.?\d*)\s*€/);
-            if (prixMatch) {
-            prix = parseFloat(prixMatch[1]);
-            break;
+        let qteIdx = -1;
+        const nomParts: string[] = [];
+        for (let k = j + 1; k < Math.min(j + 15, items.length); k++) {
+            // Cherche "1,00 kg" ou "20,00 kg" ou "1,00 p" ou "5,00 L"
+            const qteMatch = items[k].match(/^(\d+[.,]\d+)\s*(kg|p|L|l)$/);
+            if (qteMatch) {
+                qte = parseFloat(qteMatch[1].replace(',', '.'));
+                unite = qteMatch[2] === 'l' ? 'L' : qteMatch[2];
+                qteIdx = k;
+                break;
+            }
+            nomParts.push(items[k]);
+        }
+        const nomComplet = nomParts.join(' ').trim();
+        // Le prix unitaire est le premier € après la quantité
+        if (qteIdx >= 0) {
+            for (let k = qteIdx + 1; k < Math.min(qteIdx + 5, items.length); k++) {
+                const prixMatch = items[k].replace(',', '.').match(/^(-?\d+\.?\d*)\s*€/);
+                if (prixMatch) {
+                    prix = parseFloat(prixMatch[1]);
+                    break;
+                }
             }
         }
-        if (prix > 0 && nom) {
-            lignes.push({ code, nom: nomComplet, prix, date: dateFacture });
+        if (prix !== 0 && nomComplet && nomComplet !== 'Fidélité') {
+            lignes.push({ code, nom: nomComplet, prix, date: dateFacture, qte, unite });
         }
         }
         }
@@ -159,7 +173,7 @@
         files.sort((a, b) => a.lastModified - b.lastModified);
 
         // Parser tous les PDFs
-        const toutesLignes: { code: string; nom: string; prix: number; date: string }[] = [];
+        const toutesLignes: { code: string; nom: string; prix: number; date: string; qte: number; unite: string }[] = [];
         for (let f = 0; f < files.length; f++) {
         setImportProgress(`Lecture facture ${f + 1}/${files.length}...`);
         const lignes = await parsePDF(files[f], pdfjsLib);
@@ -177,16 +191,18 @@
         let updated = 0;
 
         // Grouper par code pour construire l'historique complet
-        const parCode = new Map<string, { code: string; nom: string; prix: number; date: string }[]>();
+        const parCode = new Map<string, typeof toutesLignes>();
         for (const ligne of toutesLignes) {
         if (!parCode.has(ligne.code)) parCode.set(ligne.code, []);
         parCode.get(ligne.code)!.push(ligne);
         }
 
+        const pfIdParCode = new Map<string, string>();
         for (const [code, lignes] of parCode.entries()) {
         const derniere = lignes[lignes.length - 1];
         const match = existing.find((ing: any) => ing.foodflowCode === code);
         if (match) {
+            pfIdParCode.set(code, match.id);
             const historiqueExistant = match.historiquesPrix || [];
             const datesExistantes = new Set(historiqueExistant.map((h: any) => h.date));
             const nouveauxHistorique = lignes
@@ -201,28 +217,46 @@
             }
             updated++;
         } else {
-            const uniteDetectee = detectUnite(derniere.nom);
-            const matchQte = derniere.nom.match(/[xX]\s?(\d+)/);
-            const quantite = matchQte ? parseInt(matchQte[1]) : 1;
-            await addDoc(collection(db, 'produitsFournisseurs'), {
+            const newPf = await addDoc(collection(db, 'produitsFournisseurs'), {
             nom: derniere.nom,
             prix: derniere.prix,
-            unite: uniteDetectee,
+            unite: derniere.unite === 'p' ? 'pièce' : derniere.unite,
             categorie: detectCategorie(derniere.nom),
             rendement: 1,
-            quantite,
+            quantite: derniere.qte,
             fournisseur: 'Foodflow',
             foodflowCode: code,
             historiquesPrix: lignes.map(l => ({ date: l.date, prix: l.prix })),
             updatedAt: derniere.date,
             });
+            pfIdParCode.set(code, newPf.id);
             created++;
         }
         }
 
+        // Tracker chaque ligne de facture comme un achat
+        const achatsExistantsSnap = await getDocs(collection(db, 'achats'));
+        const achatsExistants = new Set(achatsExistantsSnap.docs.map(d => {
+            const data = d.data();
+            return `${data.pfId}|${data.date}|${data.qte}`;
+        }));
+        let achatsCreated = 0;
+        for (const ligne of toutesLignes) {
+            const pfId = pfIdParCode.get(ligne.code);
+            if (!pfId) continue;
+            const key = `${pfId}|${ligne.date}|${ligne.qte}`;
+            if (achatsExistants.has(key)) continue;
+            await addDoc(collection(db, 'achats'), {
+                pfId, code: ligne.code, nom: ligne.nom,
+                qte: ligne.qte, prixUnitaire: ligne.prix, total: ligne.prix * ligne.qte,
+                date: ligne.date, fournisseur: 'Foodflow',
+            });
+            achatsCreated++;
+        }
+
         setImporting(false);
         setImportProgress('');
-        alert(`✅ ${created} ingrédients créés, ${updated} mis à jour !`);
+        alert(`✅ Foodflow : ${created} créés, ${updated} mis à jour, ${achatsCreated} achats enregistrés !`);
         await recalculerTousLesCouts();
         fetchIngredients();
         e.target.value = '';
