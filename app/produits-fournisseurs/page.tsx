@@ -8,7 +8,7 @@
 
     const UNITES: Unite[] = ['kg', 'g', 'L', 'cL', 'pièce', 'lot'];
     const CATEGORIES: Categorie[] = ['viande', 'poisson', 'légume', 'fruit', 'laitage', 'épicerie', 'boisson', 'consommable', 'autre'];
-    const FOURNISSEURS = ['Foodflow', 'Milliet', 'LBA', 'Lidl', 'Les Assembleurs'] as const;
+    const FOURNISSEURS = ['Foodflow', 'Milliet', 'LBA', 'MPF', 'Lidl', 'Les Assembleurs'] as const;
     const emptyForm = { nom: '', prix: '', unite: 'kg' as Unite, categorie: 'épicerie' as Categorie, rendement: '100', quantite: '1', fournisseur: '' };
 
     const detectUnite = (nom: string): Unite => {
@@ -46,6 +46,7 @@
     const pdfRef = useRef<HTMLInputElement>(null);
     const millietRef = useRef<HTMLInputElement>(null);
     const lbaRef = useRef<HTMLInputElement>(null);
+    const mpfRef = useRef<HTMLInputElement>(null);
     const assembleursRef = useRef<HTMLInputElement>(null);
     const [histoId, setHistoId] = useState<string | null>(null);
     const [editInlineId, setEditInlineId] = useState<string | null>(null);
@@ -447,10 +448,10 @@
         e.target.value = '';
     };
 
-    const parseLBAPDF = async (file: File, pdfjsLib: any): Promise<{ code: string; nom: string; prix: number; date: string }[]> => {
+    const parseLBAPDF = async (file: File, pdfjsLib: any): Promise<{ code: string; nom: string; prix: number; date: string; qte: number }[]> => {
         const buffer = await file.arrayBuffer();
         const pdf = await pdfjsLib.getDocument({ data: buffer }).promise;
-        const lignes: { code: string; nom: string; prix: number; date: string }[] = [];
+        const lignes: { code: string; nom: string; prix: number; date: string; qte: number }[] = [];
 
         // Extraire la date de facture
         let dateFacture = new Date().toISOString();
@@ -524,6 +525,8 @@
             }
 
             // nums: [COLIS, COLS, PX.U.BT, REM%, PX.U.NET, MT.NT.HT, TVA, ...]
+            // COLS = quantité totale (nombre d'unités)
+            const cols = nums[1] || 1;
             // PX.U.NET est le prix unitaire HT post-remise (par litre, kg, pièce)
             // MT.NT.HT est juste avant la TVA, PX.U.NET est juste avant MT.NT.HT
             if (nums.length < 3) continue;
@@ -544,7 +547,7 @@
             // Prix réel = prix net + droits unitaires
             const prixReel = pxUNet + droits;
 
-            lignes.push({ code, nom, prix: prixReel, date: dateFacture });
+            lignes.push({ code, nom, prix: prixReel, date: dateFacture, qte: cols });
         }
         }
         return lignes;
@@ -560,7 +563,7 @@
 
         files.sort((a, b) => a.lastModified - b.lastModified);
 
-        const toutesLignes: { code: string; nom: string; prix: number; date: string }[] = [];
+        const toutesLignes: { code: string; nom: string; prix: number; date: string; qte: number }[] = [];
         for (let f = 0; f < files.length; f++) {
         setImportProgress(`Lecture facture LBA ${f + 1}/${files.length}...`);
         const lignes = await parseLBAPDF(files[f], pdfjsLib);
@@ -582,10 +585,12 @@
         parCode.get(ligne.code)!.push(ligne);
         }
 
+        const pfIdParCode = new Map<string, string>();
         for (const [code, lignes] of parCode.entries()) {
         const derniere = lignes[lignes.length - 1];
         const match = existing.find((ing: any) => ing.lbaCode === code);
         if (match) {
+            pfIdParCode.set(code, match.id);
             const historiqueExistant = match.historiquesPrix || [];
             const datesExistantes = new Set(historiqueExistant.map((h: any) => h.date));
             const nouveauxHistorique = lignes
@@ -603,7 +608,7 @@
             const uniteDetectee = detectUnite(derniere.nom);
             const matchQte = derniere.nom.match(/[xX]\s?(\d+)/);
             const quantite = matchQte ? parseInt(matchQte[1]) : 1;
-            await addDoc(collection(db, 'produitsFournisseurs'), {
+            const newPf = await addDoc(collection(db, 'produitsFournisseurs'), {
             nom: derniere.nom,
             prix: derniere.prix,
             unite: uniteDetectee,
@@ -615,13 +620,195 @@
             historiquesPrix: lignes.map(l => ({ date: l.date, prix: l.prix })),
             updatedAt: derniere.date,
             });
+            pfIdParCode.set(code, newPf.id);
             created++;
         }
         }
 
+        // Tracker les achats
+        const achatsExistantsSnap = await getDocs(collection(db, 'achats'));
+        const achatsExistants = new Set(achatsExistantsSnap.docs.map(d => {
+            const data = d.data();
+            return `${data.pfId}|${data.date}|${data.qte}`;
+        }));
+        let achatsCreated = 0;
+        for (const ligne of toutesLignes) {
+            const pfId = pfIdParCode.get(ligne.code);
+            if (!pfId) continue;
+            const key = `${pfId}|${ligne.date}|${ligne.qte}`;
+            if (achatsExistants.has(key)) continue;
+            await addDoc(collection(db, 'achats'), {
+                pfId, code: ligne.code, nom: ligne.nom,
+                qte: ligne.qte, prixUnitaire: ligne.prix, total: ligne.prix * ligne.qte,
+                date: ligne.date, fournisseur: 'LBA',
+            });
+            achatsCreated++;
+        }
+
         setImporting(false);
         setImportProgress('');
-        alert(`✅ LBA : ${created} produits créés, ${updated} mis à jour !`);
+        alert(`✅ LBA : ${created} créés, ${updated} mis à jour, ${achatsCreated} achats enregistrés !`);
+        await recalculerTousLesCouts();
+        fetchIngredients();
+        e.target.value = '';
+    };
+
+    const parseMPFPDF = async (file: File, pdfjsLib: any): Promise<{ code: string; nom: string; prix: number; date: string; qte: number }[]> => {
+        const buffer = await file.arrayBuffer();
+        const pdf = await pdfjsLib.getDocument({ data: buffer }).promise;
+        const lignes: { code: string; nom: string; prix: number; date: string; qte: number }[] = [];
+
+        // Date de facture
+        let dateFacture = new Date().toISOString();
+        const page1 = await pdf.getPage(1);
+        const content1 = await page1.getTextContent();
+        for (const item of content1.items as any[]) {
+          const m = item.str.trim().match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+          if (m) { dateFacture = new Date(`${m[3]}-${m[2]}-${m[1]}`).toISOString(); break; }
+        }
+
+        for (let i = 1; i <= pdf.numPages; i++) {
+          const page = await pdf.getPage(i);
+          const content = await page.getTextContent();
+          const items = (content.items as any[]).map((it: any) => ({
+            str: it.str.trim(),
+            x: Math.round(it.transform[4]),
+            y: Math.round(it.transform[5]),
+          })).filter((it: any) => it.str);
+
+          // Grouper par ligne (même Y)
+          const rows = new Map<number, typeof items>();
+          for (const it of items) {
+            let foundY = false;
+            for (const [ky] of rows) {
+              if (Math.abs(it.y - ky) <= 3) { rows.get(ky)!.push(it); foundY = true; break; }
+            }
+            if (!foundY) rows.set(it.y, [it]);
+          }
+
+          const sortedRows = Array.from(rows.entries())
+            .sort(([a], [b]) => b - a)
+            .map(([, items]) => items.sort((a, b) => a.x - b.x).map(it => it.str));
+
+          for (const row of sortedRows) {
+            // Format MPF: "DEN 03 - Fût 30L IPA Denise Bio" | "3" | "" | "122,70 €" | "368,10 €"
+            // La référence commence par 3 lettres + espace + 2 chiffres
+            const joined = row.join(' ');
+            const refMatch = joined.match(/^([A-Z]{3,4}\s\d{2})\s*-\s*(.+?)\s+(\d+)\s+(\d+[.,]\d+)\s*€\s+(\d+[.,]\d+)\s*€/);
+            if (!refMatch) continue;
+            const code = refMatch[1].replace(/\s/g, '');
+            const nom = refMatch[2].trim();
+            const colis = parseInt(refMatch[3]);
+            const prixUnit = parseFloat(refMatch[4].replace(',', '.'));
+            const montant = parseFloat(refMatch[5].replace(',', '.'));
+            // Ne garder que les lignes effectivement commandées (montant > 0)
+            if (montant <= 0 || colis <= 0) continue;
+            lignes.push({ code, nom: `${code} ${nom}`, prix: prixUnit, qte: colis, date: dateFacture });
+          }
+        }
+        return lignes;
+    };
+
+    const handleImportMPF = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const files = Array.from(e.target.files || []);
+        if (!files.length) return;
+        setImporting(true);
+
+        const pdfjsLib = await import('pdfjs-dist');
+        pdfjsLib.GlobalWorkerOptions.workerSrc = new URL('pdfjs-dist/build/pdf.worker.mjs', import.meta.url).toString();
+
+        files.sort((a, b) => a.lastModified - b.lastModified);
+
+        const toutesLignes: { code: string; nom: string; prix: number; date: string; qte: number }[] = [];
+        for (let f = 0; f < files.length; f++) {
+          setImportProgress(`Lecture facture MPF ${f + 1}/${files.length}...`);
+          const lignes = await parseMPFPDF(files[f], pdfjsLib);
+          toutesLignes.push(...lignes);
+        }
+
+        toutesLignes.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+        const existingSnap = await getDocs(collection(db, 'produitsFournisseurs'));
+        const existing = existingSnap.docs.map(d => ({ id: d.id, ...d.data() } as any));
+
+        let created = 0;
+        let updated = 0;
+        const parCode = new Map<string, typeof toutesLignes>();
+        for (const ligne of toutesLignes) {
+          if (!parCode.has(ligne.code)) parCode.set(ligne.code, []);
+          parCode.get(ligne.code)!.push(ligne);
+        }
+
+        const pfIdParCode = new Map<string, string>();
+        for (const [code, lignes] of parCode.entries()) {
+          const derniere = lignes[lignes.length - 1];
+          const match = existing.find((ing: any) => (ing as any).mpfCode === code);
+          if (match) {
+            pfIdParCode.set(code, match.id);
+            const historiqueExistant = match.historiquesPrix || [];
+            const datesExistantes = new Set(historiqueExistant.map((h: any) => h.date));
+            const nouveauxHistorique = lignes
+              .map(l => ({ date: l.date, prix: l.prix }))
+              .filter(h => !datesExistantes.has(h.date));
+            if (nouveauxHistorique.length > 0) {
+              await updateDoc(doc(db, 'produitsFournisseurs', match.id), {
+                prix: derniere.prix,
+                historiquesPrix: [...historiqueExistant, ...nouveauxHistorique],
+                updatedAt: nouveauxHistorique[nouveauxHistorique.length - 1].date,
+              });
+            }
+            updated++;
+          } else {
+            // Détecter unité depuis le nom : Fût 20L → L, Fût 30L → L, bouteille → pièce, canette → pièce
+            const nomLower = derniere.nom.toLowerCase();
+            let unite: Unite = 'pièce';
+            let quantite = 1;
+            const futMatch = nomLower.match(/f[uû]t\s*(\d+)\s*l/);
+            if (futMatch) { unite = 'L'; quantite = parseInt(futMatch[1]); }
+            else if (nomLower.includes('carton') || nomLower.includes('fardeau')) {
+              const cartonMatch = nomLower.match(/(\d+)\s*(bouteilles?|canettes?)/);
+              quantite = cartonMatch ? parseInt(cartonMatch[1]) : 1;
+            }
+            const newPf = await addDoc(collection(db, 'produitsFournisseurs'), {
+              nom: derniere.nom,
+              prix: derniere.prix,
+              unite,
+              categorie: 'boisson' as Categorie,
+              rendement: 1,
+              quantite,
+              fournisseur: 'MPF',
+              mpfCode: code,
+              historiquesPrix: lignes.map(l => ({ date: l.date, prix: l.prix })),
+              updatedAt: derniere.date,
+            });
+            pfIdParCode.set(code, newPf.id);
+            created++;
+          }
+        }
+
+        // Tracker les achats
+        const achatsExistantsSnap = await getDocs(collection(db, 'achats'));
+        const achatsExistants = new Set(achatsExistantsSnap.docs.map(d => {
+          const data = d.data();
+          return `${data.pfId}|${data.date}|${data.qte}`;
+        }));
+        let achatsCreated = 0;
+        for (const ligne of toutesLignes) {
+          const pfId = pfIdParCode.get(ligne.code);
+          if (!pfId) continue;
+          const key = `${pfId}|${ligne.date}|${ligne.qte}`;
+          if (achatsExistants.has(key)) continue;
+          await addDoc(collection(db, 'achats'), {
+            pfId, code: ligne.code, nom: ligne.nom,
+            qte: ligne.qte, prixUnitaire: ligne.prix, total: ligne.prix * ligne.qte,
+            date: ligne.date, fournisseur: 'MPF',
+          });
+          achatsCreated++;
+        }
+
+        setImporting(false);
+        setImportProgress('');
+        alert(`✅ MPF : ${created} créés, ${updated} mis à jour, ${achatsCreated} achats enregistrés !`);
         await recalculerTousLesCouts();
         fetchIngredients();
         e.target.value = '';
@@ -836,7 +1023,7 @@
     .filter(i => filterCategorie === 'all' || i.categorie === filterCategorie)
     .filter(i => {
       if (filterFournisseur === 'all') return true;
-      const f = (i as any).fournisseur || ((i as any).foodflowCode ? 'Foodflow' : (i as any).millietCode ? 'Milliet' : (i as any).lbaCode ? 'LBA' : '');
+      const f = (i as any).fournisseur || ((i as any).foodflowCode ? 'Foodflow' : (i as any).millietCode ? 'Milliet' : (i as any).lbaCode ? 'LBA' : (i as any).mpfCode ? 'MPF' : '');
       return f === filterFournisseur;
     })
     .filter(i => !filterNonLie || !ingredientParProduit[i.id])
@@ -860,6 +1047,7 @@
                   if (v === 'foodflow') pdfRef.current?.click();
                   else if (v === 'milliet') millietRef.current?.click();
                   else if (v === 'lba') lbaRef.current?.click();
+                  else if (v === 'mpf') mpfRef.current?.click();
                   else if (v === 'assembleurs') assembleursRef.current?.click();
                   else if (v === 'excel') fileRef.current?.click();
                   e.target.value = '';
@@ -869,6 +1057,7 @@
                 <option value="foodflow">Foodflow (PDF)</option>
                 <option value="milliet">Milliet (PDF)</option>
                 <option value="lba">LBA (PDF)</option>
+                <option value="mpf">MPF - Ma Petite Française (PDF)</option>
                 <option value="assembleurs">Les Assembleurs (PDF)</option>
                 <option value="excel">Excel</option>
               </select>
@@ -877,6 +1066,7 @@
             <input ref={pdfRef} type="file" accept=".pdf" multiple className="hidden" onChange={handleImportPDF} />
             <input ref={millietRef} type="file" accept=".pdf" multiple className="hidden" onChange={handleImportMilliet} />
             <input ref={lbaRef} type="file" accept=".pdf" multiple className="hidden" onChange={handleImportLBA} />
+            <input ref={mpfRef} type="file" accept=".pdf" multiple className="hidden" onChange={handleImportMPF} />
             <input ref={assembleursRef} type="file" accept=".pdf" multiple className="hidden" onChange={handleImportAssembleurs} />
             </div>
         </div>
