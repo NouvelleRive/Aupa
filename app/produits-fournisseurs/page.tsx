@@ -345,10 +345,12 @@
         parCode.get(ligne.code)!.push(ligne);
         }
 
+        let pfIdParCode = new Map<string, string>();
         for (const [code, lignes] of parCode.entries()) {
         const derniere = lignes[lignes.length - 1];
         const match = existing.find((ing: any) => ing.millietCode === code);
         if (match) {
+            pfIdParCode.set(code, match.id);
             const historiqueExistant = match.historiquesPrix || [];
             const datesExistantes = new Set(historiqueExistant.map((h: any) => h.date));
             const nouveauxHistorique = lignes
@@ -366,7 +368,7 @@
             const uniteDetectee = detectUnite(derniere.nom);
             const matchQte = derniere.nom.match(/[xX]\s?(\d+)/);
             const quantite = matchQte ? parseInt(matchQte[1]) : 1;
-            await addDoc(collection(db, 'produitsFournisseurs'), {
+            const newPf = await addDoc(collection(db, 'produitsFournisseurs'), {
             nom: derniere.nom,
             prix: derniere.prix,
             unite: uniteDetectee,
@@ -378,13 +380,34 @@
             historiquesPrix: lignes.map(l => ({ date: l.date, prix: l.prix })),
             updatedAt: derniere.date,
             });
+            pfIdParCode.set(code, newPf.id);
             created++;
         }
         }
 
+        // Sauvegarder chaque ligne comme un achat
+        const achatsExistantsSnap = await getDocs(collection(db, 'achats'));
+        const achatsExistants = new Set(achatsExistantsSnap.docs.map(d => {
+            const data = d.data();
+            return `${data.pfId}|${data.date}|${data.qte}`;
+        }));
+        let achatsCreated = 0;
+        for (const ligne of toutesLignes) {
+            const pfId = pfIdParCode.get(ligne.code);
+            if (!pfId) continue;
+            const key = `${pfId}|${ligne.date}|${ligne.qte}`;
+            if (achatsExistants.has(key)) continue;
+            await addDoc(collection(db, 'achats'), {
+                pfId, code: ligne.code, nom: ligne.nom,
+                qte: ligne.qte, prixUnitaire: ligne.prix, total: ligne.prix * ligne.qte,
+                date: ligne.date, fournisseur: 'Milliet',
+            });
+            achatsCreated++;
+        }
+
         setImporting(false);
         setImportProgress('');
-        alert(`✅ Milliet : ${created} produits créés, ${updated} mis à jour !`);
+        alert(`✅ Milliet : ${created} produits créés, ${updated} mis à jour, ${achatsCreated} achats enregistrés !`);
         await recalculerTousLesCouts();
         fetchIngredients();
         e.target.value = '';
