@@ -486,17 +486,20 @@
                         <tbody className="divide-y divide-yellow-50">
                             {(() => {
                             const sortedByVendus = [...ventsCat].sort((a, b) => b.vendus - a.vendus);
-                            const platsAvecVentes = sortedByVendus.filter(p => p.vendus > 0);
-                            const topVendus = new Set(platsAvecVentes.slice(0, Math.max(1, Math.ceil(platsAvecVentes.length * 0.2))).map(p => p.id));
-                            const flopVendus = new Set(platsAvecVentes.slice(-Math.max(1, Math.ceil(platsAvecVentes.length * 0.2))).map(p => p.id));
-                            const platsAvecFc = ventsCat.filter(p => p.coutCalcule > 0 && p.prixVente > 0).map(p => ({ id: p.id, fc: (p.coutCalcule / (p.prixVente / 1.1)) * 100 })).sort((a, b) => a.fc - b.fc);
-                            const topRenta = new Set(platsAvecFc.slice(0, Math.max(1, Math.ceil(platsAvecFc.length * 0.2))).map(p => p.id));
+                            const nbAvecVentes = sortedByVendus.filter(p => p.vendus > 0).length;
+                            const topCount = Math.max(1, Math.ceil(nbAvecVentes * 0.2));
+                            const flopCount = Math.max(1, Math.ceil(nbAvecVentes * 0.2));
+                            const sortedByFc = ventsCat
+                                .map((p, idx) => ({ idx, fc: p.coutCalcule > 0 && p.prixVente > 0 ? (p.coutCalcule / (p.prixVente / 1.1)) * 100 : Infinity }))
+                                .filter(x => x.fc !== Infinity)
+                                .sort((a, b) => a.fc - b.fc);
+                            const topRentaIdx = new Set(sortedByFc.slice(0, Math.max(1, Math.ceil(sortedByFc.length * 0.2))).map(x => sortedByVendus.findIndex(p => p === ventsCat[x.idx])));
                             return sortedByVendus.map((plat, i) => {
                             const pHT = plat.prixVente / 1.1;
                             const fc = pHT > 0 ? (plat.coutCalcule / pHT) * 100 : 0;
-                            const isTopVendu = topVendus.has(plat.id);
-                            const isFlopVendu = flopVendus.has(plat.id) && !isTopVendu;
-                            const isTopRenta = topRenta.has(plat.id);
+                            const isTopVendu = plat.vendus > 0 && i < topCount;
+                            const isFlopVendu = plat.vendus > 0 && i >= nbAvecVentes - flopCount && !isTopVendu;
+                            const isTopRenta = topRentaIdx.has(i);
                             return (
                                 <tr key={i} className="hover:bg-yellow-50 transition-colors">
                                 <td className="px-4 py-3 font-medium">
