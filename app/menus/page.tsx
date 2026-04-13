@@ -614,10 +614,8 @@
                             return (
                                 <tr key={i} className="hover:bg-yellow-50 transition-colors">
                                 <td className="px-4 py-3 font-medium">
-                                    {isTopVendu && <span className="mr-1" title="Best seller">🔥</span>}
-                                    {isFlopVendu && <span className="mr-1" title="Peu vendu">🥶</span>}
                                     {plat.nom}
-                                    {plat.nomsCaisse.length > 0 && <span className="ml-2 text-xs text-orange-400" title={plat.nomsCaisse.join(', ')}>({plat.nomsCaisse.join(', ')})</span>}
+                                    {plat.nomsCaisse.length > 0 && <span className="ml-2 text-xs text-gray-400" title={plat.nomsCaisse.join(', ')}>({plat.nomsCaisse.join(', ')})</span>}
                                 </td>
                                 <td className="px-4 py-3 text-right text-gray-500">{plat.prixVente.toFixed(2)} €</td>
                                 <td className="px-4 py-3 text-right text-gray-500">{plat.coutCalcule > 0 ? plat.coutCalcule.toFixed(2) + ' €' : '—'}</td>
@@ -625,7 +623,7 @@
                                     <span className={`font-semibold ${fc > 32 ? 'text-yellow-500' : 'text-gray-700'}`}>{isTopRenta && '🔥 '}{fc > 0 ? fc.toFixed(1) + '%' : '—'}</span>
                                 </td>
                                 <td className="px-4 py-3 text-right">
-                                    {plat.vendus > 0 ? <span className="font-semibold">{plat.vendus}</span> : <span className="text-gray-300">—</span>}
+                                    {plat.vendus > 0 ? <span className="font-semibold">{isTopVendu && '🔥 '}{isFlopVendu && '🥶 '}{plat.vendus}</span> : <span className="text-gray-300">—</span>}
                                 </td>
                                 <td className="px-4 py-3 text-right">
                                     {plat.caReel > 0 ? <span className="font-semibold text-yellow-600">{plat.caReel.toFixed(0)} €</span> : <span className="text-gray-300">—</span>}
