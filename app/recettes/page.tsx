@@ -519,7 +519,7 @@ export default function RecettesPage() {
     (filterCat === 'all' || r.categorie === filterCat) &&
     (filterType === 'all' || (filterType === 'food' ? (!r.type || r.type === 'food') : filterType === 'afaire' ? (r as any).needsIngredients : r.type === filterType)) &&
     (filterMenu === 'all' || menuRecetteIds.has(r.id))
-  ).sort((a, b) => a.categorie.localeCompare(b.categorie) || a.nom.localeCompare(b.nom));
+  ).sort((a, b) => a.categorie.localeCompare(b.categorie, 'fr', { sensitivity: 'base' }) || a.nom.localeCompare(b.nom, 'fr', { sensitivity: 'base' }));
 
   const coutPreview = calculerCout();
 
@@ -575,7 +575,7 @@ export default function RecettesPage() {
                         value={item.recetteChoisieId || ''}
                         onChange={e => setImportPreview(p => p.map((x, j) => j === globalIdx ? { ...x, recetteChoisieId: e.target.value || null, selected: true } : x))}>
                         <option value="">— Créer nouveau —</option>
-                        {recettes.filter(r => r.type === 'food' && !importPreview.some(p => p.recetteChoisieId === r.id && p !== item)).sort((a, b) => a.nom.localeCompare(b.nom)).map(r => <option key={r.id} value={r.id}>{r.nom}</option>)}
+                        {recettes.filter(r => r.type === 'food' && !importPreview.some(p => p.recetteChoisieId === r.id && p !== item)).sort((a, b) => a.nom.localeCompare(b.nom, 'fr', { sensitivity: 'base' })).map(r => <option key={r.id} value={r.id}>{r.nom}</option>)}
                       </select>
                     </td>
                     <td className="px-4 py-2 text-right text-gray-500">{item.prix} €</td>
@@ -708,10 +708,10 @@ export default function RecettesPage() {
                   <div key={i} className="flex gap-2 items-center">
                     <select className="border border-yellow-200 rounded-lg px-3 py-2 text-sm flex-1" value={ligne.id} onChange={e => { const n = [...lignes]; n[i].id = e.target.value; const isPrep = !!recettes.find(r => r.id === e.target.value); n[i].type = isPrep ? 'preparation' : 'ingredient'; if (!isPrep) { const newIng = ingredients.find(x => x.id === e.target.value); n[i].unite = newIng ? defaultUnite(newIng.unite) : 'kg'; } else { n[i].unite = 'kg'; } setLignes(n); }}>
                       <optgroup label="Ingrédients">
-                        {ingredients.slice().sort((a, b) => a.nom.localeCompare(b.nom)).map(ing => <option key={ing.id} value={ing.id}>{ing.nom}</option>)}
+                        {ingredients.slice().sort((a, b) => a.nom.localeCompare(b.nom, 'fr', { sensitivity: 'base' })).map(ing => <option key={ing.id} value={ing.id}>{ing.nom}</option>)}
                       </optgroup>
                       <optgroup label="Préparations">
-                        {recettes.filter(r => r.categorie === 'Préparations').sort((a, b) => a.nom.localeCompare(b.nom)).map(p => <option key={p.id} value={p.id}>{p.nom}</option>)}
+                        {recettes.filter(r => r.categorie === 'Préparations').sort((a, b) => a.nom.localeCompare(b.nom, 'fr', { sensitivity: 'base' })).map(p => <option key={p.id} value={p.id}>{p.nom}</option>)}
                       </optgroup>
                     </select>
                     <input className="border border-yellow-200 rounded-lg px-3 py-2 text-sm w-24" placeholder="Qté" type="number" value={ligne.grammage} onChange={e => { const n = [...lignes]; n[i].grammage = e.target.value; setLignes(n); }} />
