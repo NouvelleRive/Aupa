@@ -104,6 +104,47 @@ export default function PerformancePage() {
     return ventes.filter(v => v.jour && dates.has(v.jour));
   }, [ventes, rapportsFiltrés, bucket]);
 
+  // === N-1 : même bucket l'année précédente ===
+  // - Mois '2026-04' → '2025-04'
+  // - Semaine '2026-W15' → '2025-W15'
+  // - Jour '2026-04-12' → '2025-04-12'
+  const bucketNMoins1 = useMemo((): string | null => {
+    if (bucket === 'all') return null;
+    if (granularite === 'mois') {
+      const m = bucket.match(/^(\d{4})-(\d{2})$/);
+      if (!m) return null;
+      return `${parseInt(m[1]) - 1}-${m[2]}`;
+    }
+    if (granularite === 'semaine') {
+      const m = bucket.match(/^(\d{4})-W(\d{2})$/);
+      if (!m) return null;
+      return `${parseInt(m[1]) - 1}-W${m[2]}`;
+    }
+    if (granularite === 'jour') {
+      const m = bucket.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+      if (!m) return null;
+      return `${parseInt(m[1]) - 1}-${m[2]}-${m[3]}`;
+    }
+    return null;
+  }, [bucket, granularite]);
+
+  const caNMoins1 = useMemo((): number | null => {
+    if (!bucketNMoins1) return null;
+    let total = 0;
+    let found = false;
+    for (const v of ventes) {
+      let bk: string | null = null;
+      if (granularite === 'mois') bk = v.mois || null;
+      else if (granularite === 'jour') bk = v.jour || null;
+      else if (granularite === 'semaine') bk = v.jour ? isoWeek(v.jour) : null;
+      if (bk === bucketNMoins1) {
+        total += v.ttc || 0;
+        found = true;
+      }
+    }
+    return found ? total : null;
+  }, [ventes, bucketNMoins1, granularite]);
+
   // === KPIs agrégés ===
   const kpi = useMemo(() => {
     const agg = {
@@ -238,6 +279,45 @@ export default function PerformancePage() {
         <Kpi label="Marge brute" value={fmtEur(kpi.margeBrute)} sub={`${fmtPct(pctMarge)} · Food cost ${fmtPct(pctFoodCost)}`} />
         <Kpi label="Ticket moyen" value={fmtEur(ticketMoyen)} sub={`${kpi.couverts} couverts`} />
       </div>
+
+      {/* Objectif N-1 +10% */}
+      {bucket !== 'all' && (() => {
+        if (caNMoins1 === null) {
+          return (
+            <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 text-sm text-gray-500">
+              Pas de données N-1 pour {bucket} à cette granularité. (L'historique passé est souvent agrégé au mois.)
+            </div>
+          );
+        }
+        const objectif = caNMoins1 * 1.10;
+        const delta = kpi.caTTC - objectif;
+        const pctDelta = objectif > 0 ? (delta / objectif) * 100 : 0;
+        const onTrack = delta >= 0;
+        return (
+          <div className={`rounded-xl p-5 border-2 ${onTrack ? 'bg-green-50 border-green-300' : 'bg-orange-50 border-orange-300'}`}>
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-sm font-semibold text-gray-700">Objectif N-1 +10%</p>
+              <span className="text-2xl">{onTrack ? '✅' : '⚠️'}</span>
+            </div>
+            <div className="grid grid-cols-3 gap-4 text-sm">
+              <div>
+                <p className="text-xs text-gray-500">N-1</p>
+                <p className="font-bold">{fmtEur(caNMoins1)}</p>
+              </div>
+              <div>
+                <p className="text-xs text-gray-500">Objectif (+10%)</p>
+                <p className="font-bold">{fmtEur(objectif)}</p>
+              </div>
+              <div>
+                <p className="text-xs text-gray-500">Écart réel</p>
+                <p className={`font-bold ${onTrack ? 'text-green-700' : 'text-orange-700'}`}>
+                  {delta >= 0 ? '+' : ''}{fmtEur(delta)} ({pctDelta >= 0 ? '+' : ''}{fmtPct(pctDelta)})
+                </p>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <Kpi label="Food" value={fmtPct(pctFood)} sub={fmtEur(kpi.foodCA)} />
