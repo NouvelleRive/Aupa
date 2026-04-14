@@ -3,25 +3,34 @@ import { NextRequest, NextResponse } from 'next/server';
 const PUBLIC_PATHS = new Set([
   '/login',
   '/api/login',
-  '/api/gmail/callback', // Google redirige ici après consent
+  '/api/gmail/callback',
 ]);
+
+function parseUsers(raw: string | undefined): Map<string, string> {
+  const m = new Map<string, string>();
+  if (!raw) return m;
+  for (const pair of raw.split(',')) {
+    const [name, pwd] = pair.split(':');
+    if (name && pwd) m.set(name.trim().toLowerCase(), pwd.trim());
+  }
+  return m;
+}
 
 export function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
-  // Cron Vercel : vérifie le header d'autorisation avec CRON_SECRET
   if (pathname === '/api/gmail/sync') {
     const auth = req.headers.get('authorization');
     if (auth === `Bearer ${process.env.CRON_SECRET}`) return NextResponse.next();
-    // Sinon laisser passer si l'utilisateur est loggué (déclenchement manuel)
   }
 
   if (PUBLIC_PATHS.has(pathname)) return NextResponse.next();
 
-  const cookie = req.cookies.get('aupa_auth')?.value;
-  if (cookie && cookie === process.env.APP_PASSWORD) return NextResponse.next();
+  const users = parseUsers(process.env.APP_USERS);
+  const name = req.cookies.get('aupa_user')?.value?.toLowerCase();
+  const token = req.cookies.get('aupa_token')?.value;
+  if (name && token && users.get(name) === token) return NextResponse.next();
 
-  // Pas authentifié : rediriger vers /login
   const url = req.nextUrl.clone();
   url.pathname = '/login';
   url.searchParams.set('next', pathname);
@@ -29,6 +38,5 @@ export function proxy(req: NextRequest) {
 }
 
 export const config = {
-  // Exclure les assets statiques et _next/
   matcher: ['/((?!_next/static|_next/image|favicon.ico|.*\\..*).*)'],
 };
