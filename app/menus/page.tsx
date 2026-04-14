@@ -211,12 +211,12 @@
 
     // Catégories Popina à ignorer (ce sont des totaux, pas des items)
     const CATEGORIES_POPINA = new Set([
-        'plats', 'bol', 'croger', 'salade', 'boissons froides', 'apéritifs/digestifs',
-        'bière', 'cocktail', 'maison & iced', 'soft & eau', 'vin', 'entrées', 'entrees',
+        'plats', 'bol', 'croger', 'salade', 'boissons froides', 'aperitifs digestifs',
+        'biere', 'cocktail', 'maison iced', 'soft eau', 'vin', 'entrees',
         'sides et tapas', 'grignotte', 'side', 'desserts', 'tous', 'boissons chaudes',
-        'classic hot drinks', 'crazy hot drinks', 'none', 'suppléments', 'au restau',
-        'parent_category_menu.png', 'dont menus', 'brunch',
-        'aupa - croissant burger (eat)', 'aupa croissant burger eat',
+        'classic hot drinks', 'crazy hot drinks', 'none', 'supplements', 'au restau',
+        'parent category menu png', 'dont menus', 'brunch',
+        'aupa croissant burger eat', 'formule midi', 'gouter',
     ]);
 
     const parseRecapPopina = (text: string): { articles: { nom: string; quantity: number; ttc: number }[]; date: string } => {
