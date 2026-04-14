@@ -7,9 +7,9 @@
     import { recalculerTousLesCouts } from '@/lib/recalculCouts';
 
     const UNITES: Unite[] = ['kg', 'g', 'L', 'cL', 'pièce', 'lot'];
-    const CATEGORIES: Categorie[] = ['viande', 'poisson', 'légume', 'fruit', 'laitage', 'épicerie', 'boisson', 'consommable', 'autre'];
+    const CATEGORIES: Categorie[] = ['viande', 'poisson', 'légume', 'fruit', 'laitage', 'épicerie salée', 'épicerie sucrée', 'boisson', 'consommable', 'autre'];
     const FOURNISSEURS = ['Foodflow', 'Milliet', 'LBA', 'MPF', 'Lidl', 'Les Assembleurs'] as const;
-    const emptyForm = { nom: '', prix: '', unite: 'kg' as Unite, categorie: 'épicerie' as Categorie, rendement: '100', quantite: '1', fournisseur: '' };
+    const emptyForm = { nom: '', prix: '', unite: 'kg' as Unite, categorie: 'épicerie salée' as Categorie, rendement: '100', quantite: '1', fournisseur: '' };
 
     const detectUnite = (nom: string): Unite => {
     const n = nom.toLowerCase();
@@ -29,9 +29,9 @@
     if (n.includes('lait') || n.includes('feta') || n.includes('cheddar') || n.includes('emmental') || n.includes('tomme') || n.includes('fromage') || n.includes('oeuf')) return 'laitage';
     if (n.includes('tomate') || n.includes('salade') || n.includes('carotte') || n.includes('poivron') || n.includes('champignon') || n.includes('avocat') || n.includes('menthe') || n.includes('ciboulette') || n.includes('persil') || n.includes('coriandre') || n.includes('romarin') || n.includes('patate') || n.includes('butternut') || n.includes('panais') || n.includes('pdt') || n.includes('pousse')) return 'légume';
     if (n.includes('citron') || n.includes('orange') || n.includes('banane')) return 'fruit';
-    if (n.includes('huile') || n.includes('ketchup') || n.includes('vinaigre') || n.includes('riz') || n.includes('ail') || n.includes('amande') || n.includes('cacahuète') || n.includes('concentré') || n.includes('polpa') || n.includes('jus de veau')) return 'épicerie';
+    if (n.includes('huile') || n.includes('ketchup') || n.includes('vinaigre') || n.includes('riz') || n.includes('ail') || n.includes('amande') || n.includes('cacahuète') || n.includes('concentré') || n.includes('polpa') || n.includes('jus de veau')) return 'épicerie salée';
     if (n.includes('bière') || n.includes('vin') || n.includes('jus')) return 'boisson';
-    return 'épicerie';
+    return 'épicerie salée';
     };
 
     export default function ProduitsFournisseursPage() {
@@ -50,7 +50,7 @@
     const assembleursRef = useRef<HTMLInputElement>(null);
     const [histoId, setHistoId] = useState<string | null>(null);
     const [editInlineId, setEditInlineId] = useState<string | null>(null);
-    const [editInlineForm, setEditInlineForm] = useState({ nom: '', prix: '', unite: 'kg' as Unite, categorie: 'épicerie' as Categorie, rendement: '100', quantite: '1' });
+    const [editInlineForm, setEditInlineForm] = useState({ nom: '', prix: '', unite: 'kg' as Unite, categorie: 'épicerie salée' as Categorie, rendement: '100', quantite: '1' });
     const [ingredientsMap, setNomsXLMap] = useState<Map<string, string[]>>(new Map());
     const [ingredientParProduit, setNomsXLParIngredient] = useState<Record<string, string>>({});
 
@@ -973,7 +973,7 @@
         });
         let count = 0;
         for (const [nom, { prix, unite }] of ingredientsMap.entries()) {
-        await addDoc(collection(db, 'produitsFournisseurs'), { nom, prix, unite, categorie: 'épicerie', rendement: 1, historiquesPrix: [{ date: new Date().toISOString(), prix }], updatedAt: new Date().toISOString() });
+        await addDoc(collection(db, 'produitsFournisseurs'), { nom, prix, unite, categorie: 'épicerie salée', rendement: 1, historiquesPrix: [{ date: new Date().toISOString(), prix }], updatedAt: new Date().toISOString() });
         count++;
         }
         alert(`${count} ingrédients importés !`);

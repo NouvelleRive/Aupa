@@ -7,7 +7,7 @@ import { Ingredient, Unite, Categorie } from '@/lib/types';
 import { recalculerTousLesCouts } from '@/lib/recalculCouts';
 
 const UNITES: Unite[] = ['kg', 'g', 'L', 'cL', 'pièce', 'lot'];
-const CATEGORIES: Categorie[] = ['viande', 'poisson', 'légume', 'fruit', 'laitage', 'épicerie', 'boisson', 'autre'];
+const CATEGORIES: Categorie[] = ['viande', 'poisson', 'légume', 'fruit', 'laitage', 'épicerie salée', 'épicerie sucrée', 'boisson', 'autre'];
 
 type Tab = 'bruts' | 'preparations';
 
@@ -32,7 +32,7 @@ export default function IngredientsPage() {
   const [filterSansPrix, setFilterSansPrix] = useState(false);
   const [filterSansRecette, setFilterSansRecette] = useState(false);
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ nom: '', unite: 'kg' as Unite, categorie: 'épicerie' as Categorie });
+  const [form, setForm] = useState({ nom: '', unite: 'kg' as Unite, categorie: 'épicerie salée' as Categorie });
   const [editId, setEditId] = useState<string | null>(null);
   const [pfOptions, setPfOptions] = useState<Record<string, { id: string; nom: string; fournisseur: string; prixUnit: number }[]>>({});
   const [pfPrix, setPfPrix] = useState<Record<string, number>>({});
@@ -171,7 +171,7 @@ export default function IngredientsPage() {
     } else {
       await addDoc(collection(db, 'ingredients'), data);
     }
-    setForm({ nom: '', unite: 'kg', categorie: 'épicerie' });
+    setForm({ nom: '', unite: 'kg', categorie: 'épicerie salée' });
     setShowForm(false);
     await recalculerTousLesCouts();
     fetchAll();
@@ -210,7 +210,7 @@ export default function IngredientsPage() {
         <h1 className="text-2xl font-bold">Ingrédients</h1>
         {tab === 'bruts' && (
           <button
-            onClick={() => { setShowForm(!showForm); setEditId(null); setForm({ nom: '', unite: 'kg', categorie: 'épicerie' }); }}
+            onClick={() => { setShowForm(!showForm); setEditId(null); setForm({ nom: '', unite: 'kg', categorie: 'épicerie salée' }); }}
             className="bg-yellow-400 hover:bg-yellow-500 text-black font-semibold rounded-lg px-4 py-2 text-sm"
           >
             + Ajouter

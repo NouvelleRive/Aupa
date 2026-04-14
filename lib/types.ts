@@ -1,6 +1,6 @@
 export type Unite = 'kg' | 'g' | 'L' | 'cL' | 'pièce' | 'lot';
 
-export type Categorie = 'viande' | 'poisson' | 'légume' | 'fruit' | 'laitage' | 'épicerie' | 'boisson' | 'consommable' | 'autre';
+export type Categorie = 'viande' | 'poisson' | 'légume' | 'fruit' | 'laitage' | 'épicerie salée' | 'épicerie sucrée' | 'boisson' | 'consommable' | 'autre';
 
 export type Saison = 'été' | 'hiver';
 export type TypePlat = 'food' | 'boisson';
