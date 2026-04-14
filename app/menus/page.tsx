@@ -12,6 +12,17 @@
     ttc: number;
     menuNom: string;
     mois: string;
+    jour?: string; // YYYY-MM-DD, présent pour les ventes importées par jour
+    }
+
+    // Numéro ISO de semaine — retourne YYYY-Www
+    function isoWeek(dateStr: string): string {
+      const d = new Date(dateStr + 'T00:00:00Z');
+      const day = d.getUTCDay() || 7;
+      d.setUTCDate(d.getUTCDate() + 4 - day);
+      const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+      const week = Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
+      return `${d.getUTCFullYear()}-W${String(week).padStart(2, '0')}`;
     }
 
     import { CATEGORIES } from '@/lib/categories';
@@ -51,6 +62,7 @@
     const [ventes, setVentes] = useState<VenteLine[]>([]);
     const [menuActif, setMenuActif] = useState<string>('');
     const [moisActif, setMoisActif] = useState<string>('all');
+    const [granularite, setGranularite] = useState<'mois' | 'semaine' | 'jour'>('mois');
     const [loading, setLoading] = useState(true);
     const [importing, setImporting] = useState(false);
     const [updating, setUpdating] = useState(false);
@@ -296,8 +308,16 @@
     };
 
     const menuCourant = menus.find(m => m.id === menuActif);
-    const moisDisponibles = [...new Set(ventes.filter(v => v.menuNom === menuCourant?.nom).map(v => v.mois))].sort();
-    const ventesMenuActuel = ventes.filter(v => v.menuNom === menuCourant?.nom && (moisActif === 'all' || v.mois === moisActif));
+    const ventesDuMenu = ventes.filter(v => v.menuNom === menuCourant?.nom);
+
+    // Buckets selon la granularité choisie
+    const bucketKey = (v: VenteLine): string => {
+      if (granularite === 'jour') return v.jour || v.mois;
+      if (granularite === 'semaine') return v.jour ? isoWeek(v.jour) : v.mois;
+      return v.mois;
+    };
+    const moisDisponibles = [...new Set(ventesDuMenu.map(bucketKey))].sort();
+    const ventesMenuActuel = ventesDuMenu.filter(v => moisActif === 'all' || bucketKey(v) === moisActif);
 
     // Attribuer chaque vente à un seul plat (le meilleur match)
     const allPlatsMenu = menuCourant?.categories.flatMap(c => (c.recettes || []).map(mr => {
@@ -481,11 +501,20 @@
                 </button>
               )}
             </div>
+            <div className="flex gap-2 mb-3 flex-wrap items-center">
+                <span className="text-xs text-gray-500">Voir par :</span>
+                {(['mois', 'semaine', 'jour'] as const).map(g => (
+                    <button key={g} onClick={() => { setGranularite(g); setMoisActif('all'); }}
+                        className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${granularite === g ? 'bg-black border-black text-white' : 'border-gray-200 text-gray-500'}`}>
+                        {g.charAt(0).toUpperCase() + g.slice(1)}
+                    </button>
+                ))}
+            </div>
             {moisDisponibles.length > 0 && (
                 <div className="flex gap-2 mb-6 flex-wrap">
                 <button onClick={() => setMoisActif('all')}
                     className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${moisActif === 'all' ? 'bg-yellow-400 border-yellow-400 text-black' : 'border-yellow-200 text-gray-500'}`}>
-                    Tous les mois
+                    Tous{granularite === 'mois' ? ' les mois' : granularite === 'semaine' ? ' (semaines)' : ' (jours)'}
                 </button>
                 {moisDisponibles.map(m => (
                     <button key={m} onClick={() => setMoisActif(m)}
