@@ -373,6 +373,20 @@
                 className="border border-gray-200 text-gray-600 hover:bg-gray-50 font-semibold rounded-lg px-4 py-2 text-sm">
                 Importer récap quotidien
             </button>
+            <button onClick={async () => {
+                const r = await fetch('/api/gmail/sync');
+                const data = await r.json();
+                if (data.ok) {
+                    alert(`✅ ${data.imported} mails traités, ${data.totalArticles} articles importés`);
+                    const vSnap = await getDocs(collection(db, 'ventes'));
+                    setVentes(vSnap.docs.map(d => d.data() as VenteLine));
+                } else {
+                    alert(`❌ ${data.error}`);
+                    if (data.error?.includes('not connected')) window.location.href = '/api/gmail/auth';
+                }
+            }} className="bg-yellow-400 hover:bg-yellow-500 text-black font-semibold rounded-lg px-4 py-2 text-sm">
+                Synchroniser mails
+            </button>
             <input ref={fileRef} type="file" accept=".xlsx,.xls" className="hidden" onChange={handleImportPopina} />
             </div>
         </div>
