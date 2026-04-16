@@ -14,14 +14,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="bg-gray-50 min-h-screen">
         <nav className="bg-white border-b border-gray-100 px-6 py-3 flex items-center gap-8">
           <Image src="/logo.png" alt="Aupa" width={60} height={30} className="object-contain" />
-          <Link href="/produits-fournisseurs" className="text-sm text-gray-600 hover:text-yellow-400 transition-colors">Produits fournisseurs</Link>
+          <Link href="/produits-fournisseurs" className="text-sm text-gray-600 hover:text-yellow-400 transition-colors">PF</Link>
           <Link href="/ingredients" className="text-sm text-gray-600 hover:text-yellow-400 transition-colors">Ingrédients</Link>
           <Link href="/recettes" className="text-sm text-gray-600 hover:text-yellow-400 transition-colors">Recettes</Link>
           <Link href="/menus" className="text-sm text-gray-600 hover:text-yellow-400 transition-colors">Menus</Link>
-          <Link href="/rentabilite" className="text-sm text-gray-600 hover:text-yellow-400 transition-colors">Rentabilité</Link>
-          <Link href="/performance" className="text-sm text-gray-600 hover:text-yellow-400 transition-colors">Performance</Link>
-          <Link href="/ecarts" className="text-sm text-gray-600 hover:text-yellow-400 transition-colors">Écarts</Link>
+          <Link href="/performance" className="text-sm text-gray-600 hover:text-yellow-400 transition-colors">Perf</Link>
           <Link href="/couts" className="text-sm text-gray-600 hover:text-yellow-400 transition-colors">Coûts</Link>
+          <Link href="/ecarts" className="text-sm text-gray-600 hover:text-yellow-400 transition-colors">Écarts</Link>
           <Link href="/employes" className="text-sm text-gray-600 hover:text-yellow-400 transition-colors">Employés</Link>
         </nav>
         <main className="p-6">{children}</main>
