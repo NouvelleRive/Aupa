@@ -82,50 +82,126 @@ async function extractRows(buffer: Buffer): Promise<{ rows: string[][]; firstPag
 // FOODFLOW — codes FF-xxxx ou FM-xxxx
 // ============================================================================
 export async function parseFoodflowPDF(buffer: Buffer): Promise<LigneFacture[]> {
-  const { rows, firstPageDate } = await extractRows(buffer);
+  const pdfjs = await loadPdfjs();
+  const data = new Uint8Array(buffer);
+  const pdf = await pdfjs.getDocument({ data, disableFontFace: true, useSystemFonts: false }).promise;
+
+  let firstPageDate = new Date().toISOString();
   const lignes: LigneFacture[] = [];
 
-  // Foodflow utilise un parsing item-par-item plutôt que row-based
-  // On reconstruit une liste plate à partir des rows
-  const items = rows.flat();
+  for (let i = 1; i <= pdf.numPages; i++) {
+    const page = await pdf.getPage(i);
+    const content = await page.getTextContent();
+    const items: { str: string; x: number; y: number }[] = (content.items as any[])
+      .map((it: any) => ({
+        str: (it.str || '').trim(),
+        x: Math.round(it.transform[4]),
+        y: Math.round(it.transform[5]),
+      }))
+      .filter((it) => it.str);
 
-  for (let j = 0; j < items.length; j++) {
-    // Match code seul ("FF-000137") ou code+nom collés ("FF-000137 Concombre pièce ~300g")
-    const codeMatch = items[j].match(/^(FF-\d+|FM-\d+)(?:\s+(.+))?$/);
-    if (!codeMatch) continue;
-    const code = codeMatch[1];
-    const nomFromCode = codeMatch[2] || ''; // nom collé au code (si présent)
-    let qte = 1, unite = 'p', prix = 0, qteIdx = -1;
-    const nomParts: string[] = [];
-    if (nomFromCode) nomParts.push(nomFromCode);
-    for (let k = j + 1; k < Math.min(j + 15, items.length); k++) {
-      const qteMatch = items[k].match(/^(\d+[.,]\d+)\s*(kg|p|L|l)$/);
-      if (qteMatch) {
-        qte = parseFloat(qteMatch[1].replace(',', '.'));
-        unite = qteMatch[2] === 'l' ? 'L' : qteMatch[2];
-        qteIdx = k;
-        break;
-      }
-      // Quantité sans unité (ex: "12,00" suivi de prix)
-      const qteNoUnit = items[k].match(/^(\d+[.,]\d+)$/);
-      if (qteNoUnit) {
-        qte = parseFloat(qteNoUnit[1].replace(',', '.'));
-        qteIdx = k;
-        break;
-      }
-      nomParts.push(items[k]);
-    }
-    const nomComplet = nomParts.join(' ').trim();
-    if (qteIdx >= 0) {
-      for (let k = qteIdx + 1; k < Math.min(qteIdx + 5, items.length); k++) {
-        const prixMatch = items[k].replace(',', '.').match(/^(-?\d+\.?\d*)\s*€/);
-        if (prixMatch) { prix = parseFloat(prixMatch[1]); break; }
+    // Extraire la date depuis la première page
+    if (i === 1) {
+      for (const it of items) {
+        const m = it.str.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+        if (m) {
+          firstPageDate = new Date(`${m[3]}-${m[2]}-${m[1]}`).toISOString();
+          break;
+        }
       }
     }
-    if (prix !== 0 && nomComplet && nomComplet !== 'Fidélité') {
-      lignes.push({ code, nom: nomComplet, prix, date: firstPageDate, qte, unite });
+
+    // Grouper par Y (±3px) pour avoir les lignes du tableau
+    const rowMap = new Map<number, typeof items>();
+    for (const it of items) {
+      let attached = false;
+      for (const [ky, arr] of rowMap) {
+        if (Math.abs(it.y - ky) <= 3) { arr.push(it); attached = true; break; }
+      }
+      if (!attached) rowMap.set(it.y, [it]);
+    }
+
+    // Trier les rows de haut en bas, items de gauche à droite
+    const rows = Array.from(rowMap.entries())
+      .sort(([a], [b]) => b - a)
+      .map(([, arr]) => arr.sort((a, b) => a.x - b.x));
+
+    for (const row of rows) {
+      // Chercher un code FF/FM au début de la row
+      const firstItem = row[0]?.str || '';
+      const codeMatch = firstItem.match(/^(FF-\d+|FM-\d+)(?:\s+(.*))?$/);
+      if (!codeMatch) continue;
+
+      const code = codeMatch[1];
+      const nomStart = codeMatch[2] || '';
+
+      // Reconstruire tout le texte de la row
+      const allText = row.map(r => r.str).join(' ');
+
+      // Extraire le total HT (dernier montant en €)
+      const euroMatches = allText.match(/(\d+[.,]\d+)\s*€/g);
+      if (!euroMatches || euroMatches.length === 0) continue;
+      const totalStr = euroMatches[euroMatches.length - 1];
+      const total = parseFloat(totalStr.replace(/\s/g, '').replace(',', '.').replace('€', ''));
+
+      // Extraire la quantité — premier nombre après le nom
+      // La qté est dans la colonne QUANTITÉ (x~380-390) ou collée avec le prix
+      let qte = 1;
+      let prix = 0;
+      let unite = 'p';
+
+      // Chercher les items numériques dans la row (x > 350 = zone données)
+      for (const item of row) {
+        if (item.x < 350) continue;
+        const s = item.str.replace(',', '.');
+
+        // "12,00" ou "5,00" (qté seule)
+        const qteOnly = s.match(/^(\d+\.\d+)$/);
+        if (qteOnly) {
+          qte = parseFloat(qteOnly[1]);
+          continue;
+        }
+
+        // "2,00 10,06 € TVA vente 5.5%" (qté + prix collés)
+        const qtePrix = s.match(/^(\d+[.,]\d+)\s+(\d+[.,]\d+)\s*€/);
+        if (qtePrix) {
+          qte = parseFloat(qtePrix[1].replace(',', '.'));
+          prix = parseFloat(qtePrix[2].replace(',', '.'));
+          continue;
+        }
+
+        // "0,98 € TVA vente 5.5%" (prix unitaire)
+        const prixMatch = s.match(/^(\d+[.,]\d+)\s*€/);
+        if (prixMatch && prix === 0) {
+          prix = parseFloat(prixMatch[1].replace(',', '.'));
+          continue;
+        }
+      }
+
+      // Si on a un total mais pas de prix, calculer le prix unitaire
+      if (total > 0 && prix === 0 && qte > 0) {
+        prix = total / qte;
+      }
+      // Si on a un prix mais que le total ne colle pas, utiliser le total
+      if (total > 0 && qte > 0 && Math.abs(prix * qte - total) > 0.1) {
+        prix = total / qte;
+      }
+
+      // Extraire le nom : texte entre le code et la zone numérique
+      const nomParts: string[] = [];
+      if (nomStart) nomParts.push(nomStart);
+      for (const item of row) {
+        if (item.x <= 29 || item.x >= 350) continue; // skip code et données
+        nomParts.push(item.str);
+      }
+      const nom = nomParts.join(' ').trim();
+
+      if (total > 0 && nom && nom !== 'Fidélité') {
+        lignes.push({ code, nom, prix, date: firstPageDate, qte, unite });
+      }
     }
   }
+
   return lignes;
 }
 
