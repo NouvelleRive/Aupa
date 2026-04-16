@@ -90,16 +90,26 @@ export async function parseFoodflowPDF(buffer: Buffer): Promise<LigneFacture[]> 
   const items = rows.flat();
 
   for (let j = 0; j < items.length; j++) {
-    const codeMatch = items[j].match(/^(FF-\d+|FM-\d+)$/);
+    // Match code seul ("FF-000137") ou code+nom collés ("FF-000137 Concombre pièce ~300g")
+    const codeMatch = items[j].match(/^(FF-\d+|FM-\d+)(?:\s+(.+))?$/);
     if (!codeMatch) continue;
     const code = codeMatch[1];
+    const nomFromCode = codeMatch[2] || ''; // nom collé au code (si présent)
     let qte = 1, unite = 'p', prix = 0, qteIdx = -1;
     const nomParts: string[] = [];
+    if (nomFromCode) nomParts.push(nomFromCode);
     for (let k = j + 1; k < Math.min(j + 15, items.length); k++) {
       const qteMatch = items[k].match(/^(\d+[.,]\d+)\s*(kg|p|L|l)$/);
       if (qteMatch) {
         qte = parseFloat(qteMatch[1].replace(',', '.'));
         unite = qteMatch[2] === 'l' ? 'L' : qteMatch[2];
+        qteIdx = k;
+        break;
+      }
+      // Quantité sans unité (ex: "12,00" suivi de prix)
+      const qteNoUnit = items[k].match(/^(\d+[.,]\d+)$/);
+      if (qteNoUnit) {
+        qte = parseFloat(qteNoUnit[1].replace(',', '.'));
         qteIdx = k;
         break;
       }
