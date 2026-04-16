@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { collection, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend, CartesianGrid } from 'recharts';
 
 type TvaBucket = { ht: number; tva: number; ttc: number };
 type Reduction = { type: string; pct: number; ht: number; tva: number; ttc: number };
@@ -33,6 +34,12 @@ interface Recette {
   id: string; nom: string; coutCalcule?: number;
 }
 
+interface Achat {
+  date: string; // YYYY-MM-DD or ISO
+  total: number;
+  fournisseur: string;
+}
+
 // Seuils d'alerte (% du CA TTC)
 const SEUIL_REDUCTIONS = 3;     // > 3% du CA → rouge
 const SEUIL_ANNULATIONS = 2;    // > 2% du CA → rouge
@@ -54,20 +61,24 @@ export default function PerformancePage() {
   const [rapports, setRapports] = useState<Rapport[]>([]);
   const [ventes, setVentes] = useState<Vente[]>([]);
   const [recettes, setRecettes] = useState<Recette[]>([]);
+  const [achats, setAchats] = useState<Achat[]>([]);
   const [granularite, setGranularite] = useState<'jour' | 'semaine' | 'mois'>('semaine');
   const [bucket, setBucket] = useState<string>('all');
+  const [chartPeriod, setChartPeriod] = useState<string>('all');
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     (async () => {
-      const [rSnap, vSnap, recSnap] = await Promise.all([
+      const [rSnap, vSnap, recSnap, aSnap] = await Promise.all([
         getDocs(collection(db, 'rapportsJournaliers')),
         getDocs(collection(db, 'ventes')),
         getDocs(collection(db, 'recettes')),
+        getDocs(collection(db, 'achats')),
       ]);
       setRapports(rSnap.docs.map(d => d.data() as Rapport));
       setVentes(vSnap.docs.map(d => d.data() as Vente));
       setRecettes(recSnap.docs.map(d => ({ id: d.id, ...d.data() } as Recette)));
+      setAchats(aSnap.docs.map(d => d.data() as Achat));
       setLoading(false);
     })();
   }, []);
@@ -208,6 +219,45 @@ export default function PerformancePage() {
     return out;
   }, [kpi]);
 
+  // === Graphique Ventes vs Achats par mois ===
+  const chartYears = useMemo(() => {
+    const years = new Set<string>();
+    for (const r of rapports) { if (r.mois) years.add(r.mois.slice(0, 4)); }
+    for (const a of achats) {
+      const d = a.date?.slice(0, 4);
+      if (d) years.add(d);
+    }
+    return ['all', ...Array.from(years).sort().reverse()];
+  }, [rapports, achats]);
+
+  const chartData = useMemo(() => {
+    // Agréger ventes (CA TTC) par mois depuis rapportsJournaliers
+    const ventesParMois = new Map<string, number>();
+    for (const r of rapports) {
+      const m = r.mois || r.date?.slice(0, 7);
+      if (!m) continue;
+      if (chartPeriod !== 'all' && !m.startsWith(chartPeriod)) continue;
+      ventesParMois.set(m, (ventesParMois.get(m) || 0) + (r.caTTC || 0));
+    }
+
+    // Agréger achats par mois
+    const achatsParMois = new Map<string, number>();
+    for (const a of achats) {
+      const d = a.date?.slice(0, 7);
+      if (!d) continue;
+      if (chartPeriod !== 'all' && !d.startsWith(chartPeriod)) continue;
+      achatsParMois.set(d, (achatsParMois.get(d) || 0) + (a.total || 0));
+    }
+
+    // Fusionner les mois
+    const allMonths = new Set([...ventesParMois.keys(), ...achatsParMois.keys()]);
+    return Array.from(allMonths).sort().map(m => ({
+      mois: m,
+      ventes: Math.round(ventesParMois.get(m) || 0),
+      achats: Math.round(achatsParMois.get(m) || 0),
+    }));
+  }, [rapports, achats, chartPeriod]);
+
   if (loading) {
     return <div className="max-w-6xl mx-auto p-6"><p className="text-gray-400">Chargement…</p></div>;
   }
@@ -231,6 +281,34 @@ export default function PerformancePage() {
 
   return (
     <div className="max-w-6xl mx-auto p-6 space-y-6">
+      {/* Graphique Ventes vs Achats */}
+      {chartData.length > 0 && (
+        <div className="bg-white rounded-xl border border-yellow-100 p-5">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="font-semibold">Ventes vs Achats</h2>
+            <div className="flex gap-1">
+              {chartYears.map(y => (
+                <button key={y} onClick={() => setChartPeriod(y)}
+                  className={`px-3 py-1 rounded-full text-xs font-medium border ${chartPeriod === y ? 'bg-black border-black text-white' : 'border-gray-200 text-gray-500'}`}>
+                  {y === 'all' ? 'Tout' : y}
+                </button>
+              ))}
+            </div>
+          </div>
+          <ResponsiveContainer width="100%" height={300}>
+            <BarChart data={chartData} barGap={2}>
+              <CartesianGrid strokeDasharray="3 3" vertical={false} />
+              <XAxis dataKey="mois" tick={{ fontSize: 11 }} />
+              <YAxis tick={{ fontSize: 11 }} tickFormatter={v => `${(v / 1000).toFixed(0)}k`} />
+              <Tooltip formatter={(v) => `${Number(v).toLocaleString('fr-FR')} €`} />
+              <Legend />
+              <Bar dataKey="ventes" name="Ventes (CA TTC)" fill="#facc15" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="achats" name="Achats fournisseurs" fill="#f87171" radius={[4, 4, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      )}
+
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">Performance</h1>
         <div className="flex gap-2 items-center">
