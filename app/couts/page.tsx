@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { collection, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 
@@ -107,6 +107,31 @@ export default function CoutsPage() {
 
   const totalFiltered = useMemo(() => filtered.reduce((s, a) => s + a.total, 0), [filtered]);
 
+  // Infinite scroll
+  const PAGE_SIZE = 100;
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+  const loaderRef = useRef<HTMLDivElement>(null);
+
+  // Reset visible count when filters/sort change
+  useEffect(() => { setVisibleCount(PAGE_SIZE); }, [filterFournisseur, filterCategorie, filterDateDebut, filterDateFin, sortKey, sortDir]);
+
+  const visibleRows = useMemo(() => sorted.slice(0, visibleCount), [sorted, visibleCount]);
+  const hasMore = visibleCount < sorted.length;
+
+  const onIntersect = useCallback((entries: IntersectionObserverEntry[]) => {
+    if (entries[0].isIntersecting && hasMore) {
+      setVisibleCount(c => Math.min(c + PAGE_SIZE, sorted.length));
+    }
+  }, [hasMore, sorted.length]);
+
+  useEffect(() => {
+    const el = loaderRef.current;
+    if (!el) return;
+    const obs = new IntersectionObserver(onIntersect, { threshold: 0.1 });
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, [onIntersect]);
+
   const toggleSort = (key: SortKey) => {
     if (sortKey === key) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
     else { setSortKey(key); setSortDir(key === 'date' ? 'desc' : 'asc'); }
@@ -169,7 +194,7 @@ export default function CoutsPage() {
             </tr>
           </thead>
           <tbody>
-            {sorted.map(a => (
+            {visibleRows.map(a => (
               <tr key={a.id} className="border-b border-gray-50 hover:bg-yellow-50/30">
                 <td className="py-2 px-3 font-mono text-xs">{fmtDate(a.date)}</td>
                 <td className="py-2 px-3">{a.fournisseur}</td>
@@ -182,6 +207,11 @@ export default function CoutsPage() {
             ))}
           </tbody>
         </table>
+        {hasMore && (
+          <div ref={loaderRef} className="py-4 text-center text-xs text-gray-400">
+            Chargement…
+          </div>
+        )}
       </div>
     </div>
   );
