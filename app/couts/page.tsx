@@ -1,0 +1,188 @@
+'use client';
+
+import { useState, useEffect, useMemo } from 'react';
+import { collection, getDocs } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
+
+interface Achat {
+  id: string;
+  pfId: string;
+  code: string;
+  nom: string;
+  qte: number;
+  prixUnitaire: number;
+  total: number;
+  date: string;
+  fournisseur: string;
+}
+
+interface PF {
+  id: string;
+  categorie: string;
+}
+
+type SortKey = 'date' | 'nom' | 'fournisseur' | 'categorie' | 'total' | 'qte' | 'prixUnitaire';
+type SortDir = 'asc' | 'desc';
+
+const fmtEur = (n: number) => `${n.toFixed(2).replace('.', ',')} €`;
+const fmtDate = (d: string) => {
+  if (!d) return '';
+  const s = d.slice(0, 10);
+  const [y, m, day] = s.split('-');
+  return `${day}/${m}/${y}`;
+};
+
+export default function CoutsPage() {
+  const [achats, setAchats] = useState<Achat[]>([]);
+  const [pfMap, setPfMap] = useState<Map<string, PF>>(new Map());
+  const [loading, setLoading] = useState(true);
+
+  const [filterFournisseur, setFilterFournisseur] = useState<string>('all');
+  const [filterCategorie, setFilterCategorie] = useState<string>('all');
+  const [filterDateDebut, setFilterDateDebut] = useState('');
+  const [filterDateFin, setFilterDateFin] = useState('');
+  const [sortKey, setSortKey] = useState<SortKey>('date');
+  const [sortDir, setSortDir] = useState<SortDir>('desc');
+
+  useEffect(() => {
+    (async () => {
+      const [aSnap, pfSnap] = await Promise.all([
+        getDocs(collection(db, 'achats')),
+        getDocs(collection(db, 'produitsFournisseurs')),
+      ]);
+      setAchats(aSnap.docs.map(d => ({ id: d.id, ...d.data() } as Achat)));
+      const m = new Map<string, PF>();
+      for (const d of pfSnap.docs) m.set(d.id, { id: d.id, ...d.data() } as PF);
+      setPfMap(m);
+      setLoading(false);
+    })();
+  }, []);
+
+  const fournisseurs = useMemo(() => {
+    const s = new Set(achats.map(a => a.fournisseur).filter(Boolean));
+    return ['all', ...Array.from(s).sort()];
+  }, [achats]);
+
+  const categories = useMemo(() => {
+    const s = new Set<string>();
+    for (const a of achats) {
+      const pf = pfMap.get(a.pfId);
+      if (pf?.categorie) s.add(pf.categorie);
+    }
+    return ['all', ...Array.from(s).sort()];
+  }, [achats, pfMap]);
+
+  const getCategorie = (a: Achat) => pfMap.get(a.pfId)?.categorie || '—';
+  const getDateStr = (d: string) => d?.slice(0, 10) || '';
+
+  const filtered = useMemo(() => {
+    return achats.filter(a => {
+      if (filterFournisseur !== 'all' && a.fournisseur !== filterFournisseur) return false;
+      if (filterCategorie !== 'all' && getCategorie(a) !== filterCategorie) return false;
+      const d = getDateStr(a.date);
+      if (filterDateDebut && d < filterDateDebut) return false;
+      if (filterDateFin && d > filterDateFin) return false;
+      return true;
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [achats, pfMap, filterFournisseur, filterCategorie, filterDateDebut, filterDateFin]);
+
+  const sorted = useMemo(() => {
+    return [...filtered].sort((a, b) => {
+      let va: string | number = '';
+      let vb: string | number = '';
+      if (sortKey === 'date') { va = getDateStr(a.date); vb = getDateStr(b.date); }
+      else if (sortKey === 'nom') { va = a.nom.toLowerCase(); vb = b.nom.toLowerCase(); }
+      else if (sortKey === 'fournisseur') { va = a.fournisseur; vb = b.fournisseur; }
+      else if (sortKey === 'categorie') { va = getCategorie(a); vb = getCategorie(b); }
+      else if (sortKey === 'total') { va = a.total; vb = b.total; }
+      else if (sortKey === 'qte') { va = a.qte; vb = b.qte; }
+      else if (sortKey === 'prixUnitaire') { va = a.prixUnitaire; vb = b.prixUnitaire; }
+      if (va < vb) return sortDir === 'asc' ? -1 : 1;
+      if (va > vb) return sortDir === 'asc' ? 1 : -1;
+      return 0;
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filtered, sortKey, sortDir, pfMap]);
+
+  const totalFiltered = useMemo(() => filtered.reduce((s, a) => s + a.total, 0), [filtered]);
+
+  const toggleSort = (key: SortKey) => {
+    if (sortKey === key) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+    else { setSortKey(key); setSortDir(key === 'date' ? 'desc' : 'asc'); }
+  };
+
+  const sortIcon = (key: SortKey) => {
+    if (sortKey !== key) return '';
+    return sortDir === 'asc' ? ' ▲' : ' ▼';
+  };
+
+  if (loading) return <div className="max-w-6xl mx-auto p-6"><p className="text-gray-400">Chargement…</p></div>;
+
+  return (
+    <div className="max-w-6xl mx-auto p-6 space-y-4">
+      <h1 className="text-2xl font-bold">Coûts</h1>
+
+      {/* Filtres */}
+      <div className="flex flex-wrap gap-3 items-end">
+        <div>
+          <label className="text-xs text-gray-500 block mb-1">Fournisseur</label>
+          <select value={filterFournisseur} onChange={e => setFilterFournisseur(e.target.value)}
+            className="border border-gray-200 rounded-lg px-3 py-1.5 text-sm">
+            {fournisseurs.map(f => <option key={f} value={f}>{f === 'all' ? 'Tous' : f}</option>)}
+          </select>
+        </div>
+        <div>
+          <label className="text-xs text-gray-500 block mb-1">Catégorie</label>
+          <select value={filterCategorie} onChange={e => setFilterCategorie(e.target.value)}
+            className="border border-gray-200 rounded-lg px-3 py-1.5 text-sm">
+            {categories.map(c => <option key={c} value={c}>{c === 'all' ? 'Toutes' : c}</option>)}
+          </select>
+        </div>
+        <div>
+          <label className="text-xs text-gray-500 block mb-1">Du</label>
+          <input type="date" value={filterDateDebut} onChange={e => setFilterDateDebut(e.target.value)}
+            className="border border-gray-200 rounded-lg px-3 py-1.5 text-sm" />
+        </div>
+        <div>
+          <label className="text-xs text-gray-500 block mb-1">Au</label>
+          <input type="date" value={filterDateFin} onChange={e => setFilterDateFin(e.target.value)}
+            className="border border-gray-200 rounded-lg px-3 py-1.5 text-sm" />
+        </div>
+        <div className="ml-auto text-sm text-gray-500">
+          {filtered.length} achats · <span className="font-bold text-black">{fmtEur(totalFiltered)}</span>
+        </div>
+      </div>
+
+      {/* Tableau */}
+      <div className="bg-white rounded-xl border border-yellow-100 overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="text-left text-xs text-gray-400 border-b border-gray-100">
+              <th className="py-2 px-3 cursor-pointer select-none" onClick={() => toggleSort('date')}>Date{sortIcon('date')}</th>
+              <th className="py-2 px-3 cursor-pointer select-none" onClick={() => toggleSort('fournisseur')}>Fournisseur{sortIcon('fournisseur')}</th>
+              <th className="py-2 px-3 cursor-pointer select-none" onClick={() => toggleSort('categorie')}>Catégorie{sortIcon('categorie')}</th>
+              <th className="py-2 px-3 cursor-pointer select-none" onClick={() => toggleSort('nom')}>Produit{sortIcon('nom')}</th>
+              <th className="py-2 px-3 text-right cursor-pointer select-none" onClick={() => toggleSort('qte')}>Qté{sortIcon('qte')}</th>
+              <th className="py-2 px-3 text-right cursor-pointer select-none" onClick={() => toggleSort('prixUnitaire')}>Prix unit.{sortIcon('prixUnitaire')}</th>
+              <th className="py-2 px-3 text-right cursor-pointer select-none" onClick={() => toggleSort('total')}>Total{sortIcon('total')}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {sorted.map(a => (
+              <tr key={a.id} className="border-b border-gray-50 hover:bg-yellow-50/30">
+                <td className="py-2 px-3 font-mono text-xs">{fmtDate(a.date)}</td>
+                <td className="py-2 px-3">{a.fournisseur}</td>
+                <td className="py-2 px-3 text-gray-500">{getCategorie(a)}</td>
+                <td className="py-2 px-3">{a.nom}</td>
+                <td className="py-2 px-3 text-right font-mono">{a.qte}</td>
+                <td className="py-2 px-3 text-right font-mono">{fmtEur(a.prixUnitaire)}</td>
+                <td className="py-2 px-3 text-right font-mono font-semibold">{fmtEur(a.total)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
