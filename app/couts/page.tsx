@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { collection, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
+import { Treemap, ResponsiveContainer } from 'recharts';
 
 interface Achat {
   id: string;
@@ -179,6 +180,9 @@ export default function CoutsPage() {
         </div>
       </div>
 
+      {/* Treemaps */}
+      <CoutsTreemaps filtered={filtered} getCategorie={getCategorie} />
+
       {/* Tableau */}
       <div className="bg-white rounded-xl border border-yellow-100 overflow-x-auto">
         <table className="w-full text-sm">
@@ -212,6 +216,68 @@ export default function CoutsPage() {
             Chargement…
           </div>
         )}
+      </div>
+    </div>
+  );
+}
+
+const COLORS = ['#f87171','#fb923c','#fbbf24','#a3e635','#34d399','#22d3ee','#818cf8','#c084fc','#f472b6','#e879f9',
+  '#ef4444','#f97316','#eab308','#84cc16','#10b981','#06b6d4','#6366f1','#a855f7','#ec4899','#d946ef'];
+
+function TreemapCell({ x, y, width, height, name, value }: any) {
+  if (width < 30 || height < 20) return null;
+  return (
+    <g>
+      <rect x={x} y={y} width={width} height={height} rx={4}
+        fill={COLORS[Math.abs((name || '').charCodeAt(0) + (name || '').length) % COLORS.length]} fillOpacity={0.85} stroke="#fff" strokeWidth={2} />
+      {width > 50 && height > 30 && (
+        <>
+          <text x={x + 6} y={y + 16} fontSize={11} fontWeight={600} fill="#fff">{(name || '').slice(0, Math.floor(width / 7))}</text>
+          <text x={x + 6} y={y + 30} fontSize={10} fill="rgba(255,255,255,0.8)">{value?.toLocaleString('fr-FR')} €</text>
+        </>
+      )}
+    </g>
+  );
+}
+
+function CoutsTreemaps({ filtered, getCategorie }: { filtered: Achat[]; getCategorie: (a: Achat) => string }) {
+  const byProduit = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const a of filtered) {
+      m.set(a.nom, (m.get(a.nom) || 0) + a.total);
+    }
+    return [...m.entries()]
+      .map(([name, value]) => ({ name, value: Math.round(value) }))
+      .sort((a, b) => b.value - a.value)
+      .slice(0, 30);
+  }, [filtered]);
+
+  const byCategorie = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const a of filtered) {
+      const cat = getCategorie(a);
+      m.set(cat, (m.get(cat) || 0) + a.total);
+    }
+    return [...m.entries()]
+      .map(([name, value]) => ({ name, value: Math.round(value) }))
+      .sort((a, b) => b.value - a.value);
+  }, [filtered, getCategorie]);
+
+  if (filtered.length === 0) return null;
+
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="bg-white rounded-xl border border-yellow-100 p-5">
+        <h2 className="font-semibold mb-3">Top produits</h2>
+        <ResponsiveContainer width="100%" height={300}>
+          <Treemap data={byProduit} dataKey="value" nameKey="name" content={<TreemapCell />} />
+        </ResponsiveContainer>
+      </div>
+      <div className="bg-white rounded-xl border border-yellow-100 p-5">
+        <h2 className="font-semibold mb-3">Top catégories</h2>
+        <ResponsiveContainer width="100%" height={300}>
+          <Treemap data={byCategorie} dataKey="value" nameKey="name" content={<TreemapCell />} />
+        </ResponsiveContainer>
       </div>
     </div>
   );
