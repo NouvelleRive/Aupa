@@ -8,7 +8,7 @@
 
     const UNITES: Unite[] = ['kg', 'g', 'L', 'cL', 'pièce', 'lot'];
     const CATEGORIES: Categorie[] = ['viande', 'poisson', 'légume', 'fruit', 'laitage', 'épicerie salée', 'épicerie sucrée', 'boisson', 'consommable', 'autre'];
-    const FOURNISSEURS = ['Foodflow', 'Milliet', 'LBA', 'MPF', 'Lidl', 'Les Assembleurs'] as const;
+    const FOURNISSEURS = ['Foodflow', 'Milliet', 'LBA', 'MPF', 'Lidl', 'Les Assembleurs', 'Koro'] as const;
     const emptyForm = { nom: '', prix: '', unite: 'kg' as Unite, categorie: 'épicerie salée' as Categorie, rendement: '100', quantite: '1', fournisseur: '' };
 
     const detectUnite = (nom: string): Unite => {
@@ -1193,7 +1193,7 @@
                           fetchIngredients();
                         }}>
                         <option value="">— Non lié —</option>
-                        {Array.from(ingredientsMap.keys()).sort().map(nom => <option key={nom} value={nom}>{nom}</option>)}
+                        {Array.from(ingredientsMap.keys()).sort((a, b) => a.localeCompare(b, 'fr', { sensitivity: 'base' })).map(nom => <option key={nom} value={nom}>{nom}</option>)}
                       </select>
                     </td>
                     <td className="px-4 py-3 text-gray-500 text-xs">
