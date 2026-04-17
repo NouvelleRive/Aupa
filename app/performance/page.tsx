@@ -3,7 +3,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { collection, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend, CartesianGrid, Treemap } from 'recharts';
+import { CAISSE_MAP, normalizeCaisse } from '@/lib/caisseMap';
+import { ResponsiveContainer, Treemap } from 'recharts';
 
 type TvaBucket = { ht: number; tva: number; ttc: number };
 type Reduction = { type: string; pct: number; ht: number; tva: number; ttc: number };
@@ -34,12 +35,6 @@ interface Recette {
   id: string; nom: string; coutCalcule?: number; prixVente?: number; categorie?: string;
 }
 
-interface Achat {
-  date: string; // YYYY-MM-DD or ISO
-  total: number;
-  fournisseur: string;
-}
-
 // Seuils d'alerte (% du CA TTC)
 const SEUIL_REDUCTIONS = 3;     // > 3% du CA → rouge
 const SEUIL_ANNULATIONS = 2;    // > 2% du CA → rouge
@@ -61,24 +56,20 @@ export default function PerformancePage() {
   const [rapports, setRapports] = useState<Rapport[]>([]);
   const [ventes, setVentes] = useState<Vente[]>([]);
   const [recettes, setRecettes] = useState<Recette[]>([]);
-  const [achats, setAchats] = useState<Achat[]>([]);
   const [granularite, setGranularite] = useState<'jour' | 'semaine' | 'mois'>('semaine');
   const [bucket, setBucket] = useState<string>('all');
-  const [chartPeriod, setChartPeriod] = useState<string>('all');
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     (async () => {
-      const [rSnap, vSnap, recSnap, aSnap] = await Promise.all([
+      const [rSnap, vSnap, recSnap] = await Promise.all([
         getDocs(collection(db, 'rapportsJournaliers')),
         getDocs(collection(db, 'ventes')),
         getDocs(collection(db, 'recettes')),
-        getDocs(collection(db, 'achats')),
       ]);
       setRapports(rSnap.docs.map(d => d.data() as Rapport));
       setVentes(vSnap.docs.map(d => d.data() as Vente));
       setRecettes(recSnap.docs.map(d => ({ id: d.id, ...d.data() } as Recette)));
-      setAchats(aSnap.docs.map(d => d.data() as Achat));
       setLoading(false);
     })();
   }, []);
@@ -207,17 +198,47 @@ export default function PerformancePage() {
     return { ...agg, foodCost, margeBrute };
   }, [rapportsFiltrés, ventesFiltrées, coutParNom]);
 
-  // === Top produits ===
+  // Charger les matchings manuels caisse → recette
+  const [caisseMapLoaded, setCaisseMapLoaded] = useState(false);
+  useEffect(() => {
+    (async () => {
+      const snap = await getDocs(collection(db, 'caisseMapCustom'));
+      for (const d of snap.docs) {
+        const data = d.data();
+        if (data.caisse && data.recette) CAISSE_MAP[data.caisse] = data.recette;
+      }
+      setCaisseMapLoaded(true);
+    })();
+  }, []);
+
+  // Map ventes Popina → nom recette via CAISSE_MAP (matchings manuels)
+  const recetteNoms = useMemo(() => recettes.map(r => r.nom), [recettes]);
+
+  const matchVenteToRecette = (venteNom: string): string | null => {
+    const caisse = normalizeCaisse(venteNom);
+    const mapped = CAISSE_MAP[caisse];
+    if (mapped) {
+      for (const nom of recetteNoms) {
+        const recette = normalizeCaisse(nom).replace(/\s+(ete|hiver)$/, '');
+        if (recette === mapped) return nom;
+      }
+    }
+    return null;
+  };
+
+  // === Top produits (groupés par nom recette) ===
   const topProduits = useMemo(() => {
     const m = new Map<string, { nom: string; qty: number; ca: number }>();
     for (const v of ventesFiltrées) {
-      const e = m.get(v.nom) || { nom: v.nom, qty: 0, ca: 0 };
+      const recetteNom = matchVenteToRecette(v.nom) || v.nom;
+      const e = m.get(recetteNom) || { nom: recetteNom, qty: 0, ca: 0 };
       e.qty += v.quantity;
       e.ca += v.ttc;
-      m.set(v.nom, e);
+      m.set(recetteNom, e);
     }
     return Array.from(m.values()).sort((a, b) => b.qty - a.qty);
-  }, [ventesFiltrées]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ventesFiltrées, recetteNoms, caisseMapLoaded]);
 
   // === Alertes (% du CA TTC) ===
   const alertes = useMemo(() => {
@@ -232,44 +253,6 @@ export default function PerformancePage() {
     return out;
   }, [kpi]);
 
-  // === Graphique Ventes vs Achats par mois ===
-  const chartYears = useMemo(() => {
-    const years = new Set<string>();
-    for (const r of rapports) { if (r.mois) years.add(r.mois.slice(0, 4)); }
-    for (const a of achats) {
-      const d = a.date?.slice(0, 4);
-      if (d) years.add(d);
-    }
-    return ['all', ...Array.from(years).sort().reverse()];
-  }, [rapports, achats]);
-
-  const chartData = useMemo(() => {
-    // Agréger ventes (CA TTC) par mois depuis rapportsJournaliers
-    const ventesParMois = new Map<string, number>();
-    for (const r of rapports) {
-      const m = r.mois || r.date?.slice(0, 7);
-      if (!m) continue;
-      if (chartPeriod !== 'all' && !m.startsWith(chartPeriod)) continue;
-      ventesParMois.set(m, (ventesParMois.get(m) || 0) + (r.caTTC || 0));
-    }
-
-    // Agréger achats par mois
-    const achatsParMois = new Map<string, number>();
-    for (const a of achats) {
-      const d = a.date?.slice(0, 7);
-      if (!d) continue;
-      if (chartPeriod !== 'all' && !d.startsWith(chartPeriod)) continue;
-      achatsParMois.set(d, (achatsParMois.get(d) || 0) + (a.total || 0));
-    }
-
-    // Fusionner les mois
-    const allMonths = new Set([...ventesParMois.keys(), ...achatsParMois.keys()]);
-    return Array.from(allMonths).sort().map(m => ({
-      mois: m,
-      ventes: Math.round(ventesParMois.get(m) || 0),
-      achats: Math.round(achatsParMois.get(m) || 0),
-    }));
-  }, [rapports, achats, chartPeriod]);
 
   if (loading) {
     return <div className="max-w-6xl mx-auto p-6"><p className="text-gray-400">Chargement…</p></div>;
@@ -284,8 +267,6 @@ export default function PerformancePage() {
     );
   }
 
-  const pctFoodCost = kpi.caHT > 0 ? (kpi.foodCost / kpi.caHT) * 100 : 0;
-  const pctMarge = kpi.caHT > 0 ? (kpi.margeBrute / kpi.caHT) * 100 : 0;
   const ticketMoyen = kpi.couverts > 0 ? kpi.caTTC / kpi.couverts : 0;
   const pctFood = (kpi.foodCA + kpi.drinkCA) > 0 ? (kpi.foodCA / (kpi.foodCA + kpi.drinkCA)) * 100 : 0;
   const pctDrink = 100 - pctFood;
@@ -501,7 +482,10 @@ function TopTrois({ topProduits, foodCostPctParNom, recettes }: { topProduits: {
             {produitsAvecMarge.slice(0, showMarge).map((p, i) => (
               <div key={p.nom} className="flex justify-between border-b border-gray-50 py-1">
                 <span className="truncate mr-2"><span className="text-gray-400 text-xs mr-1">{i + 1}.</span>{p.nom}</span>
-                <span className="text-green-600 font-mono whitespace-nowrap">{fmtEur(p.marge)}</span>
+                <div className="flex gap-2 items-center">
+                  <span className={`text-xs ${p.foodCostPct > 32 ? 'text-red-400' : 'text-gray-400'}`}>FC {p.foodCostPct.toFixed(0)}%</span>
+                  <span className="text-green-600 font-mono whitespace-nowrap">{fmtEur(p.marge)}</span>
+                </div>
               </div>
             ))}
           </div>

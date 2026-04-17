@@ -196,8 +196,8 @@ async function main() {
     const downloadBtns = await page.$$('button:has(svg.lucide-download)');
     const numOrders = Math.floor(downloadBtns.length / 2);
 
-    // Télécharger les BL (index pair: 0, 2, 4...)
-    for (let i = 0; i < downloadBtns.length; i += 2) {
+    // Télécharger les FACTURES (index impair: 1, 3, 5...)
+    for (let i = 1; i < downloadBtns.length; i += 2) {
       try {
         const popupPromise = context.waitForEvent('page', { timeout: 10000 });
         await downloadBtns[i].click();

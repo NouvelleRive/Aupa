@@ -654,8 +654,9 @@
                             const isTopVendu = plat.vendus > 0 && i < topCount;
                             const isFlopVendu = plat.vendus > 0 && i >= nbAvecVentes - flopCount && !isTopVendu;
                             const isTopRenta = topRentaIdx.has(i);
+                            const isVege = plat.nom.toLowerCase().includes('lait végétal');
                             return (
-                                <tr key={i} className="hover:bg-yellow-50 transition-colors">
+                                <tr key={i} className={`transition-colors ${isVege ? 'bg-green-50/60 hover:bg-green-100/60' : 'hover:bg-yellow-50'}`}>
                                 <td className="px-4 py-3 font-medium">
                                     {plat.nom}
                                     {plat.nomsCaisse.length > 0 && <span className="ml-2 text-xs text-gray-400" title={plat.nomsCaisse.join(', ')}>({plat.nomsCaisse.join(', ')})</span>}
@@ -731,7 +732,7 @@
                                     setVentes([...ventes]);
                                 }}>
                                 <option value="">—</option>
-                                {allPlatsNoms.sort().map(n => <option key={n} value={n}>{n}</option>)}
+                                {allPlatsNoms.sort((a, b) => a.localeCompare(b, 'fr', { sensitivity: 'base' })).map(n => <option key={n} value={n}>{n}</option>)}
                                 </select>
                             </td>
                             </tr>
