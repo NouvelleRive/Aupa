@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { collection, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend, CartesianGrid } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend, CartesianGrid, Treemap } from 'recharts';
 
 type TvaBucket = { ht: number; tva: number; ttc: number };
 type Reduction = { type: string; pct: number; ht: number; tva: number; ttc: number };
@@ -405,58 +405,112 @@ export default function PerformancePage() {
       </div>
 
       {/* 3 tops côte à côte */}
+      <TopTrois topProduits={topProduits} coutParNom={coutParNom} />
+    </div>
+  );
+}
+
+const COLORS = ['#facc15','#f59e0b','#eab308','#d97706','#ca8a04','#b45309','#a16207','#92400e','#78350f','#713f12',
+  '#65a30d','#4ade80','#22c55e','#16a34a','#15803d','#166534','#14532d','#059669','#0d9488','#0891b2'];
+
+function TreemapContent({ x, y, width, height, name, value }: any) {
+  if (width < 40 || height < 25) return null;
+  return (
+    <g>
+      <rect x={x} y={y} width={width} height={height} rx={4}
+        fill={COLORS[Math.abs(name?.charCodeAt(0) || 0) % COLORS.length]} fillOpacity={0.85} stroke="#fff" strokeWidth={2} />
+      {width > 60 && height > 35 && (
+        <>
+          <text x={x + 6} y={y + 16} fontSize={11} fontWeight={600} fill="#fff">{(name || '').slice(0, Math.floor(width / 7))}</text>
+          <text x={x + 6} y={y + 30} fontSize={10} fill="rgba(255,255,255,0.8)">{value?.toFixed(0)} €</text>
+        </>
+      )}
+    </g>
+  );
+}
+
+function TopTrois({ topProduits, coutParNom }: { topProduits: { nom: string; qty: number; ca: number }[]; coutParNom: Map<string, number> }) {
+  const [showVendus, setShowVendus] = useState(10);
+  const [showCA, setShowCA] = useState(10);
+  const [showMarge, setShowMarge] = useState(10);
+
+  const topCA = useMemo(() => [...topProduits].sort((a, b) => (b.ca / 1.10) - (a.ca / 1.10)), [topProduits]);
+
+  const produitsAvecMarge = useMemo(() =>
+    topProduits
+      .map(p => {
+        const cu = coutParNom.get(p.nom.toLowerCase());
+        const foodCost = typeof cu === 'number' ? cu * p.qty : null;
+        const caHT = p.ca / 1.10;
+        const marge = foodCost !== null ? caHT - foodCost : null;
+        return { ...p, marge };
+      })
+      .filter((p): p is typeof p & { marge: number } => p.marge !== null && p.marge > 0)
+      .sort((a, b) => b.marge - a.marge),
+  [topProduits, coutParNom]);
+
+  const treemapData = useMemo(() =>
+    produitsAvecMarge.slice(0, 30).map(p => ({ name: p.nom, value: Math.round(p.marge) })),
+  [produitsAvecMarge]);
+
+  return (
+    <>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {/* Top vendus (quantité) */}
         <div className="bg-white rounded-xl border border-yellow-100 p-5">
           <h2 className="font-semibold mb-3">Top vendus</h2>
           <div className="space-y-1 text-sm">
-            {topProduits.slice(0, 15).map((p, i) => (
+            {topProduits.slice(0, showVendus).map((p, i) => (
               <div key={p.nom} className="flex justify-between border-b border-gray-50 py-1">
                 <span className="truncate mr-2"><span className="text-gray-400 text-xs mr-1">{i + 1}.</span>{p.nom}</span>
                 <span className="text-gray-500 font-mono whitespace-nowrap">{p.qty}</span>
               </div>
             ))}
           </div>
+          {showVendus < topProduits.length && (
+            <button onClick={() => setShowVendus(v => v + 15)} className="mt-2 text-xs text-yellow-600 hover:underline">Voir plus</button>
+          )}
         </div>
 
-        {/* Top CA HT */}
         <div className="bg-white rounded-xl border border-yellow-100 p-5">
           <h2 className="font-semibold mb-3">Top CA</h2>
           <div className="space-y-1 text-sm">
-            {[...topProduits].sort((a, b) => (b.ca / 1.10) - (a.ca / 1.10)).slice(0, 15).map((p, i) => (
+            {topCA.slice(0, showCA).map((p, i) => (
               <div key={p.nom} className="flex justify-between border-b border-gray-50 py-1">
                 <span className="truncate mr-2"><span className="text-gray-400 text-xs mr-1">{i + 1}.</span>{p.nom}</span>
                 <span className="text-gray-500 font-mono whitespace-nowrap">{fmtEur(p.ca / 1.10)}</span>
               </div>
             ))}
           </div>
+          {showCA < topCA.length && (
+            <button onClick={() => setShowCA(v => v + 15)} className="mt-2 text-xs text-yellow-600 hover:underline">Voir plus</button>
+          )}
         </div>
 
-        {/* Top marge (CA HT - food cost) */}
         <div className="bg-white rounded-xl border border-yellow-100 p-5">
           <h2 className="font-semibold mb-3">Top marge</h2>
           <div className="space-y-1 text-sm">
-            {[...topProduits]
-              .map(p => {
-                const cu = coutParNom.get(p.nom.toLowerCase());
-                const foodCost = typeof cu === 'number' ? cu * p.qty : null;
-                const caHT = p.ca / 1.10;
-                const marge = foodCost !== null ? caHT - foodCost : null;
-                return { ...p, marge };
-              })
-              .filter(p => p.marge !== null)
-              .sort((a, b) => (b.marge as number) - (a.marge as number))
-              .slice(0, 15)
-              .map((p, i) => (
-                <div key={p.nom} className="flex justify-between border-b border-gray-50 py-1">
-                  <span className="truncate mr-2"><span className="text-gray-400 text-xs mr-1">{i + 1}.</span>{p.nom}</span>
-                  <span className="text-green-600 font-mono whitespace-nowrap">{fmtEur(p.marge as number)}</span>
-                </div>
-              ))}
+            {produitsAvecMarge.slice(0, showMarge).map((p, i) => (
+              <div key={p.nom} className="flex justify-between border-b border-gray-50 py-1">
+                <span className="truncate mr-2"><span className="text-gray-400 text-xs mr-1">{i + 1}.</span>{p.nom}</span>
+                <span className="text-green-600 font-mono whitespace-nowrap">{fmtEur(p.marge)}</span>
+              </div>
+            ))}
           </div>
+          {showMarge < produitsAvecMarge.length && (
+            <button onClick={() => setShowMarge(v => v + 15)} className="mt-2 text-xs text-yellow-600 hover:underline">Voir plus</button>
+          )}
         </div>
       </div>
-    </div>
+
+      {treemapData.length > 0 && (
+        <div className="bg-white rounded-xl border border-yellow-100 p-5">
+          <h2 className="font-semibold mb-3">Répartition marge par produit</h2>
+          <ResponsiveContainer width="100%" height={400}>
+            <Treemap data={treemapData} dataKey="value" nameKey="name" content={<TreemapContent />} />
+          </ResponsiveContainer>
+        </div>
+      )}
+    </>
   );
 }
 
