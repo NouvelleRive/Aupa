@@ -96,7 +96,7 @@ export default function PerformancePage() {
   const foodCostPctParNom = useMemo(() => {
     const m = new Map<string, number>();
     for (const r of recettes) {
-      if (r.nom && typeof r.coutCalcule === 'number' && typeof r.prixVente === 'number' && r.prixVente > 0) {
+      if (r.nom && typeof r.coutCalcule === 'number' && r.coutCalcule > 0 && typeof r.prixVente === 'number' && r.prixVente > 0) {
         const prixHT = r.prixVente / 1.10;
         const pct = r.coutCalcule / prixHT;
         m.set(r.nom.toLowerCase(), pct);
@@ -433,11 +433,11 @@ function TopTrois({ topProduits, foodCostPctParNom, recettes }: { topProduits: {
     topProduits
       .map(p => {
         const pct = foodCostPctParNom.get(p.nom.toLowerCase());
-        if (typeof pct !== 'number') return null;
+        if (typeof pct !== 'number' || pct <= 0) return null;
         const caHT = p.ca / 1.10;
         const marge = caHT * (1 - pct);
         const cat = catParNom.get(p.nom.toLowerCase()) || '—';
-        return { ...p, marge, cat };
+        return { ...p, marge, foodCostPct: pct * 100, cat };
       })
       .filter((p): p is NonNullable<typeof p> => p !== null && p.marge > 0)
       .sort((a, b) => b.marge - a.marge),
