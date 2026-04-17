@@ -404,50 +404,57 @@ export default function PerformancePage() {
         <Kpi label="% clients dessert" value={fmtPct(pctDesserts)} sub={`${kpi.nbDesserts} desserts`} />
       </div>
 
-      {/* Top produits */}
-      <div className="bg-white rounded-xl border border-yellow-100 p-5">
-        <h2 className="font-semibold mb-3">Top produits vendus</h2>
-        <div className="space-y-1 text-sm">
-          {topProduits.slice(0, 20).map(p => (
-            <div key={p.nom} className="flex justify-between border-b border-gray-50 py-1">
-              <span>{p.nom}</span>
-              <span className="text-gray-500 font-mono">{p.qty} · {fmtEur(p.ca)}</span>
-            </div>
-          ))}
+      {/* 3 tops côte à côte */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {/* Top vendus (quantité) */}
+        <div className="bg-white rounded-xl border border-yellow-100 p-5">
+          <h2 className="font-semibold mb-3">Top vendus</h2>
+          <div className="space-y-1 text-sm">
+            {topProduits.slice(0, 15).map((p, i) => (
+              <div key={p.nom} className="flex justify-between border-b border-gray-50 py-1">
+                <span className="truncate mr-2"><span className="text-gray-400 text-xs mr-1">{i + 1}.</span>{p.nom}</span>
+                <span className="text-gray-500 font-mono whitespace-nowrap">{p.qty}</span>
+              </div>
+            ))}
+          </div>
         </div>
-      </div>
 
-      {/* Détail par produit (rapport style Popina) */}
-      <div className="bg-white rounded-xl border border-yellow-100 p-5">
-        <h2 className="font-semibold mb-3">Détail ventes par produit</h2>
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="text-left text-xs text-gray-400 border-b border-gray-100">
-              <th className="py-2">Produit</th>
-              <th className="text-right">Qty</th>
-              <th className="text-right">CA TTC</th>
-              <th className="text-right">Food cost</th>
-              <th className="text-right">Marge</th>
-            </tr>
-          </thead>
-          <tbody>
-            {topProduits.map(p => {
-              const cu = coutParNom.get(p.nom.toLowerCase());
-              const foodCost = typeof cu === 'number' ? cu * p.qty : null;
-              const caHT = p.ca / 1.10; // approximation food 10% — note : la TVA exacte vient des rapports journaliers
-              const marge = foodCost !== null ? caHT - foodCost : null;
-              return (
-                <tr key={p.nom} className="border-b border-gray-50">
-                  <td className="py-2">{p.nom}</td>
-                  <td className="text-right font-mono">{p.qty}</td>
-                  <td className="text-right font-mono">{fmtEur(p.ca)}</td>
-                  <td className="text-right font-mono text-gray-500">{foodCost !== null ? fmtEur(foodCost) : '—'}</td>
-                  <td className={`text-right font-mono ${marge !== null && marge > 0 ? 'text-green-600' : 'text-gray-400'}`}>{marge !== null ? fmtEur(marge) : '—'}</td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+        {/* Top CA HT */}
+        <div className="bg-white rounded-xl border border-yellow-100 p-5">
+          <h2 className="font-semibold mb-3">Top CA</h2>
+          <div className="space-y-1 text-sm">
+            {[...topProduits].sort((a, b) => (b.ca / 1.10) - (a.ca / 1.10)).slice(0, 15).map((p, i) => (
+              <div key={p.nom} className="flex justify-between border-b border-gray-50 py-1">
+                <span className="truncate mr-2"><span className="text-gray-400 text-xs mr-1">{i + 1}.</span>{p.nom}</span>
+                <span className="text-gray-500 font-mono whitespace-nowrap">{fmtEur(p.ca / 1.10)}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Top marge (CA HT - food cost) */}
+        <div className="bg-white rounded-xl border border-yellow-100 p-5">
+          <h2 className="font-semibold mb-3">Top marge</h2>
+          <div className="space-y-1 text-sm">
+            {[...topProduits]
+              .map(p => {
+                const cu = coutParNom.get(p.nom.toLowerCase());
+                const foodCost = typeof cu === 'number' ? cu * p.qty : null;
+                const caHT = p.ca / 1.10;
+                const marge = foodCost !== null ? caHT - foodCost : null;
+                return { ...p, marge };
+              })
+              .filter(p => p.marge !== null)
+              .sort((a, b) => (b.marge as number) - (a.marge as number))
+              .slice(0, 15)
+              .map((p, i) => (
+                <div key={p.nom} className="flex justify-between border-b border-gray-50 py-1">
+                  <span className="truncate mr-2"><span className="text-gray-400 text-xs mr-1">{i + 1}.</span>{p.nom}</span>
+                  <span className="text-green-600 font-mono whitespace-nowrap">{fmtEur(p.marge as number)}</span>
+                </div>
+              ))}
+          </div>
+        </div>
       </div>
     </div>
   );
