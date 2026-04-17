@@ -497,6 +497,17 @@ function TopTrois({ topProduits, foodCostPctParNom, recettes }: { topProduits: {
 
         <div className="bg-white rounded-xl border border-yellow-100 p-5">
           <h2 className="font-semibold mb-3">Top marge</h2>
+          <div className="space-y-1 text-sm">
+            {produitsAvecMarge.slice(0, showMarge).map((p, i) => (
+              <div key={p.nom} className="flex justify-between border-b border-gray-50 py-1">
+                <span className="truncate mr-2"><span className="text-gray-400 text-xs mr-1">{i + 1}.</span>{p.nom}</span>
+                <span className="text-green-600 font-mono whitespace-nowrap">{fmtEur(p.marge)}</span>
+              </div>
+            ))}
+          </div>
+          {showMarge < produitsAvecMarge.length && (
+            <button onClick={() => setShowMarge(v => v + 15)} className="mt-2 text-xs text-yellow-600 hover:underline">Voir plus</button>
+          )}
         </div>
       </div>
 
