@@ -31,7 +31,7 @@ interface Vente {
 }
 
 interface Recette {
-  id: string; nom: string; coutCalcule?: number; prixVente?: number;
+  id: string; nom: string; coutCalcule?: number; prixVente?: number; categorie?: string;
 }
 
 interface Achat {
@@ -294,33 +294,6 @@ export default function PerformancePage() {
 
   return (
     <div className="max-w-6xl mx-auto p-6 space-y-6">
-      {/* Graphique Ventes vs Achats */}
-      {chartData.length > 0 && (
-        <div className="bg-white rounded-xl border border-yellow-100 p-5">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="font-semibold">Ventes vs Achats</h2>
-            <div className="flex gap-1">
-              {chartYears.map(y => (
-                <button key={y} onClick={() => setChartPeriod(y)}
-                  className={`px-3 py-1 rounded-full text-xs font-medium border ${chartPeriod === y ? 'bg-black border-black text-white' : 'border-gray-200 text-gray-500'}`}>
-                  {y === 'all' ? 'Tout' : y}
-                </button>
-              ))}
-            </div>
-          </div>
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={chartData} barGap={2}>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} />
-              <XAxis dataKey="mois" tick={{ fontSize: 11 }} />
-              <YAxis tick={{ fontSize: 11 }} tickFormatter={v => `${(v / 1000).toFixed(0)}k`} />
-              <Tooltip formatter={(v) => `${Number(v).toLocaleString('fr-FR')} €`} />
-              <Legend />
-              <Bar dataKey="ventes" name="Ventes (CA TTC)" fill="#facc15" radius={[4, 4, 0, 0]} />
-              <Bar dataKey="achats" name="Achats fournisseurs" fill="#f87171" radius={[4, 4, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-      )}
 
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">Performance</h1>
@@ -367,7 +340,7 @@ export default function PerformancePage() {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <Kpi label="CA TTC" value={fmtEur(kpi.caTTC)} />
         <Kpi label="CA HT" value={fmtEur(kpi.caHT)} />
-        <Kpi label="Marge brute" value={fmtEur(kpi.margeBrute)} sub={`${fmtPct(pctMarge)} · Food cost ${fmtPct(pctFoodCost)}`} />
+        <Kpi label="Commandes" value={`${kpi.commandes}`} />
         <Kpi label="Ticket moyen" value={fmtEur(ticketMoyen)} sub={`${kpi.couverts} couverts`} />
       </div>
 
@@ -418,7 +391,7 @@ export default function PerformancePage() {
       </div>
 
       {/* 3 tops côte à côte */}
-      <TopTrois topProduits={topProduits} coutParNom={coutParNom} foodCostPctParNom={foodCostPctParNom} />
+      <TopTrois topProduits={topProduits} foodCostPctParNom={foodCostPctParNom} recettes={recettes} />
     </div>
   );
 }
@@ -442,15 +415,20 @@ function TreemapContent({ x, y, width, height, name, value }: any) {
   );
 }
 
-function TopTrois({ topProduits, coutParNom, foodCostPctParNom }: { topProduits: { nom: string; qty: number; ca: number }[]; coutParNom: Map<string, number>; foodCostPctParNom: Map<string, number> }) {
+function TopTrois({ topProduits, foodCostPctParNom, recettes }: { topProduits: { nom: string; qty: number; ca: number }[]; foodCostPctParNom: Map<string, number>; recettes: Recette[] }) {
   const [showVendus, setShowVendus] = useState(10);
   const [showCA, setShowCA] = useState(10);
   const [showMarge, setShowMarge] = useState(10);
+  const [treemapCat, setTreemapCat] = useState<string | null>(null);
+
+  const catParNom = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const r of recettes) { if (r.nom && r.categorie) m.set(r.nom.toLowerCase(), r.categorie); }
+    return m;
+  }, [recettes]);
 
   const topCA = useMemo(() => [...topProduits].sort((a, b) => (b.ca / 1.10) - (a.ca / 1.10)), [topProduits]);
 
-  // Marge = CA HT × (1 - food cost %)
-  // food cost % = coutCalcule / prixVente HT (depuis les recettes)
   const produitsAvecMarge = useMemo(() =>
     topProduits
       .map(p => {
@@ -458,15 +436,31 @@ function TopTrois({ topProduits, coutParNom, foodCostPctParNom }: { topProduits:
         if (typeof pct !== 'number') return null;
         const caHT = p.ca / 1.10;
         const marge = caHT * (1 - pct);
-        return { ...p, marge };
+        const cat = catParNom.get(p.nom.toLowerCase()) || '—';
+        return { ...p, marge, cat };
       })
       .filter((p): p is NonNullable<typeof p> => p !== null && p.marge > 0)
       .sort((a, b) => b.marge - a.marge),
-  [topProduits, foodCostPctParNom]);
+  [topProduits, foodCostPctParNom, catParNom]);
 
-  const treemapData = useMemo(() =>
-    produitsAvecMarge.slice(0, 30).map(p => ({ name: p.nom, value: Math.round(p.marge) })),
-  [produitsAvecMarge]);
+  // Treemap global par catégorie
+  const treemapCategories = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const p of produitsAvecMarge) {
+      m.set(p.cat, (m.get(p.cat) || 0) + p.marge);
+    }
+    return [...m.entries()].map(([name, value]) => ({ name, value: Math.round(value) })).sort((a, b) => b.value - a.value);
+  }, [produitsAvecMarge]);
+
+  // Treemap détail pour une catégorie
+  const treemapProduits = useMemo(() => {
+    if (!treemapCat) return [];
+    return produitsAvecMarge
+      .filter(p => p.cat === treemapCat)
+      .map(p => ({ name: p.nom, value: Math.round(p.marge) }));
+  }, [produitsAvecMarge, treemapCat]);
+
+  const treemapData = treemapCat ? treemapProduits : treemapCategories;
 
   return (
     <>
@@ -503,25 +497,28 @@ function TopTrois({ topProduits, coutParNom, foodCostPctParNom }: { topProduits:
 
         <div className="bg-white rounded-xl border border-yellow-100 p-5">
           <h2 className="font-semibold mb-3">Top marge</h2>
-          <div className="space-y-1 text-sm">
-            {produitsAvecMarge.slice(0, showMarge).map((p, i) => (
-              <div key={p.nom} className="flex justify-between border-b border-gray-50 py-1">
-                <span className="truncate mr-2"><span className="text-gray-400 text-xs mr-1">{i + 1}.</span>{p.nom}</span>
-                <span className="text-green-600 font-mono whitespace-nowrap">{fmtEur(p.marge)}</span>
-              </div>
-            ))}
-          </div>
-          {showMarge < produitsAvecMarge.length && (
-            <button onClick={() => setShowMarge(v => v + 15)} className="mt-2 text-xs text-yellow-600 hover:underline">Voir plus</button>
-          )}
         </div>
       </div>
 
       {treemapData.length > 0 && (
         <div className="bg-white rounded-xl border border-yellow-100 p-5">
-          <h2 className="font-semibold mb-3">Répartition marge par produit</h2>
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="font-semibold">
+              {treemapCat ? `Marge — ${treemapCat}` : 'Répartition marge par catégorie'}
+            </h2>
+            {treemapCat && (
+              <button onClick={() => setTreemapCat(null)} className="text-xs text-yellow-600 hover:underline">← Toutes les catégories</button>
+            )}
+          </div>
           <ResponsiveContainer width="100%" height={400}>
-            <Treemap data={treemapData} dataKey="value" nameKey="name" content={<TreemapContent />} />
+            <Treemap
+              data={treemapData}
+              dataKey="value"
+              nameKey="name"
+              content={<TreemapContent />}
+              onClick={!treemapCat ? (node: any) => { if (node?.name) setTreemapCat(node.name); } : undefined}
+              style={!treemapCat ? { cursor: 'pointer' } : undefined}
+            />
           </ResponsiveContainer>
         </div>
       )}
