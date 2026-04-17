@@ -440,9 +440,11 @@ function TopTrois({ topProduits, coutParNom }: { topProduits: { nom: string; qty
     topProduits
       .map(p => {
         const cu = coutParNom.get(p.nom.toLowerCase());
-        const foodCost = typeof cu === 'number' ? cu * p.qty : null;
+        // Exclure si pas de food cost ou food cost = 0 (non renseigné)
+        if (typeof cu !== 'number' || cu <= 0) return { ...p, marge: null };
+        const foodCost = cu * p.qty;
         const caHT = p.ca / 1.10;
-        const marge = foodCost !== null ? caHT - foodCost : null;
+        const marge = caHT - foodCost;
         return { ...p, marge };
       })
       .filter((p): p is typeof p & { marge: number } => p.marge !== null && p.marge > 0)
