@@ -31,7 +31,7 @@ interface Vente {
 }
 
 interface Recette {
-  id: string; nom: string; coutCalcule?: number;
+  id: string; nom: string; coutCalcule?: number; prixVente?: number;
 }
 
 interface Achat {
@@ -54,7 +54,7 @@ function isoWeek(dateStr: string): string {
   return `${d.getUTCFullYear()}-W${String(week).padStart(2, '0')}`;
 }
 
-const fmtEur = (n: number) => `${n.toFixed(2).replace('.', ',')} €`;
+const fmtEur = (n: number) => `${Math.round(n).toLocaleString('fr-FR')} €`;
 const fmtPct = (n: number) => `${n.toFixed(1)}%`;
 
 export default function PerformancePage() {
@@ -88,6 +88,19 @@ export default function PerformancePage() {
     const m = new Map<string, number>();
     for (const r of recettes) {
       if (r.nom && typeof r.coutCalcule === 'number') m.set(r.nom.toLowerCase(), r.coutCalcule);
+    }
+    return m;
+  }, [recettes]);
+
+  // Map nom → food cost % (coutCalcule / prixVente HT)
+  const foodCostPctParNom = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const r of recettes) {
+      if (r.nom && typeof r.coutCalcule === 'number' && typeof r.prixVente === 'number' && r.prixVente > 0) {
+        const prixHT = r.prixVente / 1.10;
+        const pct = r.coutCalcule / prixHT;
+        m.set(r.nom.toLowerCase(), pct);
+      }
     }
     return m;
   }, [recettes]);
@@ -405,7 +418,7 @@ export default function PerformancePage() {
       </div>
 
       {/* 3 tops côte à côte */}
-      <TopTrois topProduits={topProduits} coutParNom={coutParNom} />
+      <TopTrois topProduits={topProduits} coutParNom={coutParNom} foodCostPctParNom={foodCostPctParNom} />
     </div>
   );
 }
@@ -429,27 +442,27 @@ function TreemapContent({ x, y, width, height, name, value }: any) {
   );
 }
 
-function TopTrois({ topProduits, coutParNom }: { topProduits: { nom: string; qty: number; ca: number }[]; coutParNom: Map<string, number> }) {
+function TopTrois({ topProduits, coutParNom, foodCostPctParNom }: { topProduits: { nom: string; qty: number; ca: number }[]; coutParNom: Map<string, number>; foodCostPctParNom: Map<string, number> }) {
   const [showVendus, setShowVendus] = useState(10);
   const [showCA, setShowCA] = useState(10);
   const [showMarge, setShowMarge] = useState(10);
 
   const topCA = useMemo(() => [...topProduits].sort((a, b) => (b.ca / 1.10) - (a.ca / 1.10)), [topProduits]);
 
+  // Marge = CA HT × (1 - food cost %)
+  // food cost % = coutCalcule / prixVente HT (depuis les recettes)
   const produitsAvecMarge = useMemo(() =>
     topProduits
       .map(p => {
-        const cu = coutParNom.get(p.nom.toLowerCase());
-        // Exclure si pas de food cost ou food cost = 0 (non renseigné)
-        if (typeof cu !== 'number' || cu <= 0) return { ...p, marge: null };
-        const foodCost = cu * p.qty;
+        const pct = foodCostPctParNom.get(p.nom.toLowerCase());
+        if (typeof pct !== 'number') return null;
         const caHT = p.ca / 1.10;
-        const marge = caHT - foodCost;
+        const marge = caHT * (1 - pct);
         return { ...p, marge };
       })
-      .filter((p): p is typeof p & { marge: number } => p.marge !== null && p.marge > 0)
+      .filter((p): p is NonNullable<typeof p> => p !== null && p.marge > 0)
       .sort((a, b) => b.marge - a.marge),
-  [topProduits, coutParNom]);
+  [topProduits, foodCostPctParNom]);
 
   const treemapData = useMemo(() =>
     produitsAvecMarge.slice(0, 30).map(p => ({ name: p.nom, value: Math.round(p.marge) })),
