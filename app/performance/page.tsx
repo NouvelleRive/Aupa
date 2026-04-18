@@ -371,16 +371,16 @@ export default function PerformancePage() {
       <TopTrois topProduits={topProduits} coutParNom={coutParNom} recettes={recettes} />
 
       {/* Détail des ventes — infinite scroll */}
-      <VentesDetail ventes={ventesFiltrées} matchVente={matchVenteToRecette} recetteNoms={recetteNoms} caisseMapLoaded={caisseMapLoaded} />
+      <VentesDetail ventes={ventesFiltrées} matchVente={matchVenteToRecette} recetteNoms={recetteNoms} onMapUpdated={() => setCaisseMapLoaded(v => !v)} />
     </div>
   );
 }
 
-function VentesDetail({ ventes, matchVente, recetteNoms, caisseMapLoaded }: {
+function VentesDetail({ ventes, matchVente, recetteNoms, onMapUpdated }: {
   ventes: Vente[];
   matchVente: (nom: string) => string | null;
   recetteNoms: string[];
-  caisseMapLoaded: boolean;
+  onMapUpdated: () => void;
 }) {
   const PAGE_SIZE = 50;
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
@@ -439,6 +439,7 @@ function VentesDetail({ ventes, matchVente, recetteNoms, caisseMapLoaded }: {
                     <VenteAttribution
                       venteNom={v.nom}
                       recetteNoms={recetteNoms}
+                      onMapped={onMapUpdated}
                     />
                   )}
                 </td>
@@ -458,7 +459,7 @@ function VentesDetail({ ventes, matchVente, recetteNoms, caisseMapLoaded }: {
   );
 }
 
-function VenteAttribution({ venteNom, recetteNoms }: { venteNom: string; recetteNoms: string[] }) {
+function VenteAttribution({ venteNom, recetteNoms, onMapped }: { venteNom: string; recetteNoms: string[]; onMapped: () => void }) {
   const [saving, setSaving] = useState(false);
 
   const handleChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -475,6 +476,7 @@ function VenteAttribution({ venteNom, recetteNoms }: { venteNom: string; recette
       recetteNom,
     });
     setSaving(false);
+    onMapped();
   };
 
   return (
