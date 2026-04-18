@@ -362,33 +362,44 @@ export default function RecettesPage() {
     return pf.prix / qte / (pf.rendement || 1);
   };
 
-  const getPrixProduitFournisseur = (ingredientId: string): number => {
-    // Cherche dans produitsFournisseurs les produits liés à cet ingrédient canonique par ingredientId
+  const uniteNormPF = (pf: any): string => {
+    const u = pf?.unite || 'kg';
+    return u === 'g' ? 'kg' : u === 'cL' ? 'L' : u;
+  };
+
+  const getPrixProduitFournisseur = (ingredientId: string): { prix: number; unite: string } => {
+    const ingCanon = ingredients.find(i => i.id === ingredientId);
+    // Utiliser le PF de référence si défini
+    const refId = (ingCanon as any)?.fournisseurRefId;
+    if (refId) {
+      const refPf = produitsFournisseurs.find(pf => pf.id === refId);
+      if (refPf) return { prix: prixUnitPF(refPf), unite: uniteNormPF(refPf) };
+    }
+    // Fallback : chercher par ingredientId, le plus récent
     const pfs = produitsFournisseurs.filter(pf => pf.ingredientId === ingredientId);
     if (pfs.length > 0) {
       const plusRecent = pfs.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())[0];
-      return prixUnitPF(plusRecent);
+      return { prix: prixUnitPF(plusRecent), unite: uniteNormPF(plusRecent) };
     }
-    // Fallback : chercher par le champ ingredient (nom canonique) via l'ingrédient canonique
-    const ingCanon = ingredients.find(i => i.id === ingredientId);
+    // Fallback : chercher par nom
     if (ingCanon) {
       const pfsByNom = produitsFournisseurs.filter(pf => (pf as any).ingredient === ingCanon.nom);
       if (pfsByNom.length > 0) {
         const plusRecent = pfsByNom.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())[0];
-        return prixUnitPF(plusRecent);
+        return { prix: prixUnitPF(plusRecent), unite: uniteNormPF(plusRecent) };
       }
     }
     // Fallback : chercher directement par id
     const directMatch = produitsFournisseurs.find(pf => pf.id === ingredientId);
-    if (directMatch) return prixUnitPF(directMatch);
-    return 0;
+    if (directMatch) return { prix: prixUnitPF(directMatch), unite: uniteNormPF(directMatch) };
+    return { prix: 0, unite: 'kg' };
   };
 
   const calculerCout = () => {
     const coutLignes = lignes.reduce((total, ligne) => {
       const grammage = toBase(parseFloat(ligne.grammage) || 0, ligne.unite || 'kg');
       if (ligne.type === 'ingredient') {
-        const prix = getPrixProduitFournisseur(ligne.id);
+        const { prix } = getPrixProduitFournisseur(ligne.id);
         return total + prix * grammage;
       } else {
         const prep = recettes.find(p => p.id === ligne.id) as any;
@@ -693,14 +704,14 @@ export default function RecettesPage() {
                 const ingCanon = ingredients.find(x => x.id === ligne.id);
                 const prep = recettes.find(x => x.id === ligne.id) as any;
                 const grammageBase = toBase(parseFloat(ligne.grammage) || 0, ligne.unite || 'kg');
-                const prixUnit = ligne.type === 'ingredient' ? getPrixProduitFournisseur(ligne.id) : 0;
+                const pfData = ligne.type === 'ingredient' ? getPrixProduitFournisseur(ligne.id) : { prix: 0, unite: 'kg' };
                 const coutLigne = ligne.type === 'ingredient'
-                  ? prixUnit * grammageBase
+                  ? pfData.prix * grammageBase
                   : ligne.type === 'preparation' && prep?.coutAuKg
                   ? prep.coutAuKg * grammageBase
                   : 0;
-                const prixLabel = ligne.type === 'ingredient' && prixUnit > 0
-                  ? `${prixUnit.toFixed(2)} €/${ingCanon?.unite || 'kg'}`
+                const prixLabel = ligne.type === 'ingredient' && pfData.prix > 0
+                  ? `${pfData.prix.toFixed(2)} €/${pfData.unite}`
                   : ligne.type === 'preparation' && prep?.coutAuKg
                   ? `${prep.coutAuKg.toFixed(2)} €/kg`
                   : null;
@@ -808,7 +819,7 @@ export default function RecettesPage() {
                 }
               }
               if (i.ingredientId) {
-                const prix = getPrixProduitFournisseur(i.ingredientId);
+                const { prix } = getPrixProduitFournisseur(i.ingredientId);
                 if (prix > 0) return total + prix * i.grammage;
               }
               return total;
