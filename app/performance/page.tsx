@@ -111,26 +111,35 @@ export default function PerformancePage() {
     return { label: 'N-1', dateDebut: shift(timePeriod.dateDebut), dateFin: shift(timePeriod.dateFin) };
   }, [timePeriod]);
 
-  const rapportsN1 = useMemo(() => {
+  const ventesN1 = useMemo(() => {
     if (!periodN1) return [];
-    return rapports.filter(r => isInPeriod(r.date, periodN1));
-  }, [rapports, periodN1]);
+    return ventes.filter(v => {
+      const d = v.jour || v.mois;
+      return isInPeriod(d, periodN1);
+    });
+  }, [ventes, periodN1]);
 
   const caNMoins1 = useMemo((): number | null => {
-    if (rapportsN1.length === 0) return null;
-    return rapportsN1.reduce((s, r) => s + (r.caTTC || 0), 0);
-  }, [rapportsN1]);
+    if (ventesN1.length === 0) return null;
+    return ventesN1.reduce((s, v) => s + (v.ttc || 0), 0);
+  }, [ventesN1]);
 
-  // === KPIs agrégés ===
+  // === KPIs agrégés — CA depuis les ventes, le reste depuis les rapports ===
   const kpi = useMemo(() => {
+    // CA depuis les ventes (source de vérité)
+    let caTTC = 0;
+    for (const v of ventesFiltrées) {
+      caTTC += v.ttc || 0;
+    }
+    const caHT = caTTC / 1.10; // approximation standard
+
+    // Infos complémentaires depuis les rapports (couverts, commandes, réductions...)
     const agg = {
-      caTTC: 0, caHT: 0, couverts: 0, commandes: 0,
+      couverts: 0, commandes: 0,
       reductions: 0, reductionsOfferts: 0, annulations: 0, pourboires: 0,
       foodCA: 0, drinkCA: 0, nbEntrees: 0, nbDesserts: 0, nbPlats: 0,
     };
     for (const r of rapportsFiltrés) {
-      agg.caTTC += r.caTTC || 0;
-      agg.caHT += r.caHT || 0;
       agg.couverts += r.couverts || 0;
       agg.commandes += r.commandes || 0;
       agg.reductions += r.reductionsTotal?.ttc || 0;
@@ -146,7 +155,6 @@ export default function PerformancePage() {
         else agg.foodCA += stat.ca;
         if (n === 'entrées' || n === 'entrees') agg.nbEntrees += stat.qty;
         else if (n === 'desserts') agg.nbDesserts += stat.qty;
-        // Nb personnes = plats principaux (plats + crogers/bols)
         if (n === 'plats' || n === 'aupa croissant burger eat') agg.nbPlats += stat.qty;
       }
     }
@@ -156,8 +164,8 @@ export default function PerformancePage() {
       const c = coutParNom.get(v.nom.toLowerCase());
       if (typeof c === 'number') foodCost += c * v.quantity;
     }
-    const margeBrute = agg.caHT - foodCost;
-    return { ...agg, foodCost, margeBrute };
+    const margeBrute = caHT - foodCost;
+    return { caTTC, caHT, ...agg, foodCost, margeBrute };
   }, [rapportsFiltrés, ventesFiltrées, coutParNom]);
 
   // Charger les matchings manuels caisse → recette

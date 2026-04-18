@@ -96,7 +96,7 @@ export default function TimePeriodFilter({ availableDates, value, onChange }: Ti
       onChange(null); // deselect
     } else {
       onChange({ label, dateDebut, dateFin });
-      setExpandedYear(null);
+      // Ne pas fermer les mois quand on sélectionne un mois
     }
   };
 
