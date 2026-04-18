@@ -34,7 +34,7 @@ export default function IngredientsPage() {
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ nom: '', unite: 'kg' as Unite, categorie: 'épicerie salée' as Categorie });
   const [editId, setEditId] = useState<string | null>(null);
-  const [pfOptions, setPfOptions] = useState<Record<string, { id: string; nom: string; fournisseur: string; prixUnit: number }[]>>({});
+  const [pfOptions, setPfOptions] = useState<Record<string, { id: string; nom: string; fournisseur: string; prixUnit: number; unite: string }[]>>({});
   const [pfPrix, setPfPrix] = useState<Record<string, { prix: number; unite: string }>>({});
   const [recetteNames, setRecetteNames] = useState<Record<string, string[]>>({});
 
@@ -101,7 +101,7 @@ export default function IngredientsPage() {
     };
 
     // Collecter les produits fournisseurs liés (pour bruts uniquement)
-    const pfOpts: Record<string, { id: string; nom: string; fournisseur: string; prixUnit: number }[]> = {};
+    const pfOpts: Record<string, { id: string; nom: string; fournisseur: string; prixUnit: number; unite: string }[]> = {};
     for (const d of pfSnap.docs) {
       const data = d.data();
       const nomIngredient = data.ingredient;
@@ -113,7 +113,8 @@ export default function IngredientsPage() {
           const fournisseur = data.fournisseur || (data.foodflowCode ? 'Foodflow' : data.millietCode ? 'Milliet' : data.lbaCode ? 'LBA' : '');
           const qte = convertQte(data.quantite || data.nbKg || data.nbPieces || 1, data.unite || 'kg');
           const prixUnit = data.prix / qte / (data.rendement || 1);
-          pfOpts[ing.id].push({ id: d.id, nom: nomProduit, fournisseur, prixUnit });
+          const uniteNormPf = (data.unite || 'kg') === 'g' ? 'kg' : (data.unite || 'kg') === 'cL' ? 'L' : (data.unite || 'kg');
+          pfOpts[ing.id].push({ id: d.id, nom: nomProduit, fournisseur, prixUnit, unite: uniteNormPf });
         }
       }
     }
@@ -181,7 +182,12 @@ export default function IngredientsPage() {
   };
 
   const handleSetFournisseurRef = async (ingId: string, pfId: string) => {
-    await updateDoc(doc(db, 'ingredients', ingId), { fournisseurRefId: pfId || null });
+    const updateData: Record<string, any> = { fournisseurRefId: pfId || null };
+    if (pfId) {
+      const pf = pfOptions[ingId]?.find(p => p.id === pfId);
+      if (pf) updateData.unite = pf.unite;
+    }
+    await updateDoc(doc(db, 'ingredients', ingId), updateData);
     await recalculerTousLesCouts();
     fetchAll();
   };
