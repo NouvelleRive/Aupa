@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useCallback, useRef, useState } from 'react';
-import { collection, getDocs } from 'firebase/firestore';
+import { collection, getDocs, addDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { CAISSE_MAP, normalizeCaisse } from '@/lib/caisseMap';
 import { MenuDoc } from '@/lib/menuTypes';
@@ -371,12 +371,17 @@ export default function PerformancePage() {
       <TopTrois topProduits={topProduits} coutParNom={coutParNom} recettes={recettes} />
 
       {/* Détail des ventes — infinite scroll */}
-      <VentesDetail ventes={ventesFiltrées} />
+      <VentesDetail ventes={ventesFiltrées} matchVente={matchVenteToRecette} recetteNoms={recetteNoms} caisseMapLoaded={caisseMapLoaded} />
     </div>
   );
 }
 
-function VentesDetail({ ventes }: { ventes: Vente[] }) {
+function VentesDetail({ ventes, matchVente, recetteNoms, caisseMapLoaded }: {
+  ventes: Vente[];
+  matchVente: (nom: string) => string | null;
+  recetteNoms: string[];
+  caisseMapLoaded: boolean;
+}) {
   const PAGE_SIZE = 50;
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const loaderRef = useRef<HTMLDivElement>(null);
@@ -399,9 +404,11 @@ function VentesDetail({ ventes }: { ventes: Vente[] }) {
     return () => obs.disconnect();
   }, [onIntersect]);
 
-  if (ventes.length === 0) return null;
+  const sorted = useMemo(() =>
+    [...ventes].sort((a, b) => (b.jour || b.mois).localeCompare(a.jour || a.mois) || b.ttc - a.ttc),
+    [ventes]);
 
-  const sorted = [...ventes].sort((a, b) => (b.jour || b.mois).localeCompare(a.jour || a.mois) || b.ttc - a.ttc);
+  if (ventes.length === 0) return null;
 
   return (
     <div className="bg-white rounded-xl border border-yellow-100 overflow-x-auto">
@@ -419,14 +426,27 @@ function VentesDetail({ ventes }: { ventes: Vente[] }) {
           </tr>
         </thead>
         <tbody>
-          {sorted.slice(0, visibleCount).map((v, i) => (
-            <tr key={`${v.nom}-${v.jour}-${i}`} className="border-b border-gray-50 hover:bg-yellow-50/30">
-              <td className="py-2 px-4 font-mono text-xs text-gray-500">{v.jour || v.mois}</td>
-              <td className="py-2 px-4">{v.nom}</td>
-              <td className="py-2 px-4 text-right font-mono">{v.quantity}</td>
-              <td className="py-2 px-4 text-right font-mono">{fmtEur(v.ttc)}</td>
-            </tr>
-          ))}
+          {sorted.slice(0, visibleCount).map((v, i) => {
+            const recette = matchVente(v.nom);
+            return (
+              <tr key={`${v.nom}-${v.jour}-${i}`} className="border-b border-gray-50 hover:bg-yellow-50/30">
+                <td className="py-2 px-4 font-mono text-xs text-gray-500">{v.jour || v.mois}</td>
+                <td className="py-2 px-4">
+                  <div>{v.nom}</div>
+                  {recette ? (
+                    <div className="text-xs text-gray-400">({recette})</div>
+                  ) : (
+                    <VenteAttribution
+                      venteNom={v.nom}
+                      recetteNoms={recetteNoms}
+                    />
+                  )}
+                </td>
+                <td className="py-2 px-4 text-right font-mono">{v.quantity}</td>
+                <td className="py-2 px-4 text-right font-mono">{fmtEur(v.ttc)}</td>
+              </tr>
+            );
+          })}
         </tbody>
       </table>
       {hasMore && (
@@ -435,6 +455,37 @@ function VentesDetail({ ventes }: { ventes: Vente[] }) {
         </div>
       )}
     </div>
+  );
+}
+
+function VenteAttribution({ venteNom, recetteNoms }: { venteNom: string; recetteNoms: string[] }) {
+  const [saving, setSaving] = useState(false);
+
+  const handleChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const recetteNom = e.target.value;
+    if (!recetteNom) return;
+    setSaving(true);
+    const caisseKey = normalizeCaisse(venteNom);
+    const recetteKey = normalizeCaisse(recetteNom).replace(/\s+(ete|hiver)$/, '');
+    CAISSE_MAP[caisseKey] = recetteKey;
+    await addDoc(collection(db, 'caisseMapCustom'), {
+      caisse: caisseKey,
+      recette: recetteKey,
+      original: venteNom,
+      recetteNom,
+    });
+    setSaving(false);
+  };
+
+  return (
+    <select onChange={handleChange} disabled={saving}
+      className="text-xs text-orange-400 bg-transparent border-none cursor-pointer p-0"
+      defaultValue="">
+      <option value="">(non attribué — cliquer pour attribuer)</option>
+      {recetteNoms.filter(Boolean).sort().map(nom => (
+        <option key={nom} value={nom}>{nom}</option>
+      ))}
+    </select>
   );
 }
 
