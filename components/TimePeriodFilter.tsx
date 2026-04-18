@@ -132,14 +132,8 @@ export default function TimePeriodFilter({ availableDates, value, onChange }: Ti
         <PillButton active={isActive('Ce mois')} onClick={() => quickSelect('Ce mois', startOfMonth(), today())}>
           Ce mois
         </PillButton>
-        <PillButton active={isActive(`${new Date().getFullYear()}`)} onClick={() => quickSelect(`${new Date().getFullYear()}`, startOfYear(), today())}>
-          {new Date().getFullYear()}
-        </PillButton>
-
-        <span className="w-px bg-gray-200 mx-1" />
-
         {/* Années */}
-        {availableYears.filter(y => y !== new Date().getFullYear()).map(year => (
+        {availableYears.map(year => (
           <PillButton key={year} active={isActive(`${year}`) || expandedYear === year}
             onClick={() => selectYear(year)}>
             {year}
