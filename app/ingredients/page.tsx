@@ -35,7 +35,7 @@ export default function IngredientsPage() {
   const [form, setForm] = useState({ nom: '', unite: 'kg' as Unite, categorie: 'épicerie salée' as Categorie });
   const [editId, setEditId] = useState<string | null>(null);
   const [pfOptions, setPfOptions] = useState<Record<string, { id: string; nom: string; fournisseur: string; prixUnit: number }[]>>({});
-  const [pfPrix, setPfPrix] = useState<Record<string, number>>({});
+  const [pfPrix, setPfPrix] = useState<Record<string, { prix: number; unite: string }>>({});
   const [recetteNames, setRecetteNames] = useState<Record<string, string[]>>({});
 
   const fetchAll = async () => {
@@ -119,19 +119,22 @@ export default function IngredientsPage() {
     }
     setPfOptions(pfOpts);
 
-    // Calculer le prix par ingrédient brut (fournisseur de réf si défini, sinon le plus récent)
-    const prix: Record<string, number> = {};
+    // Calculer le prix par ingrédient brut (PF de réf si défini, sinon le plus récent)
+    const uniteNorm = (u: string) => u === 'g' ? 'kg' : u === 'cL' ? 'L' : u;
+    const prix: Record<string, { prix: number; unite: string }> = {};
     for (const ing of brutIngredients) {
       const refId = (ing as any).fournisseurRefId;
       if (refId && pfOpts[ing.id]?.find(p => p.id === refId)) {
-        prix[ing.id] = pfOpts[ing.id].find(p => p.id === refId)!.prixUnit;
+        const refPf = pfSnap.docs.find(d => d.id === refId);
+        const refUnite = refPf ? uniteNorm(refPf.data().unite || 'kg') : ing.unite;
+        prix[ing.id] = { prix: pfOpts[ing.id].find(p => p.id === refId)!.prixUnit, unite: refUnite };
       } else {
         const pfsDocs = pfSnap.docs.filter(d => d.data().ingredient === ing.nom);
         if (pfsDocs.length > 0) {
           const plusRecent = pfsDocs.sort((a, b) => new Date(b.data().updatedAt).getTime() - new Date(a.data().updatedAt).getTime())[0];
           const data = plusRecent.data();
           const qte = convertQte(data.quantite || data.nbKg || data.nbPieces || 1, data.unite || 'kg');
-          prix[ing.id] = data.prix / qte / (data.rendement || 1);
+          prix[ing.id] = { prix: data.prix / qte / (data.rendement || 1), unite: uniteNorm(data.unite || 'kg') };
         }
       }
     }
@@ -197,7 +200,7 @@ export default function IngredientsPage() {
 
   const filtered = ingredients
     .filter(i => i.nom.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').includes(search.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')))
-    .filter(i => !filterSansPrix || !pfPrix[i.id])
+    .filter(i => !filterSansPrix || !pfPrix[i.id]?.prix)
     .filter(i => !filterSansRecette || !recetteNames[i.id]?.length)
     .sort((a, b) => a.categorie.localeCompare(b.categorie) || a.nom.localeCompare(b.nom));
 
@@ -316,7 +319,7 @@ export default function IngredientsPage() {
                 <th className="px-4 py-3 text-left">Unité</th>
                 <th className="px-4 py-3 text-left">Catégorie</th>
                 <th className="px-4 py-3 text-right">Prix/unité</th>
-                <th className="px-4 py-3 text-left">Fournisseur de réf</th>
+                <th className="px-4 py-3 text-left">PF de réf</th>
                 <th className="px-4 py-3 text-left">Recettes liées</th>
                 <th className="px-4 py-3"></th>
               </tr>
@@ -328,8 +331,8 @@ export default function IngredientsPage() {
                   <td className="px-4 py-3 text-gray-500">{ing.unite}</td>
                   <td className="px-4 py-3 text-gray-500">{ing.categorie}</td>
                   <td className="px-4 py-3 text-right">
-                    {pfPrix[ing.id] ? (
-                      <span className="font-semibold text-yellow-600">{pfPrix[ing.id].toFixed(2)} €/{ing.unite === 'g' ? 'kg' : ing.unite === 'cL' ? 'L' : ing.unite}</span>
+                    {pfPrix[ing.id]?.prix ? (
+                      <span className="font-semibold text-yellow-600">{pfPrix[ing.id].prix.toFixed(2)} €/{pfPrix[ing.id].unite}</span>
                     ) : (
                       <span className="text-gray-300">—</span>
                     )}
@@ -343,7 +346,7 @@ export default function IngredientsPage() {
                       >
                         <option value="">— Choisir —</option>
                         {pfOptions[ing.id].map(pf => (
-                          <option key={pf.id} value={pf.id}>{pf.fournisseur || '?'}</option>
+                          <option key={pf.id} value={pf.id}>{pf.nom} ({pf.fournisseur || '?'}) — {pf.prixUnit.toFixed(2)} €</option>
                         ))}
                       </select>
                     ) : (
