@@ -102,11 +102,12 @@ export default function TimePeriodFilter({ availableDates, value, onChange }: Ti
 
   const selectYear = (year: number) => {
     if (expandedYear === year) {
-      // Clic sur l'année déjà ouverte = sélectionner toute l'année
-      quickSelect(`${year}`, startOfYear(year), endOfYear(year));
+      // Deuxième clic = fermer les mois
       setExpandedYear(null);
     } else {
+      // Premier clic = sélectionner l'année + ouvrir les mois
       setExpandedYear(year);
+      onChange({ label: `${year}`, dateDebut: startOfYear(year), dateFin: endOfYear(year) });
     }
   };
 
