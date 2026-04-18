@@ -79,8 +79,14 @@ export default function PerformancePage() {
     return m;
   }, [recettes]);
 
-  // Dates disponibles pour le filtre
-  const availableDates = useMemo(() => rapports.map(r => r.date), [rapports]);
+  // Dates disponibles pour le filtre (rapports + ventes)
+  const availableDates = useMemo(() => {
+    const dates = new Set(rapports.map(r => r.date));
+    for (const v of ventes) {
+      if (v.jour) dates.add(v.jour);
+    }
+    return Array.from(dates);
+  }, [rapports, ventes]);
 
   const rapportsFiltrés = useMemo(() => {
     if (!timePeriod) return rapports;
