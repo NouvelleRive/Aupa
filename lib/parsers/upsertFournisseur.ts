@@ -77,11 +77,30 @@ export async function upsertLignesFournisseur(
       }
       updated++;
     } else {
-      const uniteDetectee = derniere.unite
-        ? (derniere.unite === 'p' ? 'pièce' : derniere.unite)
-        : detectUnite(derniere.nom);
-      const matchQte = derniere.nom.match(/[xX]\s?(\d+)/);
-      const quantite = derniere.unite ? derniere.qte : (matchQte ? parseInt(matchQte[1]) : 1);
+      // Extraire unite et quantite (contenance) depuis le champ unite du parser
+      // Format Milliet : "70cL", "1L", "4.5L" — sinon fallback sur détection auto
+      let uniteDetectee: string;
+      let quantite: number;
+      const contenanceMatch = derniere.unite?.match(/^(\d+\.?\d*)(cL|L)$/i);
+      if (contenanceMatch) {
+        const val = parseFloat(contenanceMatch[1]);
+        const u = contenanceMatch[2].toLowerCase();
+        // Normaliser en cL pour les petits volumes, L pour les grands
+        if (u === 'l') {
+          uniteDetectee = 'L';
+          quantite = val;
+        } else {
+          uniteDetectee = 'cL';
+          quantite = val;
+        }
+      } else if (derniere.unite && derniere.unite !== 'p') {
+        uniteDetectee = derniere.unite;
+        quantite = derniere.qte;
+      } else {
+        uniteDetectee = derniere.unite === 'p' ? 'pièce' : detectUnite(derniere.nom);
+        const matchQte = derniere.nom.match(/[xX]\s?(\d+)/);
+        quantite = matchQte ? parseInt(matchQte[1]) : 1;
+      }
       const newPf = await addDoc(collection(db, 'produitsFournisseurs'), {
         nom: derniere.nom,
         prix: derniere.prix,

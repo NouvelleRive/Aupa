@@ -206,44 +206,130 @@ export async function parseFoodflowPDF(buffer: Buffer): Promise<LigneFacture[]> 
 }
 
 // ============================================================================
-// MILLIET — codes 3-5 chiffres, format tableau colonné
+// MILLIET — parsing par positions X des colonnes du PDF
+// Colonnes : Colis(x~34) | Cond.(x~60) | Unité CDT(x~85) | Nom(x~108-290)
+//            | N° Article(x~302-306) | PU hors droits(x~362) | Droits(x~426)
+//            | PU Net HT(x~469) | CODE TVA(x~504) | TOTAL HT(x~537-556)
+// On s'arrête avant REDEVANCES / Frais de traitement.
 // ============================================================================
 export async function parseMillietPDF(buffer: Buffer): Promise<LigneFacture[]> {
-  const { rows, firstPageDate } = await extractRows(buffer);
+  const pdfjs = await loadPdfjs();
+  const data = new Uint8Array(buffer);
+  const pdf = await pdfjs.getDocument({ data, disableFontFace: true, useSystemFonts: false }).promise;
+
+  let firstPageDate = new Date().toISOString();
   const lignes: LigneFacture[] = [];
 
-  for (const row of rows) {
-    const articleIdx = row.findIndex((s) => /^\d{3,5}$/.test(s));
-    if (articleIdx < 0) continue;
-    const code = row[articleIdx];
+  for (let i = 1; i <= pdf.numPages; i++) {
+    const page = await pdf.getPage(i);
+    const content = await page.getTextContent();
+    const items: PdfItem[] = (content.items as any[])
+      .map((it: any) => ({
+        str: (it.str || '').trim(),
+        x: Math.round(it.transform[4]),
+        y: Math.round(it.transform[5]),
+      }))
+      .filter((it) => it.str);
 
-    const colisMatch = row[0]?.match(/^(\d+)$/);
-    const colis = colisMatch ? parseInt(colisMatch[1]) : 1;
-    const condMatch = row[1]?.match(/^x(\d+)$/i);
-    const cond = condMatch ? parseInt(condMatch[1]) : 1;
-    const qte = colis * cond;
-
-    const nomParts = row.slice(3, articleIdx);
-    const nom = nomParts.join(' ');
-    if (!nom) continue;
-
-    const afterArticle = row.slice(articleIdx + 1);
-    const tvaRates = new Set([5.5, 20, 5.50, 20.00]);
-    const numbers: number[] = [];
-    for (let idx = 0; idx < afterArticle.length; idx++) {
-      const s = afterArticle[idx].replace(/\s/g, '').replace(',', '.');
-      if (!/^\d+\.?\d*$/.test(s)) continue;
-      const n = parseFloat(s);
-      const next = afterArticle[idx + 1] || '';
-      if (tvaRates.has(n) && (next === '%' || next.includes('%'))) continue;
-      numbers.push(n);
+    // Date depuis la ligne N° Client / N° Commande (format dd/mm/yyyy, x~150)
+    if (i === 1) {
+      for (const it of items) {
+        const m = it.str.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+        if (m && it.x >= 140 && it.x <= 220 && it.y >= 590 && it.y <= 610) {
+          firstPageDate = `${m[3]}-${m[2]}-${m[1]}T00:00:00.000Z`;
+          break;
+        }
+      }
+      // Fallback : première date trouvée
+      if (firstPageDate === new Date().toISOString()) {
+        for (const it of items) {
+          const m = it.str.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+          if (m) {
+            firstPageDate = `${m[3]}-${m[2]}-${m[1]}T00:00:00.000Z`;
+            break;
+          }
+        }
+      }
     }
-    if (numbers.length < 1) continue;
-    const totalHT = numbers[numbers.length - 1];
-    const prixUnitaire = totalHT / (qte || 1);
 
-    lignes.push({ code, nom, prix: prixUnitaire, date: firstPageDate, qte });
+    // Grouper par Y (±3px)
+    const rowMap = new Map<number, PdfItem[]>();
+    for (const it of items) {
+      let attached = false;
+      for (const [ky, arr] of rowMap) {
+        if (Math.abs(it.y - ky) <= 3) { arr.push(it); attached = true; break; }
+      }
+      if (!attached) rowMap.set(it.y, [it]);
+    }
+
+    const rows = Array.from(rowMap.entries())
+      .sort(([a], [b]) => b - a)
+      .map(([, arr]) => arr.sort((a, b) => a.x - b.x));
+
+    for (const row of rows) {
+      const joined = row.map(r => r.str).join(' ');
+
+      // Arrêter le parsing aux sections pied de page
+      if (/REDEVANCES|CONSIGNES|DECONSIGNES|Frais de traitement|Commentaires/i.test(joined)) break;
+
+      // La première colonne (Colis) doit être un chiffre à x < 50
+      const colisItem = row.find(it => it.x >= 20 && it.x <= 50 && /^\d+$/.test(it.str));
+      if (!colisItem) continue;
+      const colis = parseInt(colisItem.str);
+
+      // Cond. (x~55-75) : x1, x5, x24...
+      const condItem = row.find(it => it.x >= 50 && it.x <= 80 && /^x\d+$/i.test(it.str));
+      const cond = condItem ? parseInt(condItem.str.slice(1)) : 1;
+
+      // Unité CDT (x~80-100) : COL, BIB, PAK, PUB, FUT...
+      const cdtItem = row.find(it => it.x >= 80 && it.x <= 105 && /^[A-Z]{2,4}$/.test(it.str));
+      if (!cdtItem) continue;
+
+      // N° Article (x~290-320) : 3-5 chiffres
+      const codeItem = row.find(it => it.x >= 280 && it.x <= 330 && /^\d{3,5}$/.test(it.str));
+      if (!codeItem) continue;
+      const code = codeItem.str;
+
+      // Nom produit : items entre x~108 et x~280
+      const nomParts = row
+        .filter(it => it.x >= 105 && it.x < 280)
+        .map(it => it.str);
+      const nom = nomParts.join(' ');
+      if (!nom) continue;
+
+      // TOTAL HT (dernier nombre, x >= 530)
+      const totalItem = row.find(it => it.x >= 530 && /^\d/.test(it.str));
+      const totalHT = totalItem ? parseFloat(totalItem.str.replace(/\s/g, '').replace(',', '.')) : 0;
+
+      // PU Net Hors TVA (x~459-490)
+      const puNetItem = row.find(it => it.x >= 455 && it.x <= 495 && /^\d/.test(it.str));
+      const puNet = puNetItem ? parseFloat(puNetItem.str.replace(/\s/g, '').replace(',', '.')) : 0;
+
+      const qte = colis * cond;
+
+      // Filtrer les lignes à 0
+      if (totalHT <= 0 || qte <= 0) continue;
+
+      // Prix unitaire = PU Net si dispo, sinon total / qté
+      const prix = puNet > 0 ? puNet : totalHT / qte;
+
+      // Extraire la contenance du nom (VP70CL, 70CL, 100CL, VP1L, 4,5L, 20L, BIB 4,5, BIB4.5...)
+      let unite: string | undefined;
+      const clMatch = nom.match(/(?:VP)?(\d+)\s*CL/i);
+      const lMatch = nom.match(/(\d+[.,]?\d*)\s*L(?:\b|$)/i);
+      const bibMatch = !clMatch && !lMatch ? nom.match(/BIB\s*(\d+[.,]?\d*)/i) : null;
+      if (clMatch) {
+        unite = `${clMatch[1]}cL`;
+      } else if (lMatch) {
+        unite = `${lMatch[1].replace(',', '.')}L`;
+      } else if (bibMatch) {
+        unite = `${bibMatch[1].replace(',', '.')}L`;
+      }
+
+      lignes.push({ code, nom, prix, date: firstPageDate, qte, unite });
+    }
   }
+
   return lignes;
 }
 

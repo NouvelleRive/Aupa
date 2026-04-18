@@ -254,6 +254,45 @@ export default function PerformancePage() {
   }, [kpi]);
 
 
+  // === Résumé de la veille (comme le mail Popina) ===
+  const hier = useMemo(() => {
+    const d = new Date();
+    d.setDate(d.getDate() - 1);
+    return d.toISOString().slice(0, 10);
+  }, []);
+
+  const rapportHier = useMemo(() => rapports.find(r => r.date === hier), [rapports, hier]);
+
+  // N-1 : même jour l'an passé
+  const hierN1 = useMemo(() => {
+    const m = hier.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (!m) return null;
+    return `${parseInt(m[1]) - 1}-${m[2]}-${m[3]}`;
+  }, [hier]);
+
+  const rapportHierN1 = useMemo(() => {
+    if (!hierN1) return null;
+    return rapports.find(r => r.date === hierN1) || null;
+  }, [rapports, hierN1]);
+
+  const ventesHier = useMemo(() => {
+    if (!rapportHier) return [];
+    return ventes.filter(v => v.jour === hier);
+  }, [ventes, rapportHier, hier]);
+
+  const topHier = useMemo(() => {
+    const m = new Map<string, { nom: string; qty: number; ca: number }>();
+    for (const v of ventesHier) {
+      const key = matchVenteToRecette(v.nom) || v.nom;
+      const e = m.get(key) || { nom: key, qty: 0, ca: 0 };
+      e.qty += v.quantity;
+      e.ca += v.ttc;
+      m.set(key, e);
+    }
+    return Array.from(m.values()).sort((a, b) => b.qty - a.qty).slice(0, 10);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ventesHier, recetteNoms, caisseMapLoaded]);
+
   if (loading) {
     return <div className="max-w-6xl mx-auto p-6"><p className="text-gray-400">Chargement…</p></div>;
   }
@@ -301,6 +340,84 @@ export default function PerformancePage() {
           </button>
         ))}
       </div>
+
+      {/* Résumé de la veille */}
+      {rapportHier && (() => {
+        const n1 = rapportHierN1;
+        const deltaCa = n1 ? rapportHier.caTTC - n1.caTTC : null;
+        const deltaPct = n1 && n1.caTTC > 0 ? (deltaCa! / n1.caTTC) * 100 : null;
+        const deltaCouverts = n1 ? rapportHier.couverts - n1.couverts : null;
+        return (
+          <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-5 space-y-4">
+            <h2 className="font-semibold text-sm text-yellow-700">Hier — {new Date(hier + 'T00:00:00').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}</h2>
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-3 text-sm">
+              <div>
+                <p className="text-xs text-gray-500">CA TTC</p>
+                <p className="font-bold">{fmtEur(rapportHier.caTTC)}</p>
+                {n1 && <p className={`text-xs ${deltaCa! >= 0 ? 'text-green-600' : 'text-red-500'}`}>
+                  {deltaCa! >= 0 ? '+' : ''}{fmtEur(deltaCa!)} ({deltaPct! >= 0 ? '+' : ''}{fmtPct(deltaPct!)}) vs N-1
+                </p>}
+              </div>
+              <div>
+                <p className="text-xs text-gray-500">CA HT</p>
+                <p className="font-bold">{fmtEur(rapportHier.caHT)}</p>
+                {n1 && <p className="text-xs text-gray-400">N-1 : {fmtEur(n1.caHT)}</p>}
+              </div>
+              <div>
+                <p className="text-xs text-gray-500">Couverts</p>
+                <p className="font-bold">{rapportHier.couverts}</p>
+                {n1 && <p className={`text-xs ${deltaCouverts! >= 0 ? 'text-green-600' : 'text-red-500'}`}>
+                  {deltaCouverts! >= 0 ? '+' : ''}{deltaCouverts} vs N-1
+                </p>}
+              </div>
+              <div>
+                <p className="text-xs text-gray-500">Commandes</p>
+                <p className="font-bold">{rapportHier.commandes}</p>
+                {n1 && <p className="text-xs text-gray-400">N-1 : {n1.commandes}</p>}
+              </div>
+              <div>
+                <p className="text-xs text-gray-500">Ticket moyen</p>
+                <p className="font-bold">{rapportHier.couverts > 0 ? fmtEur(rapportHier.caTTC / rapportHier.couverts) : '—'}</p>
+                {n1 && n1.couverts > 0 && <p className="text-xs text-gray-400">N-1 : {fmtEur(n1.caTTC / n1.couverts)}</p>}
+              </div>
+            </div>
+            {topHier.length > 0 && (
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-xs text-gray-500 mb-1 font-medium">Top vendus</p>
+                  <div className="space-y-0.5 text-sm">
+                    {topHier.slice(0, 5).map((p, i) => (
+                      <div key={p.nom} className="flex justify-between">
+                        <span className="truncate mr-2"><span className="text-gray-400 text-xs mr-1">{i + 1}.</span>{p.nom}</span>
+                        <span className="text-gray-500 font-mono text-xs">{p.qty}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500 mb-1 font-medium">Catégories</p>
+                  <div className="space-y-0.5 text-sm">
+                    {Object.entries(rapportHier.categories || {}).sort(([,a], [,b]) => b.ca - a.ca).map(([nom, stat]) => (
+                      <div key={nom} className="flex justify-between">
+                        <span className="truncate mr-2">{nom}</span>
+                        <span className="text-gray-500 font-mono text-xs">{fmtEur(stat.ca)}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+            {(rapportHier.reductionsTotal?.ttc > 0 || rapportHier.annulationsTotal > 0) && (
+              <div className="flex gap-6 text-xs text-gray-500">
+                {rapportHier.reductionsTotal?.ttc > 0 && <span>Réductions : {fmtEur(rapportHier.reductionsTotal.ttc)}</span>}
+                {rapportHier.annulationsTotal > 0 && <span>Annulations : {fmtEur(rapportHier.annulationsTotal)}</span>}
+                {rapportHier.pourboires > 0 && <span>Pourboires : {fmtEur(rapportHier.pourboires)}</span>}
+              </div>
+            )}
+            {!n1 && <p className="text-xs text-gray-400">Pas de données N-1 pour le {hierN1}</p>}
+          </div>
+        );
+      })()}
 
       {/* Alertes */}
       {alertes.length > 0 && (

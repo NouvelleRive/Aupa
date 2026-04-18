@@ -58,8 +58,8 @@ async function main() {
   }
   console.log('Connecté');
 
-  // Générer les mois — depuis juillet 2023 (date la plus ancienne Foodflow)
-  const months = generateMonths(2023, 7);
+  // Générer les mois — depuis janvier 2025
+  const months = generateMonths(2025, 1);
   console.log(`${months.length} mois à traiter (${months[0].label} → ${months[months.length - 1].label})`);
 
   let totalFiles = 0;
