@@ -236,6 +236,8 @@ function TreemapCell({ x, y, width, height, name, value }: any) {
 }
 
 function CoutsTreemaps({ filtered, getCategorie }: { filtered: Achat[]; getCategorie: (a: Achat) => string }) {
+  const [treemapCat, setTreemapCat] = useState<string | null>(null);
+
   const byProduit = useMemo(() => {
     const m = new Map<string, number>();
     for (const a of filtered) {
@@ -258,7 +260,22 @@ function CoutsTreemaps({ filtered, getCategorie }: { filtered: Achat[]; getCateg
       .sort((a, b) => b.value - a.value);
   }, [filtered, getCategorie]);
 
+  const byProduitCat = useMemo(() => {
+    if (!treemapCat) return [];
+    const m = new Map<string, number>();
+    for (const a of filtered) {
+      if (getCategorie(a) === treemapCat) {
+        m.set(a.nom, (m.get(a.nom) || 0) + a.total);
+      }
+    }
+    return [...m.entries()]
+      .map(([name, value]) => ({ name, value: Math.round(value) }))
+      .sort((a, b) => b.value - a.value);
+  }, [filtered, getCategorie, treemapCat]);
+
   if (filtered.length === 0) return null;
+
+  const catData = treemapCat ? byProduitCat : byCategorie;
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -269,9 +286,19 @@ function CoutsTreemaps({ filtered, getCategorie }: { filtered: Achat[]; getCateg
         </ResponsiveContainer>
       </div>
       <div className="bg-white rounded-xl border border-yellow-100 p-5">
-        <h2 className="font-semibold mb-3">Top catégories</h2>
+        <div className="flex items-center gap-2 mb-3">
+          {treemapCat ? (
+            <>
+              <button onClick={() => setTreemapCat(null)} className="text-yellow-600 hover:underline text-sm">← Toutes les catégories</button>
+              <h2 className="font-semibold">{treemapCat}</h2>
+            </>
+          ) : (
+            <h2 className="font-semibold">Top catégories</h2>
+          )}
+        </div>
         <ResponsiveContainer width="100%" height={300}>
-          <Treemap data={byCategorie} dataKey="value" nameKey="name" content={<TreemapCell />} />
+          <Treemap data={catData} dataKey="value" nameKey="name" content={<TreemapCell />}
+            onClick={!treemapCat ? (node: any) => { if (node?.name) setTreemapCat(node.name); } : undefined} style={!treemapCat ? { cursor: 'pointer' } : undefined} />
         </ResponsiveContainer>
       </div>
     </div>

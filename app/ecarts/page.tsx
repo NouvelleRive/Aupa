@@ -1,11 +1,12 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { collection, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
+import TimePeriodFilter, { isInPeriod, type TimePeriod } from '@/components/TimePeriodFilter';
 
 interface Achat { id: string; pfId: string; nom: string; qte: number; prixUnitaire: number; total: number; date: string; fournisseur: string; }
-interface Vente { nom: string; quantity: number; ttc: number; menuNom: string; mois: string; }
+interface Vente { nom: string; quantity: number; ttc: number; menuNom: string; mois: string; jour?: string; }
 interface Recette { id: string; nom: string; ingredients: any[]; categorie: string; }
 interface PF { id: string; nom: string; prix: number; quantite: number; unite: string; rendement: number; ingredientId?: string; ingredient?: string; categorie: string; updatedAt: string; }
 interface Ingredient { id: string; nom: string; unite: string; categorie: string; }
@@ -25,8 +26,7 @@ export default function Page() {
   const [pfs, setPfs] = useState<PF[]>([]);
   const [ingredients, setIngredients] = useState<Ingredient[]>([]);
   const [loading, setLoading] = useState(true);
-  const [periodeDebut, setPeriodeDebut] = useState('');
-  const [periodeFin, setPeriodeFin] = useState('');
+  const [timePeriod, setTimePeriod] = useState<TimePeriod | null>(null);
 
   useEffect(() => { (async () => {
     const [a, v, r, p, i] = await Promise.all([
@@ -46,17 +46,20 @@ export default function Page() {
 
   if (loading) return <p className="text-gray-400 p-6">Chargement...</p>;
 
-  // Filtrer par période (mois actuel par défaut)
-  const debut = periodeDebut || new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().slice(0, 10);
-  const fin = periodeFin || new Date().toISOString().slice(0, 10);
+  // Dates disponibles pour le filtre
+  const availableDates = useMemo(() => {
+    const dates = new Set<string>();
+    for (const a of achats) if (a.date) dates.add(a.date.slice(0, 10));
+    for (const v of ventes) if (v.jour) dates.add(v.jour);
+    return Array.from(dates);
+  }, [achats, ventes]);
 
-  // Achats sur la période
-  const achatsP = achats.filter(a => a.date >= debut && a.date <= fin + 'T23:59:59');
-
-  // Ventes sur la période (par mois YYYY-MM)
-  const moisDebut = debut.slice(0, 7);
-  const moisFin = fin.slice(0, 7);
-  const ventesP = ventes.filter(v => v.mois >= moisDebut && v.mois <= moisFin);
+  // Filtrer par période
+  const achatsP = achats.filter(a => isInPeriod(a.date, timePeriod));
+  const ventesP = ventes.filter(v => {
+    const d = v.jour || v.mois;
+    return isInPeriod(d, timePeriod);
+  });
 
   // Calcul théorique : pour chaque vente, parcourir la recette et accumuler les ingrédients
   // Map: ingredientId/nom → { qteTheorique (en kg/L base), coutTheorique }
@@ -153,11 +156,7 @@ export default function Page() {
     <div className="max-w-6xl mx-auto">
       <h1 className="text-2xl font-bold mb-6">Écarts achats / théorique</h1>
 
-      <div className="flex gap-3 mb-6 items-center">
-        <input type="date" className="border border-yellow-200 rounded-lg px-3 py-2 text-sm" value={debut} onChange={e => setPeriodeDebut(e.target.value)} />
-        <span className="text-gray-400">→</span>
-        <input type="date" className="border border-yellow-200 rounded-lg px-3 py-2 text-sm" value={fin} onChange={e => setPeriodeFin(e.target.value)} />
-      </div>
+      <TimePeriodFilter availableDates={availableDates} value={timePeriod} onChange={setTimePeriod} />
 
       <div className="grid grid-cols-3 gap-4 mb-6">
         <div className="bg-white rounded-xl border border-yellow-100 p-4">
