@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useCallback, useRef, useState } from 'react';
 import { collection, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { CAISSE_MAP, normalizeCaisse } from '@/lib/caisseMap';
@@ -114,39 +114,6 @@ export default function PerformancePage() {
     if (rapportsN1.length === 0) return null;
     return rapportsN1.reduce((s, r) => s + (r.caTTC || 0), 0);
   }, [rapportsN1]);
-
-  // Map recetteId → prixVente depuis le menu actif sur la période filtrée
-  const prixParId = useMemo(() => {
-    const m = new Map<string, number>();
-    const dates = rapportsFiltrés.map(r => r.date).sort();
-    const refDate = dates.length > 0 ? dates[Math.floor(dates.length / 2)] : '';
-    const menuActif = refDate
-      ? menus.find(menu => menu.dateDebut && menu.dateFin && refDate >= menu.dateDebut && refDate <= menu.dateFin)
-      : menus.filter(menu => menu.dateDebut).sort((a, b) => b.dateDebut.localeCompare(a.dateDebut))[0];
-    if (menuActif) {
-      for (const cat of menuActif.categories) {
-        for (const mr of cat.recettes) {
-          if (mr.prixVente > 0) m.set(mr.id, mr.prixVente);
-        }
-      }
-    }
-    return m;
-  }, [menus, rapportsFiltrés]);
-
-  // Map nom → food cost % (coutCalcule / prixVente HT)
-  const foodCostPctParNom = useMemo(() => {
-    const m = new Map<string, number>();
-    for (const r of recettes) {
-      if (r.nom && typeof r.coutCalcule === 'number' && r.coutCalcule > 0) {
-        const prix = prixParId.get(r.id) || r.prixVente || 0;
-        if (prix > 0) {
-          const prixHT = prix / 1.10;
-          m.set(r.nom.toLowerCase(), r.coutCalcule / prixHT);
-        }
-      }
-    }
-    return m;
-  }, [recettes, prixParId]);
 
   // === KPIs agrégés ===
   const kpi = useMemo(() => {
@@ -375,7 +342,72 @@ export default function PerformancePage() {
       </div>
 
       {/* 3 tops côte à côte */}
-      <TopTrois topProduits={topProduits} foodCostPctParNom={foodCostPctParNom} recettes={recettes} />
+      <TopTrois topProduits={topProduits} coutParNom={coutParNom} recettes={recettes} />
+
+      {/* Détail des ventes — infinite scroll */}
+      <VentesDetail ventes={ventesFiltrées} />
+    </div>
+  );
+}
+
+function VentesDetail({ ventes }: { ventes: Vente[] }) {
+  const PAGE_SIZE = 50;
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+  const loaderRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => { setVisibleCount(PAGE_SIZE); }, [ventes]);
+
+  const hasMore = visibleCount < ventes.length;
+
+  const onIntersect = useCallback((entries: IntersectionObserverEntry[]) => {
+    if (entries[0].isIntersecting && hasMore) {
+      setVisibleCount(c => Math.min(c + PAGE_SIZE, ventes.length));
+    }
+  }, [hasMore, ventes.length]);
+
+  useEffect(() => {
+    const el = loaderRef.current;
+    if (!el) return;
+    const obs = new IntersectionObserver(onIntersect, { threshold: 0.1 });
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, [onIntersect]);
+
+  if (ventes.length === 0) return null;
+
+  const sorted = [...ventes].sort((a, b) => (b.jour || b.mois).localeCompare(a.jour || a.mois) || b.ttc - a.ttc);
+
+  return (
+    <div className="bg-white rounded-xl border border-yellow-100 overflow-x-auto">
+      <div className="flex items-center justify-between px-5 pt-5 pb-2">
+        <h2 className="font-semibold">Détail des ventes</h2>
+        <span className="text-xs text-gray-400">{ventes.length} lignes</span>
+      </div>
+      <table className="w-full text-sm">
+        <thead>
+          <tr className="text-left text-xs text-gray-400 border-b border-gray-100">
+            <th className="py-2 px-4">Date</th>
+            <th className="py-2 px-4">Produit</th>
+            <th className="py-2 px-4 text-right">Qté</th>
+            <th className="py-2 px-4 text-right">TTC</th>
+          </tr>
+        </thead>
+        <tbody>
+          {sorted.slice(0, visibleCount).map((v, i) => (
+            <tr key={`${v.nom}-${v.jour}-${i}`} className="border-b border-gray-50 hover:bg-yellow-50/30">
+              <td className="py-2 px-4 font-mono text-xs text-gray-500">{v.jour || v.mois}</td>
+              <td className="py-2 px-4">{v.nom}</td>
+              <td className="py-2 px-4 text-right font-mono">{v.quantity}</td>
+              <td className="py-2 px-4 text-right font-mono">{fmtEur(v.ttc)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      {hasMore && (
+        <div ref={loaderRef} className="py-4 text-center text-xs text-gray-400">
+          Chargement…
+        </div>
+      )}
     </div>
   );
 }
@@ -399,7 +431,7 @@ function TreemapContent({ x, y, width, height, name, value }: any) {
   );
 }
 
-function TopTrois({ topProduits, foodCostPctParNom, recettes }: { topProduits: { nom: string; qty: number; ca: number }[]; foodCostPctParNom: Map<string, number>; recettes: Recette[] }) {
+function TopTrois({ topProduits, coutParNom, recettes }: { topProduits: { nom: string; qty: number; ca: number }[]; coutParNom: Map<string, number>; recettes: Recette[] }) {
   const [showVendus, setShowVendus] = useState(10);
   const [showCA, setShowCA] = useState(10);
   const [showMarge, setShowMarge] = useState(10);
@@ -416,16 +448,17 @@ function TopTrois({ topProduits, foodCostPctParNom, recettes }: { topProduits: {
   const produitsAvecMarge = useMemo(() =>
     topProduits
       .map(p => {
-        const pct = foodCostPctParNom.get(p.nom.toLowerCase());
-        if (typeof pct !== 'number' || pct <= 0) return null;
+        const cout = coutParNom.get(p.nom.toLowerCase());
+        if (typeof cout !== 'number' || cout <= 0) return null;
         const caHT = p.ca / 1.10;
-        const marge = caHT * (1 - pct);
+        const marge = caHT - cout * p.qty;
+        const foodCostPct = (cout * p.qty) / caHT;
         const cat = catParNom.get(p.nom.toLowerCase()) || '—';
-        return { ...p, marge, foodCostPct: pct * 100, cat };
+        return { ...p, marge, foodCostPct: foodCostPct * 100, cat };
       })
       .filter((p): p is NonNullable<typeof p> => p !== null && p.marge > 0)
       .sort((a, b) => b.marge - a.marge),
-  [topProduits, foodCostPctParNom, catParNom]);
+  [topProduits, coutParNom, catParNom]);
 
   // Treemap global par catégorie
   const treemapCategories = useMemo(() => {
