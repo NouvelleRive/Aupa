@@ -24,6 +24,7 @@ const CATEGORIES_POPINA = new Set([
   'classic hot drinks', 'crazy hot drinks', 'none', 'supplements', 'au restau',
   'parent category menu png', 'dont menus', 'brunch',
   'aupa croissant burger eat', 'formule midi', 'gouter',
+  'total', 'menus', 'merch',
 ]);
 
 function normalize(s: string): string {
