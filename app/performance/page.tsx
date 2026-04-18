@@ -5,7 +5,7 @@ import { collection, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { CAISSE_MAP, normalizeCaisse } from '@/lib/caisseMap';
 import { MenuDoc } from '@/lib/menuTypes';
-import { ResponsiveContainer, Treemap } from 'recharts';
+import { ResponsiveContainer, Treemap, PieChart, Pie, Cell, Tooltip } from 'recharts';
 
 type TvaBucket = { ht: number; tva: number; ttc: number };
 type Reduction = { type: string; pct: number; ht: number; tva: number; ttc: number };
@@ -117,8 +117,16 @@ export default function PerformancePage() {
   const ventesFiltrées = useMemo(() => {
     if (bucket === 'all') return ventes;
     const dates = new Set(rapportsFiltrés.map(r => r.date));
-    return ventes.filter(v => v.jour && dates.has(v.jour));
-  }, [ventes, rapportsFiltrés, bucket]);
+    // Filtrer par jour si dispo, sinon par mois/semaine selon granularité
+    return ventes.filter(v => {
+      if (v.jour && dates.has(v.jour)) return true;
+      // Fallback : matcher par bucket (mois ou semaine)
+      if (granularite === 'mois' && v.mois === bucket) return true;
+      if (granularite === 'semaine' && v.jour && isoWeek(v.jour) === bucket) return true;
+      if (granularite === 'jour' && v.jour === bucket) return true;
+      return false;
+    });
+  }, [ventes, rapportsFiltrés, bucket, granularite]);
 
   // === N-1 : même bucket l'année précédente ===
   // - Mois '2026-04' → '2025-04'
@@ -186,7 +194,8 @@ export default function PerformancePage() {
         else agg.foodCA += stat.ca;
         if (n === 'entrées' || n === 'entrees') agg.nbEntrees += stat.qty;
         else if (n === 'desserts') agg.nbDesserts += stat.qty;
-        else if (n === 'plats') agg.nbPlats += stat.qty;
+        // Nb personnes = plats principaux (plats + crogers/bols)
+        if (n === 'plats' || n === 'aupa croissant burger eat') agg.nbPlats += stat.qty;
       }
     }
     // Food cost via recettes
@@ -271,8 +280,15 @@ export default function PerformancePage() {
   const ticketMoyen = kpi.couverts > 0 ? kpi.caTTC / kpi.couverts : 0;
   const pctFood = (kpi.foodCA + kpi.drinkCA) > 0 ? (kpi.foodCA / (kpi.foodCA + kpi.drinkCA)) * 100 : 0;
   const pctDrink = 100 - pctFood;
-  const pctEntrees = kpi.couverts > 0 ? (kpi.nbEntrees / kpi.couverts) * 100 : 0;
-  const pctDesserts = kpi.couverts > 0 ? (kpi.nbDesserts / kpi.couverts) * 100 : 0;
+  // Nb personnes estimé = nb plats principaux vendus (plats + crogers)
+  const nbPersonnes = kpi.nbPlats;
+  const pctEntrees = nbPersonnes > 0 ? (kpi.nbEntrees / nbPersonnes) * 100 : 0;
+  const pctDesserts = nbPersonnes > 0 ? (kpi.nbDesserts / nbPersonnes) * 100 : 0;
+
+  const pieData = [
+    { name: 'Food', value: Math.round(kpi.foodCA), color: '#facc15' },
+    { name: 'Drink', value: Math.round(kpi.drinkCA), color: '#f97316' },
+  ].filter(d => d.value > 0);
 
   return (
     <div className="max-w-6xl mx-auto p-6 space-y-6">
@@ -365,11 +381,36 @@ export default function PerformancePage() {
         );
       })()}
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Kpi label="Food" value={fmtPct(pctFood)} sub={fmtEur(kpi.foodCA)} />
-        <Kpi label="Drink" value={fmtPct(pctDrink)} sub={fmtEur(kpi.drinkCA)} />
-        <Kpi label="% clients entrée" value={fmtPct(pctEntrees)} sub={`${kpi.nbEntrees} entrées`} />
-        <Kpi label="% clients dessert" value={fmtPct(pctDesserts)} sub={`${kpi.nbDesserts} desserts`} />
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {/* Camembert Food / Drink */}
+        <div className="bg-white rounded-xl border border-yellow-100 p-4 flex flex-col items-center">
+          <p className="text-xs text-gray-500 mb-2">Répartition CA</p>
+          {pieData.length > 0 && (
+            <ResponsiveContainer width="100%" height={160}>
+              <PieChart>
+                <Pie data={pieData} dataKey="value" nameKey="name" cx="50%" cy="50%"
+                  innerRadius={40} outerRadius={65} paddingAngle={2}
+                  label={({ name, percent }: any) => `${name} ${(percent * 100).toFixed(0)}%`}
+                  labelLine={false} fontSize={12}>
+                  {pieData.map((d, i) => <Cell key={i} fill={d.color} />)}
+                </Pie>
+                <Tooltip formatter={(v: any) => fmtEur(Number(v))} />
+              </PieChart>
+            </ResponsiveContainer>
+          )}
+          <div className="flex gap-4 text-xs text-gray-500 mt-1">
+            <span><span className="inline-block w-2 h-2 rounded-full bg-yellow-400 mr-1" />Food {fmtEur(kpi.foodCA)}</span>
+            <span><span className="inline-block w-2 h-2 rounded-full bg-orange-500 mr-1" />Drink {fmtEur(kpi.drinkCA)}</span>
+          </div>
+        </div>
+
+        {/* % entrées */}
+        <Kpi label="% clients entrée" value={fmtPct(pctEntrees)}
+          sub={`${kpi.nbEntrees} entrées / ${nbPersonnes} plats`} />
+
+        {/* % desserts */}
+        <Kpi label="% clients dessert" value={fmtPct(pctDesserts)}
+          sub={`${kpi.nbDesserts} desserts / ${nbPersonnes} plats`} />
       </div>
 
       {/* 3 tops côte à côte */}
