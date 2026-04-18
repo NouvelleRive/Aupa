@@ -278,7 +278,8 @@ export default function PerformancePage() {
 
       {/* KPIs principaux */}
       {(() => {
-        const nbJours = rapportsFiltrés.length;
+        const joursUniques = new Set(ventesFiltrées.map(v => v.jour).filter(Boolean));
+        const nbJours = joursUniques.size;
         const showMoy = nbJours > 1;
         return (
           <>
