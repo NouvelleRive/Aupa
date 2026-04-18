@@ -629,12 +629,13 @@
                         <table className="w-full text-sm">
                         <thead className="text-gray-400 text-xs uppercase border-b border-yellow-50">
                             <tr>
-                            <th className="px-4 py-2 text-left w-[35%]">Plat</th>
-                            <th className="px-4 py-2 text-right w-[13%]">Prix</th>
-                            <th className="px-4 py-2 text-right w-[13%]">Coût mat.</th>
-                            <th className="px-4 py-2 text-right w-[13%]">Food cost</th>
-                            <th className="px-4 py-2 text-right w-[13%]">Vendus</th>
-                            <th className="px-4 py-2 text-right w-[13%]">CA réel</th>
+                            <th className="px-4 py-2 text-left w-[34%]">Plat</th>
+                            <th className="px-4 py-2 text-right w-[11%]">Prix</th>
+                            <th className="px-4 py-2 text-right w-[11%]">Coût mat.</th>
+                            <th className="px-4 py-2 text-right w-[11%]">Food cost</th>
+                            <th className="px-4 py-2 text-right w-[11%]">Marge</th>
+                            <th className="px-4 py-2 text-right w-[11%]">Vendus</th>
+                            <th className="px-4 py-2 text-right w-[11%]">CA réel</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-yellow-50">
@@ -665,6 +666,9 @@
                                 <td className="px-4 py-3 text-right text-gray-500">{plat.coutCalcule > 0 ? plat.coutCalcule.toFixed(2) + ' €' : '—'}</td>
                                 <td className="px-4 py-3 text-right">
                                     <span className={`font-semibold ${fc > 32 ? 'text-yellow-500' : 'text-gray-700'}`}>{isTopRenta && '🔥 '}{fc > 0 ? fc.toFixed(1) + '%' : '—'}</span>
+                                </td>
+                                <td className="px-4 py-3 text-right">
+                                    {pHT > 0 && plat.coutCalcule > 0 ? <span className="font-semibold text-gray-700">{(pHT - plat.coutCalcule).toFixed(2)} €</span> : <span className="text-gray-300">—</span>}
                                 </td>
                                 <td className="px-4 py-3 text-right">
                                     {plat.vendus > 0 ? <span className="font-semibold">{isTopVendu && '🔥 '}{isFlopVendu && '🥶 '}{plat.vendus}</span> : <span className="text-gray-300">—</span>}
