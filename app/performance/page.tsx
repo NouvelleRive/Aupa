@@ -6,6 +6,7 @@ import { db } from '@/lib/firebase';
 import { CAISSE_MAP, normalizeCaisse } from '@/lib/caisseMap';
 import { MenuDoc } from '@/lib/menuTypes';
 import { ResponsiveContainer, Treemap, PieChart, Pie, Cell, Tooltip } from 'recharts';
+import TimePeriodFilter, { isInPeriod, type TimePeriod } from '@/components/TimePeriodFilter';
 
 type TvaBucket = { ht: number; tva: number; ttc: number };
 type Reduction = { type: string; pct: number; ht: number; tva: number; ttc: number };
@@ -41,14 +42,6 @@ const SEUIL_REDUCTIONS = 3;     // > 3% du CA → rouge
 const SEUIL_ANNULATIONS = 2;    // > 2% du CA → rouge
 const SEUIL_OFFERTS = 1.5;      // > 1.5% du CA → rouge
 
-function isoWeek(dateStr: string): string {
-  const d = new Date(dateStr + 'T00:00:00Z');
-  const day = d.getUTCDay() || 7;
-  d.setUTCDate(d.getUTCDate() + 4 - day);
-  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
-  const week = Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
-  return `${d.getUTCFullYear()}-W${String(week).padStart(2, '0')}`;
-}
 
 const fmtEur = (n: number) => `${Math.round(n).toLocaleString('fr-FR')} €`;
 const fmtPct = (n: number) => `${n.toFixed(1)}%`;
@@ -57,20 +50,22 @@ export default function PerformancePage() {
   const [rapports, setRapports] = useState<Rapport[]>([]);
   const [ventes, setVentes] = useState<Vente[]>([]);
   const [recettes, setRecettes] = useState<Recette[]>([]);
-  const [granularite, setGranularite] = useState<'jour' | 'semaine' | 'mois'>('semaine');
-  const [bucket, setBucket] = useState<string>('all');
+  const [menus, setMenus] = useState<MenuDoc[]>([]);
+  const [timePeriod, setTimePeriod] = useState<TimePeriod | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     (async () => {
-      const [rSnap, vSnap, recSnap] = await Promise.all([
+      const [rSnap, vSnap, recSnap, mSnap] = await Promise.all([
         getDocs(collection(db, 'rapportsJournaliers')),
         getDocs(collection(db, 'ventes')),
         getDocs(collection(db, 'recettes')),
+        getDocs(collection(db, 'menus')),
       ]);
       setRapports(rSnap.docs.map(d => d.data() as Rapport));
       setVentes(vSnap.docs.map(d => d.data() as Vente));
       setRecettes(recSnap.docs.map(d => ({ id: d.id, ...d.data() } as Recette)));
+      setMenus(mSnap.docs.map(d => ({ id: d.id, ...d.data() } as MenuDoc)));
       setLoading(false);
     })();
   }, []);
@@ -84,90 +79,74 @@ export default function PerformancePage() {
     return m;
   }, [recettes]);
 
+  // Dates disponibles pour le filtre
+  const availableDates = useMemo(() => rapports.map(r => r.date), [rapports]);
+
+  const rapportsFiltrés = useMemo(() => {
+    if (!timePeriod) return rapports;
+    return rapports.filter(r => isInPeriod(r.date, timePeriod));
+  }, [rapports, timePeriod]);
+
+  const ventesFiltrées = useMemo(() => {
+    if (!timePeriod) return ventes;
+    return ventes.filter(v => {
+      const d = v.jour || v.mois;
+      return isInPeriod(d, timePeriod);
+    });
+  }, [ventes, timePeriod]);
+
+  // N-1 : même période l'année précédente
+  const periodN1 = useMemo((): TimePeriod | null => {
+    if (!timePeriod) return null;
+    const shift = (d: string) => {
+      const m = d.match(/^(\d{4})-(.*)$/);
+      return m ? `${parseInt(m[1]) - 1}-${m[2]}` : d;
+    };
+    return { label: 'N-1', dateDebut: shift(timePeriod.dateDebut), dateFin: shift(timePeriod.dateFin) };
+  }, [timePeriod]);
+
+  const rapportsN1 = useMemo(() => {
+    if (!periodN1) return [];
+    return rapports.filter(r => isInPeriod(r.date, periodN1));
+  }, [rapports, periodN1]);
+
+  const caNMoins1 = useMemo((): number | null => {
+    if (rapportsN1.length === 0) return null;
+    return rapportsN1.reduce((s, r) => s + (r.caTTC || 0), 0);
+  }, [rapportsN1]);
+
+  // Map recetteId → prixVente depuis le menu actif sur la période filtrée
+  const prixParId = useMemo(() => {
+    const m = new Map<string, number>();
+    const dates = rapportsFiltrés.map(r => r.date).sort();
+    const refDate = dates.length > 0 ? dates[Math.floor(dates.length / 2)] : '';
+    const menuActif = refDate
+      ? menus.find(menu => menu.dateDebut && menu.dateFin && refDate >= menu.dateDebut && refDate <= menu.dateFin)
+      : menus.filter(menu => menu.dateDebut).sort((a, b) => b.dateDebut.localeCompare(a.dateDebut))[0];
+    if (menuActif) {
+      for (const cat of menuActif.categories) {
+        for (const mr of cat.recettes) {
+          if (mr.prixVente > 0) m.set(mr.id, mr.prixVente);
+        }
+      }
+    }
+    return m;
+  }, [menus, rapportsFiltrés]);
+
   // Map nom → food cost % (coutCalcule / prixVente HT)
   const foodCostPctParNom = useMemo(() => {
     const m = new Map<string, number>();
     for (const r of recettes) {
-      if (r.nom && typeof r.coutCalcule === 'number' && r.coutCalcule > 0 && typeof r.prixVente === 'number' && r.prixVente > 0) {
-        const prixHT = r.prixVente / 1.10;
-        const pct = r.coutCalcule / prixHT;
-        m.set(r.nom.toLowerCase(), pct);
+      if (r.nom && typeof r.coutCalcule === 'number' && r.coutCalcule > 0) {
+        const prix = prixParId.get(r.id) || r.prixVente || 0;
+        if (prix > 0) {
+          const prixHT = prix / 1.10;
+          m.set(r.nom.toLowerCase(), r.coutCalcule / prixHT);
+        }
       }
     }
     return m;
-  }, [recettes]);
-
-  const bucketOfRapport = (r: Rapport): string => {
-    if (granularite === 'jour') return r.date;
-    if (granularite === 'semaine') return isoWeek(r.date);
-    return r.mois;
-  };
-
-  const bucketsDisponibles = useMemo(() => {
-    return [...new Set(rapports.map(bucketOfRapport))].sort().reverse();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rapports, granularite]);
-
-  const rapportsFiltrés = useMemo(() => {
-    if (bucket === 'all') return rapports;
-    return rapports.filter(r => bucketOfRapport(r) === bucket);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rapports, bucket, granularite]);
-
-  const ventesFiltrées = useMemo(() => {
-    if (bucket === 'all') return ventes;
-    const dates = new Set(rapportsFiltrés.map(r => r.date));
-    // Filtrer par jour si dispo, sinon par mois/semaine selon granularité
-    return ventes.filter(v => {
-      if (v.jour && dates.has(v.jour)) return true;
-      // Fallback : matcher par bucket (mois ou semaine)
-      if (granularite === 'mois' && v.mois === bucket) return true;
-      if (granularite === 'semaine' && v.jour && isoWeek(v.jour) === bucket) return true;
-      if (granularite === 'jour' && v.jour === bucket) return true;
-      return false;
-    });
-  }, [ventes, rapportsFiltrés, bucket, granularite]);
-
-  // === N-1 : même bucket l'année précédente ===
-  // - Mois '2026-04' → '2025-04'
-  // - Semaine '2026-W15' → '2025-W15'
-  // - Jour '2026-04-12' → '2025-04-12'
-  const bucketNMoins1 = useMemo((): string | null => {
-    if (bucket === 'all') return null;
-    if (granularite === 'mois') {
-      const m = bucket.match(/^(\d{4})-(\d{2})$/);
-      if (!m) return null;
-      return `${parseInt(m[1]) - 1}-${m[2]}`;
-    }
-    if (granularite === 'semaine') {
-      const m = bucket.match(/^(\d{4})-W(\d{2})$/);
-      if (!m) return null;
-      return `${parseInt(m[1]) - 1}-W${m[2]}`;
-    }
-    if (granularite === 'jour') {
-      const m = bucket.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-      if (!m) return null;
-      return `${parseInt(m[1]) - 1}-${m[2]}-${m[3]}`;
-    }
-    return null;
-  }, [bucket, granularite]);
-
-  const caNMoins1 = useMemo((): number | null => {
-    if (!bucketNMoins1) return null;
-    let total = 0;
-    let found = false;
-    for (const v of ventes) {
-      let bk: string | null = null;
-      if (granularite === 'mois') bk = v.mois || null;
-      else if (granularite === 'jour') bk = v.jour || null;
-      else if (granularite === 'semaine') bk = v.jour ? isoWeek(v.jour) : null;
-      if (bk === bucketNMoins1) {
-        total += v.ttc || 0;
-        found = true;
-      }
-    }
-    return found ? total : null;
-  }, [ventes, bucketNMoins1, granularite]);
+  }, [recettes, prixParId]);
 
   // === KPIs agrégés ===
   const kpi = useMemo(() => {
@@ -293,31 +272,13 @@ export default function PerformancePage() {
   return (
     <div className="max-w-6xl mx-auto p-6 space-y-6">
 
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Performance</h1>
-        <div className="flex gap-2 items-center">
-          <span className="text-xs text-gray-500">Voir par :</span>
-          {(['jour', 'semaine', 'mois'] as const).map(g => (
-            <button key={g} onClick={() => { setGranularite(g); setBucket('all'); }}
-              className={`px-3 py-1 rounded-full text-xs font-medium border ${granularite === g ? 'bg-black border-black text-white' : 'border-gray-200 text-gray-500'}`}>
-              {g.charAt(0).toUpperCase() + g.slice(1)}
-            </button>
-          ))}
-        </div>
-      </div>
+      <h1 className="text-2xl font-bold">Performance</h1>
 
-      <div className="flex gap-2 flex-wrap">
-        <button onClick={() => setBucket('all')}
-          className={`px-3 py-1 rounded-full text-xs font-medium border ${bucket === 'all' ? 'bg-yellow-400 border-yellow-400 text-black' : 'border-yellow-200 text-gray-500'}`}>
-          Tous
-        </button>
-        {bucketsDisponibles.map(b => (
-          <button key={b} onClick={() => setBucket(b)}
-            className={`px-3 py-1 rounded-full text-xs font-medium border ${bucket === b ? 'bg-yellow-400 border-yellow-400 text-black' : 'border-yellow-200 text-gray-500'}`}>
-            {b}
-          </button>
-        ))}
-      </div>
+      <TimePeriodFilter
+        availableDates={availableDates}
+        value={timePeriod}
+        onChange={setTimePeriod}
+      />
 
       {/* Alertes */}
       {alertes.length > 0 && (
@@ -343,11 +304,11 @@ export default function PerformancePage() {
       </div>
 
       {/* Objectif N-1 +10% */}
-      {bucket !== 'all' && (() => {
+      {timePeriod && (() => {
         if (caNMoins1 === null) {
           return (
             <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 text-sm text-gray-500">
-              Pas de données N-1 pour {bucket} à cette granularité. (L'historique passé est souvent agrégé au mois.)
+              Pas de données N-1 pour {timePeriod.label}.
             </div>
           );
         }
