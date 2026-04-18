@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { collection, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Treemap, ResponsiveContainer } from 'recharts';
+import TimePeriodFilter, { isInPeriod, type TimePeriod } from '@/components/TimePeriodFilter';
 
 interface Achat {
   id: string;
@@ -40,8 +41,7 @@ export default function CoutsPage() {
 
   const [filterFournisseur, setFilterFournisseur] = useState<string>('all');
   const [filterCategorie, setFilterCategorie] = useState<string>('all');
-  const [filterDateDebut, setFilterDateDebut] = useState('');
-  const [filterDateFin, setFilterDateFin] = useState('');
+  const [timePeriod, setTimePeriod] = useState<TimePeriod | null>(null);
   const [sortKey, setSortKey] = useState<SortKey>('date');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
 
@@ -80,13 +80,11 @@ export default function CoutsPage() {
     return achats.filter(a => {
       if (filterFournisseur !== 'all' && a.fournisseur !== filterFournisseur) return false;
       if (filterCategorie !== 'all' && getCategorie(a) !== filterCategorie) return false;
-      const d = getDateStr(a.date);
-      if (filterDateDebut && d < filterDateDebut) return false;
-      if (filterDateFin && d > filterDateFin) return false;
+      if (!isInPeriod(a.date, timePeriod)) return false;
       return true;
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [achats, pfMap, filterFournisseur, filterCategorie, filterDateDebut, filterDateFin]);
+  }, [achats, pfMap, filterFournisseur, filterCategorie, timePeriod]);
 
   const sorted = useMemo(() => {
     return [...filtered].sort((a, b) => {
@@ -114,7 +112,7 @@ export default function CoutsPage() {
   const loaderRef = useRef<HTMLDivElement>(null);
 
   // Reset visible count when filters/sort change
-  useEffect(() => { setVisibleCount(PAGE_SIZE); }, [filterFournisseur, filterCategorie, filterDateDebut, filterDateFin, sortKey, sortDir]);
+  useEffect(() => { setVisibleCount(PAGE_SIZE); }, [filterFournisseur, filterCategorie, timePeriod, sortKey, sortDir]);
 
   const visibleRows = useMemo(() => sorted.slice(0, visibleCount), [sorted, visibleCount]);
   const hasMore = visibleCount < sorted.length;
@@ -149,7 +147,14 @@ export default function CoutsPage() {
     <div className="max-w-6xl mx-auto p-6 space-y-4">
       <h1 className="text-2xl font-bold">Coûts</h1>
 
-      {/* Filtres */}
+      {/* Filtre période */}
+      <TimePeriodFilter
+        availableDates={achats.map(a => a.date?.slice(0, 10)).filter(Boolean)}
+        value={timePeriod}
+        onChange={setTimePeriod}
+      />
+
+      {/* Filtres fournisseur / catégorie */}
       <div className="flex flex-wrap gap-3 items-end">
         <div>
           <label className="text-xs text-gray-500 block mb-1">Fournisseur</label>
@@ -164,16 +169,6 @@ export default function CoutsPage() {
             className="border border-gray-200 rounded-lg px-3 py-1.5 text-sm">
             {categories.map(c => <option key={c} value={c}>{c === 'all' ? 'Toutes' : c}</option>)}
           </select>
-        </div>
-        <div>
-          <label className="text-xs text-gray-500 block mb-1">Du</label>
-          <input type="date" value={filterDateDebut} onChange={e => setFilterDateDebut(e.target.value)}
-            className="border border-gray-200 rounded-lg px-3 py-1.5 text-sm" />
-        </div>
-        <div>
-          <label className="text-xs text-gray-500 block mb-1">Au</label>
-          <input type="date" value={filterDateFin} onChange={e => setFilterDateFin(e.target.value)}
-            className="border border-gray-200 rounded-lg px-3 py-1.5 text-sm" />
         </div>
         <div className="ml-auto text-sm text-gray-500">
           {filtered.length} achats · <span className="font-bold text-black">{fmtEur(totalFiltered)}</span>
