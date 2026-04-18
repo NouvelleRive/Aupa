@@ -263,12 +263,24 @@ export default function PerformancePage() {
       )}
 
       {/* KPIs principaux */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Kpi label="CA TTC" value={fmtEur(kpi.caTTC)} />
-        <Kpi label="CA HT" value={fmtEur(kpi.caHT)} />
-        <Kpi label="Commandes" value={`${kpi.commandes}`} />
-        <Kpi label="Ticket moyen" value={fmtEur(ticketMoyen)} sub={`${kpi.couverts} couverts`} />
-      </div>
+      {(() => {
+        const nbJours = rapportsFiltrés.length;
+        const showMoy = nbJours > 1;
+        return (
+          <>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <Kpi label="CA TTC" value={fmtEur(kpi.caTTC)}
+                sub={showMoy ? `moy. ${fmtEur(kpi.caTTC / nbJours)} / jour` : undefined} />
+              <Kpi label="CA HT" value={fmtEur(kpi.caHT)}
+                sub={showMoy ? `moy. ${fmtEur(kpi.caHT / nbJours)} / jour` : undefined} />
+              <Kpi label="Commandes" value={`${kpi.commandes}`}
+                sub={showMoy ? `moy. ${Math.round(kpi.commandes / nbJours)} / jour` : undefined} />
+              <Kpi label="Ticket moyen" value={fmtEur(ticketMoyen)}
+                sub={`${kpi.couverts} couverts${showMoy ? ` · moy. ${Math.round(kpi.couverts / nbJours)} / jour` : ''}`} />
+            </div>
+          </>
+        );
+      })()}
 
       {/* Objectif N-1 +10% */}
       {timePeriod && (() => {
