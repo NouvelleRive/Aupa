@@ -86,23 +86,37 @@ export default function CoutsPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [achats, pfMap, filterFournisseur, filterCategorie, timePeriod]);
 
+  // Regrouper par produit
+  const grouped = useMemo(() => {
+    const m = new Map<string, { nom: string; fournisseur: string; categorie: string; qte: number; total: number; nbAchats: number }>();
+    for (const a of filtered) {
+      const key = a.nom;
+      const e = m.get(key) || { nom: a.nom, fournisseur: a.fournisseur, categorie: getCategorie(a), qte: 0, total: 0, nbAchats: 0 };
+      e.qte += a.qte;
+      e.total += a.total;
+      e.nbAchats++;
+      m.set(key, e);
+    }
+    return Array.from(m.values());
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filtered, pfMap]);
+
   const sorted = useMemo(() => {
-    return [...filtered].sort((a, b) => {
+    return [...grouped].sort((a, b) => {
       let va: string | number = '';
       let vb: string | number = '';
-      if (sortKey === 'date') { va = getDateStr(a.date); vb = getDateStr(b.date); }
-      else if (sortKey === 'nom') { va = a.nom.toLowerCase(); vb = b.nom.toLowerCase(); }
+      if (sortKey === 'nom') { va = a.nom.toLowerCase(); vb = b.nom.toLowerCase(); }
       else if (sortKey === 'fournisseur') { va = a.fournisseur; vb = b.fournisseur; }
-      else if (sortKey === 'categorie') { va = getCategorie(a); vb = getCategorie(b); }
+      else if (sortKey === 'categorie') { va = a.categorie; vb = b.categorie; }
       else if (sortKey === 'total') { va = a.total; vb = b.total; }
       else if (sortKey === 'qte') { va = a.qte; vb = b.qte; }
-      else if (sortKey === 'prixUnitaire') { va = a.prixUnitaire; vb = b.prixUnitaire; }
+      else if (sortKey === 'prixUnitaire') { va = a.total / a.qte; vb = b.total / b.qte; }
+      else if (sortKey === 'date') { va = a.total; vb = b.total; } // fallback tri par total
       if (va < vb) return sortDir === 'asc' ? -1 : 1;
       if (va > vb) return sortDir === 'asc' ? 1 : -1;
       return 0;
     });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filtered, sortKey, sortDir, pfMap]);
+  }, [grouped, sortKey, sortDir]);
 
   const totalFiltered = useMemo(() => filtered.reduce((s, a) => s + a.total, 0), [filtered]);
 
@@ -171,7 +185,7 @@ export default function CoutsPage() {
           </select>
         </div>
         <div className="ml-auto text-sm text-gray-500">
-          {filtered.length} achats · <span className="font-bold text-black">{fmtEur(totalFiltered)}</span>
+          {grouped.length} produits · {filtered.length} achats · <span className="font-bold text-black">{fmtEur(totalFiltered)}</span>
         </div>
       </div>
 
@@ -183,24 +197,22 @@ export default function CoutsPage() {
         <table className="w-full text-sm">
           <thead>
             <tr className="text-left text-xs text-gray-400 border-b border-gray-100">
-              <th className="py-2 px-3 cursor-pointer select-none" onClick={() => toggleSort('date')}>Date{sortIcon('date')}</th>
               <th className="py-2 px-3 cursor-pointer select-none" onClick={() => toggleSort('fournisseur')}>Fournisseur{sortIcon('fournisseur')}</th>
               <th className="py-2 px-3 cursor-pointer select-none" onClick={() => toggleSort('categorie')}>Catégorie{sortIcon('categorie')}</th>
               <th className="py-2 px-3 cursor-pointer select-none" onClick={() => toggleSort('nom')}>Produit{sortIcon('nom')}</th>
               <th className="py-2 px-3 text-right cursor-pointer select-none" onClick={() => toggleSort('qte')}>Qté{sortIcon('qte')}</th>
-              <th className="py-2 px-3 text-right cursor-pointer select-none" onClick={() => toggleSort('prixUnitaire')}>Prix unit.{sortIcon('prixUnitaire')}</th>
+              <th className="py-2 px-3 text-right cursor-pointer select-none" onClick={() => toggleSort('prixUnitaire')}>Prix moy.{sortIcon('prixUnitaire')}</th>
               <th className="py-2 px-3 text-right cursor-pointer select-none" onClick={() => toggleSort('total')}>Total{sortIcon('total')}</th>
             </tr>
           </thead>
           <tbody>
-            {visibleRows.map(a => (
-              <tr key={a.id} className="border-b border-gray-50 hover:bg-yellow-50/30">
-                <td className="py-2 px-3 font-mono text-xs">{fmtDate(a.date)}</td>
+            {visibleRows.map((a, i) => (
+              <tr key={`${a.nom}-${i}`} className="border-b border-gray-50 hover:bg-yellow-50/30">
                 <td className="py-2 px-3">{a.fournisseur}</td>
-                <td className="py-2 px-3 text-gray-500">{getCategorie(a)}</td>
+                <td className="py-2 px-3 text-gray-500">{a.categorie}</td>
                 <td className="py-2 px-3">{a.nom}</td>
                 <td className="py-2 px-3 text-right font-mono">{a.qte}</td>
-                <td className="py-2 px-3 text-right font-mono">{fmtEur(a.prixUnitaire)}</td>
+                <td className="py-2 px-3 text-right font-mono">{a.qte > 0 ? fmtEur(a.total / a.qte) : '—'}</td>
                 <td className="py-2 px-3 text-right font-mono font-semibold">{fmtEur(a.total)}</td>
               </tr>
             ))}
