@@ -60,11 +60,21 @@ export default function IngredientsPage() {
 
     // Identifier les recettes de type Préparations
     const prepRecettes = recSnap.docs.filter(d => d.data().categorie === 'Préparations');
-    const prepNomsSet = new Set(prepRecettes.map(d => (d.data().nom as string).toLowerCase().trim()));
+    const prepNomsSet = new Set<string>();
+    for (const d of prepRecettes) {
+      const nom = (d.data().nom as string).toLowerCase().trim();
+      prepNomsSet.add(nom);
+      // Ajouter aussi le nom sans le préfixe "prépa" / "prepa"
+      const sansPrepa = nom.replace(/^pr[ée]pa\s+/i, '');
+      if (sansPrepa !== nom) prepNomsSet.add(sansPrepa);
+    }
     setPrepNoms(prepNomsSet);
 
     // Séparer ingrédients bruts (exclure ceux qui sont des prépas)
-    const brutIngredients = ings.filter(i => !prepNomsSet.has(i.nom.toLowerCase().trim()));
+    const brutIngredients = ings.filter(i => {
+      const n = i.nom.toLowerCase().trim();
+      return !prepNomsSet.has(n) && !prepNomsSet.has('prépa ' + n) && !prepNomsSet.has('prepa ' + n);
+    });
     setIngredients(brutIngredients);
 
     // Construire les données préparations
@@ -189,7 +199,35 @@ export default function IngredientsPage() {
 
   const handleSaveInline = async () => {
     if (!editInlineId || !editInlineForm.nom) return;
-    await updateDoc(doc(db, 'ingredients', editInlineId), { nom: editInlineForm.nom, categorie: editInlineForm.categorie });
+    const ing = ingredients.find(i => i.id === editInlineId);
+    const ancienNom = ing?.nom;
+    const nouveauNom = editInlineForm.nom;
+
+    await updateDoc(doc(db, 'ingredients', editInlineId), { nom: nouveauNom, categorie: editInlineForm.categorie });
+
+    // Propager le renommage si le nom a changé
+    if (ancienNom && ancienNom !== nouveauNom) {
+      // Mettre à jour le champ "ingredient" dans les produitsFournisseurs
+      const pfSnap = await getDocs(collection(db, 'produitsFournisseurs'));
+      for (const d of pfSnap.docs) {
+        if (d.data().ingredient === ancienNom) {
+          await updateDoc(doc(db, 'produitsFournisseurs', d.id), { ingredient: nouveauNom });
+        }
+      }
+      // Mettre à jour le champ "nomIngredient" dans les recettes
+      const recSnap = await getDocs(collection(db, 'recettes'));
+      for (const d of recSnap.docs) {
+        const ings = d.data().ingredients || [];
+        const hasMatch = ings.some((i: any) => i.nomIngredient === ancienNom);
+        if (hasMatch) {
+          const newIngs = ings.map((i: any) =>
+            i.nomIngredient === ancienNom ? { ...i, nomIngredient: nouveauNom } : i
+          );
+          await updateDoc(doc(db, 'recettes', d.id), { ingredients: newIngs });
+        }
+      }
+    }
+
     setEditInlineId(null);
     await recalculerTousLesCouts();
     fetchAll();
