@@ -51,7 +51,10 @@ export default function PerformancePage() {
   const [ventes, setVentes] = useState<Vente[]>([]);
   const [recettes, setRecettes] = useState<Recette[]>([]);
   const [menus, setMenus] = useState<MenuDoc[]>([]);
-  const [timePeriod, setTimePeriod] = useState<TimePeriod | null>(null);
+  const hier = new Date();
+  hier.setDate(hier.getDate() - 1);
+  const hierStr = hier.toISOString().slice(0, 10);
+  const [timePeriod, setTimePeriod] = useState<TimePeriod | null>({ label: 'Hier', dateDebut: hierStr, dateFin: hierStr });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
