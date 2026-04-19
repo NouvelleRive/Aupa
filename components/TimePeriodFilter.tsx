@@ -16,6 +16,8 @@ export type TimePeriod = {
   label: string;
   dateDebut: string;  // YYYY-MM-DD
   dateFin: string;    // YYYY-MM-DD
+  // Pour la multi-sélection de mois : liste de plages
+  ranges?: { dateDebut: string; dateFin: string }[];
 };
 
 function today(): string {
@@ -30,7 +32,7 @@ function yesterday(): string {
 
 function startOfWeek(): string {
   const d = new Date();
-  const day = d.getDay() || 7; // lundi = 1
+  const day = d.getDay() || 7;
   d.setDate(d.getDate() - day + 1);
   return d.toISOString().slice(0, 10);
 }
@@ -56,16 +58,15 @@ function endOfMonth(year: number, month: number): string {
 const MOIS_NOMS = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Jun', 'Jul', 'Aoû', 'Sep', 'Oct', 'Nov', 'Déc'];
 
 interface TimePeriodFilterProps {
-  /** Dates disponibles dans les données (YYYY-MM-DD) — pour savoir quelles années/mois existent */
   availableDates: string[];
-  /** Période sélectionnée */
   value: TimePeriod | null;
-  /** Callback quand la période change */
   onChange: (period: TimePeriod | null) => void;
 }
 
 export default function TimePeriodFilter({ availableDates, value, onChange }: TimePeriodFilterProps) {
   const [expandedYear, setExpandedYear] = useState<number | null>(null);
+  // Mois sélectionnés pour le mode multi : "2025-01", "2025-03", etc.
+  const [selectedMonths, setSelectedMonths] = useState<Set<string>>(new Set());
 
   const availableYears = useMemo(() => {
     const years = new Set<number>();
@@ -76,7 +77,6 @@ export default function TimePeriodFilter({ availableDates, value, onChange }: Ti
     return Array.from(years).sort().reverse();
   }, [availableDates]);
 
-  // Mois avec données pour l'année expandée
   const availableMonths = useMemo(() => {
     if (!expandedYear) return new Set<number>();
     const months = new Set<number>();
@@ -92,37 +92,63 @@ export default function TimePeriodFilter({ availableDates, value, onChange }: Ti
   const isActive = (label: string) => value?.label === label;
 
   const quickSelect = (label: string, dateDebut: string, dateFin: string) => {
+    setSelectedMonths(new Set());
     if (value?.label === label) {
-      onChange(null); // deselect
+      onChange(null);
     } else {
       onChange({ label, dateDebut, dateFin });
-      // Ne pas fermer les mois quand on sélectionne un mois
     }
   };
 
   const selectYear = (year: number) => {
+    setSelectedMonths(new Set());
     if (expandedYear === year) {
-      // Deuxième clic = fermer les mois
       setExpandedYear(null);
     } else {
-      // Premier clic = sélectionner l'année + ouvrir les mois
       setExpandedYear(year);
       onChange({ label: `${year}`, dateDebut: startOfYear(year), dateFin: endOfYear(year) });
     }
   };
 
-  const selectMonth = (year: number, month: number) => {
-    const label = `${MOIS_NOMS[month - 1]} ${year}`;
-    const dateDebut = `${year}-${String(month).padStart(2, '0')}-01`;
-    const dateFin = endOfMonth(year, month);
-    quickSelect(label, dateDebut, dateFin);
+  const toggleMonth = (year: number, month: number) => {
+    const key = `${year}-${String(month).padStart(2, '0')}`;
+    const newSet = new Set(selectedMonths);
+    if (newSet.has(key)) {
+      newSet.delete(key);
+    } else {
+      newSet.add(key);
+    }
+    setSelectedMonths(newSet);
+
+    if (newSet.size === 0) {
+      // Plus aucun mois sélectionné → sélectionner l'année entière
+      onChange({ label: `${year}`, dateDebut: startOfYear(year), dateFin: endOfYear(year) });
+      return;
+    }
+
+    // Construire les ranges à partir des mois sélectionnés
+    const sorted = Array.from(newSet).sort();
+    const ranges = sorted.map(k => {
+      const [y, m] = k.split('-').map(Number);
+      return { dateDebut: `${k}-01`, dateFin: endOfMonth(y, m) };
+    });
+    const label = sorted.map(k => {
+      const [y, m] = k.split('-').map(Number);
+      return `${MOIS_NOMS[m - 1]} ${y}`;
+    }).join(' + ');
+
+    onChange({
+      label,
+      dateDebut: ranges[0].dateDebut,
+      dateFin: ranges[ranges.length - 1].dateFin,
+      ranges,
+    });
   };
 
   const hier = yesterday();
 
   return (
     <div className="space-y-2">
-      {/* Boutons rapides */}
       <div className="flex gap-2 flex-wrap">
         <PillButton active={isActive('Hier')} onClick={() => quickSelect('Hier', hier, hier)}>
           Hier
@@ -133,7 +159,6 @@ export default function TimePeriodFilter({ availableDates, value, onChange }: Ti
         <PillButton active={isActive('Ce mois')} onClick={() => quickSelect('Ce mois', startOfMonth(), today())}>
           Ce mois
         </PillButton>
-        {/* Années */}
         {availableYears.map(year => (
           <PillButton key={year} active={isActive(`${year}`) || expandedYear === year}
             onClick={() => selectYear(year)}>
@@ -144,7 +169,7 @@ export default function TimePeriodFilter({ availableDates, value, onChange }: Ti
         {value && (
           <>
             <span className="w-px bg-gray-200 mx-1" />
-            <button onClick={() => { onChange(null); setExpandedYear(null); }}
+            <button onClick={() => { onChange(null); setExpandedYear(null); setSelectedMonths(new Set()); }}
               className="px-3 py-1 rounded-full text-xs font-medium border border-gray-200 text-gray-400 hover:text-gray-600">
               Tout
             </button>
@@ -152,17 +177,17 @@ export default function TimePeriodFilter({ availableDates, value, onChange }: Ti
         )}
       </div>
 
-      {/* Mois de l'année expandée */}
       {expandedYear && (
         <div className="flex gap-1.5 flex-wrap pl-1">
           {Array.from({ length: 12 }, (_, i) => i + 1).map(month => {
             const hasData = availableMonths.has(month);
-            const label = `${MOIS_NOMS[month - 1]} ${expandedYear}`;
+            const key = `${expandedYear}-${String(month).padStart(2, '0')}`;
+            const isSelected = selectedMonths.has(key);
             return (
-              <button key={month} onClick={() => hasData && selectMonth(expandedYear, month)}
+              <button key={month} onClick={() => hasData && toggleMonth(expandedYear, month)}
                 disabled={!hasData}
                 className={`px-2.5 py-1 rounded-full text-xs font-medium border transition-colors
-                  ${isActive(label) ? 'bg-yellow-400 border-yellow-400 text-black' : hasData ? 'border-gray-200 text-gray-500 hover:border-yellow-300' : 'border-gray-100 text-gray-300 cursor-not-allowed'}`}>
+                  ${isSelected ? 'bg-yellow-400 border-yellow-400 text-black' : hasData ? 'border-gray-200 text-gray-500 hover:border-yellow-300' : 'border-gray-100 text-gray-300 cursor-not-allowed'}`}>
                 {MOIS_NOMS[month - 1]}
               </button>
             );
@@ -183,9 +208,13 @@ function PillButton({ active, onClick, children }: { active: boolean; onClick: (
   );
 }
 
-/** Helper : filtre un tableau de dates par la période sélectionnée */
+/** Helper : filtre une date par la période sélectionnée (supporte multi-ranges) */
 export function isInPeriod(dateStr: string, period: TimePeriod | null): boolean {
   if (!period) return true;
-  const d = dateStr.slice(0, 10);
+  const d = dateStr.length === 7 ? dateStr + '-01' : dateStr.slice(0, 10);
+  // Si multi-ranges, vérifier chaque plage
+  if (period.ranges && period.ranges.length > 0) {
+    return period.ranges.some(r => d >= r.dateDebut && d <= r.dateFin);
+  }
   return d >= period.dateDebut && d <= period.dateFin;
 }
