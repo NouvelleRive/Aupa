@@ -163,21 +163,30 @@ export default function IngredientsPage() {
     }
     setPfPrix(prix);
 
-    // Collecter les noms des recettes liées (pour bruts)
+    // Collecter les noms des recettes liées (pour bruts) — par nom ET par ingredientId
     const rc: Record<string, string[]> = {};
     for (const d of recSnap.docs) {
       const data = d.data();
       const lignes = data.ingredients || [];
       const nomRecette = data.nom || d.id;
-      const seen = new Set<string>();
+      const seenIngIds = new Set<string>();
       for (const l of lignes) {
-        const nomIngredient = l.nomIngredient;
-        if (nomIngredient && !seen.has(nomIngredient)) {
-          const ing = brutIngredients.find(i => i.nom === nomIngredient);
-          if (ing) {
+        // Par ingredientId
+        if (l.ingredientId) {
+          const ing = brutIngredients.find(i => i.id === l.ingredientId);
+          if (ing && !seenIngIds.has(ing.id)) {
             if (!rc[ing.id]) rc[ing.id] = [];
             rc[ing.id].push(nomRecette);
-            seen.add(nomIngredient);
+            seenIngIds.add(ing.id);
+          }
+        }
+        // Par nomIngredient (fallback)
+        if (l.nomIngredient && !l.ingredientId) {
+          const ing = brutIngredients.find(i => i.nom === l.nomIngredient);
+          if (ing && !seenIngIds.has(ing.id)) {
+            if (!rc[ing.id]) rc[ing.id] = [];
+            rc[ing.id].push(nomRecette);
+            seenIngIds.add(ing.id);
           }
         }
       }
