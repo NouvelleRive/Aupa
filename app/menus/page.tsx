@@ -542,6 +542,28 @@
                 <p className="text-xs text-gray-500 mb-1">Articles vendus</p>
                 <p className="text-2xl font-bold">{totalVendus > 0 ? totalVendus : '—'}</p>
                 </div>
+                {(() => {
+                  const coutMatTotal = allMenuRecettes.reduce((s, mr) => {
+                    const r = recettes.find(x => x.id === mr.id);
+                    if (!r || !r.coutCalcule) return s;
+                    const v = getVentesPourPlat(r.nom);
+                    const vendus = v.reduce((a, x) => a + x.quantity, 0);
+                    return s + r.coutCalcule * vendus;
+                  }, 0);
+                  const caHT = caReel / 1.1;
+                  const margeReelle = caHT - coutMatTotal;
+                  const margePct = caHT > 0 ? (margeReelle / caHT) * 100 : 0;
+                  return (
+                    <div className="bg-white rounded-xl border border-yellow-100 p-4 cursor-help"
+                      title={`Marge réelle = CA HT (${Math.round(caHT)} €) - Σ(vendus × coût matière par plat) (${Math.round(coutMatTotal)} €)`}>
+                      <p className="text-xs text-gray-500 mb-1">Marge réelle</p>
+                      <p className={`text-2xl font-bold ${margeReelle > 0 ? 'text-green-600' : margeReelle < 0 ? 'text-red-500' : ''}`}>
+                        {caReel > 0 ? Math.round(margeReelle) + ' €' : '—'}
+                      </p>
+                      {caReel > 0 && <p className="text-xs text-gray-400 mt-1">{margePct.toFixed(1)}% du CA HT</p>}
+                    </div>
+                  );
+                })()}
             </div>
 
             <div className="space-y-4 mb-6">
