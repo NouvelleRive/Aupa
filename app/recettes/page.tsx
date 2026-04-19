@@ -354,8 +354,13 @@ export default function RecettesPage() {
   const defaultUnite = (ingUnite: string): string => {
     return ingUnite || 'kg';
   };
-  // Toutes les unités sélectionnables
-  const TOUTES_UNITES = ['kg', 'g', 'L', 'cL', 'pièce', 'lot'];
+  // Unités compatibles : on ne peut choisir que les sous-unités de l'unité définie sur le PF
+  const unitesCompatibles = (baseUnite: string): string[] => {
+    const u = baseUnite || 'kg';
+    if (u === 'kg' || u === 'g') return ['kg', 'g'];
+    if (u === 'L' || u === 'cL') return ['L', 'cL'];
+    return [u];
+  };
 
   const prixUnitPF = (pf: any): number => {
     const qte = convertQte((pf as any).quantite || (pf as any).nbKg || (pf as any).nbPieces || 1, (pf as any).unite || 'kg');
@@ -727,7 +732,7 @@ export default function RecettesPage() {
                     </select>
                     <input className="border border-yellow-200 rounded-lg px-3 py-2 text-sm w-24" placeholder="Qté" type="number" value={ligne.grammage} onChange={e => { const n = [...lignes]; n[i].grammage = e.target.value; setLignes(n); }} />
                     <select className="text-xs text-gray-500 w-10 border-none bg-transparent cursor-pointer" value={ligne.unite || 'kg'} onChange={e => { const n = [...lignes]; n[i].unite = e.target.value; setLignes(n); }}>
-                      {TOUTES_UNITES.map((u: string) => <option key={u} value={u}>{u}</option>)}
+                      {unitesCompatibles(ligne.type === 'ingredient' ? (ingredients.find(x => x.id === ligne.id)?.unite || 'kg') : 'kg').map((u: string) => <option key={u} value={u}>{u}</option>)}
                     </select>
                     <span className="text-xs text-gray-400 w-20 text-right">{prixLabel || ''}</span>
                     <span className="text-xs font-semibold text-yellow-600 w-16 text-right">{coutLigne > 0 ? coutLigne.toFixed(3) + ' €' : ''}</span>

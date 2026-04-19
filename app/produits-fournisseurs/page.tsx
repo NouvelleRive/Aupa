@@ -1003,6 +1003,16 @@
             categorie: editInlineForm.categorie, rendement: parseFloat(editInlineForm.rendement) / 100,
             quantite, updatedAt: new Date().toISOString(),
         });
+        // Propager l'unité vers l'ingrédient lié
+        const nomIng = ingredientParProduit[editInlineId];
+        if (nomIng) {
+          const ingSnap = await getDocs(collection(db, 'ingredients'));
+          const ingDoc = ingSnap.docs.find(d => d.data().nom === nomIng);
+          if (ingDoc) {
+            const uniteNorm = editInlineForm.unite === 'g' ? 'kg' : editInlineForm.unite === 'cL' ? 'L' : editInlineForm.unite;
+            await updateDoc(doc(db, 'ingredients', ingDoc.id), { unite: uniteNorm });
+          }
+        }
         setEditInlineId(null);
         await recalculerTousLesCouts();
         fetchIngredients();
@@ -1189,6 +1199,13 @@
                             await updateDoc(doc(db, 'recettes', recDoc.id), { ingredients: newIngs });
                           }
                           await updateDoc(doc(db, 'produitsFournisseurs', ing.id), { ingredient: nomChoisi });
+                          // Propager l'unité du PF vers l'ingrédient lié
+                          const ingSnap = await getDocs(collection(db, 'ingredients'));
+                          const ingDoc = ingSnap.docs.find(d => d.data().nom === nomChoisi);
+                          if (ingDoc) {
+                            const uniteNorm = ing.unite === 'g' ? 'kg' : ing.unite === 'cL' ? 'L' : ing.unite;
+                            await updateDoc(doc(db, 'ingredients', ingDoc.id), { unite: uniteNorm });
+                          }
                           await recalculerTousLesCouts();
                           fetchIngredients();
                         }}>
