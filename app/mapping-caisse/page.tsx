@@ -7,7 +7,7 @@ import { Recette } from '@/lib/types';
 import { CAISSE_MAP, normalizeCaisse } from '@/lib/caisseMap';
 
 export default function MappingCaissePage() {
-  const [ventesData, setVentesData] = useState<{ nom: string; menuNom: string }[]>([]);
+  const [ventesData, setVentesData] = useState<{ nom: string; menuNom: string; prixUnit: number }[]>([]);
   const [recettes, setRecettes] = useState<Recette[]>([]);
   const [mappings, setMappings] = useState<{ id: string; caisse: string; recette: string; original: string; recetteNom: string }[]>([]);
   const [caisseCategories, setCaisseCategories] = useState<Record<string, { nom: string; parent: string; cat: string }>>({});
@@ -25,12 +25,15 @@ export default function MappingCaissePage() {
       getDoc(doc(db, 'config', 'caisseCategories')),
     ]);
 
-    // Noms caisse uniques + dernier menuNom vu
-    const nomsMap = new Map<string, { nom: string; menuNom: string }>();
+    // Noms caisse uniques + dernier menuNom vu + prix unitaire
+    const nomsMap = new Map<string, { nom: string; menuNom: string; prixUnit: number }>();
     for (const d of vSnap.docs) {
       const data = d.data();
       const nom = data.nom;
-      if (nom && !nomsMap.has(nom)) nomsMap.set(nom, { nom, menuNom: data.menuNom || '' });
+      if (nom && !nomsMap.has(nom)) {
+        const pu = data.quantity > 0 ? data.ttc / data.quantity : data.ttc || 0;
+        nomsMap.set(nom, { nom, menuNom: data.menuNom || '', prixUnit: Math.round(pu * 100) / 100 });
+      }
     }
     setVentesData(Array.from(nomsMap.values()));
     setRecettes(rSnap.docs.map(d => ({ id: d.id, ...d.data() } as Recette)));
@@ -54,6 +57,14 @@ export default function MappingCaissePage() {
 
   // Trouver la catégorie Popina d'un nom de touche
   const getCatPopina = (nom: string): string => {
+    // Chercher par nom exact d'abord
+    for (const val of Object.values(caisseCategories)) {
+      if (val.nom.trim() === nom.trim()) {
+        const p = val.parent;
+        if (p.includes('Croissant Burger')) return 'Plats';
+        return p;
+      }
+    }
     const key = nom.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^\w\s]/g, '').trim().replace(/\s+/g, '_');
     const entry = caisseCategories[key];
     if (entry) {
@@ -78,7 +89,7 @@ export default function MappingCaissePage() {
         if (!recetteNom) recetteNom = mapping.recetteNom || mapping.recette;
       }
       const catPopina = getCatPopina(v.nom);
-      return { nom: v.nom, caisseKey, mappedTo: mapping?.recette || null, mappingId: mapping?.id || null, recetteNom, catPopina, menuNom: v.menuNom };
+      return { nom: v.nom, caisseKey, mappedTo: mapping?.recette || null, mappingId: mapping?.id || null, recetteNom, catPopina, menuNom: v.menuNom, prixUnit: v.prixUnit };
     }).sort((a, b) => a.catPopina.localeCompare(b.catPopina) || a.nom.localeCompare(b.nom, 'fr', { sensitivity: 'base' }));
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ventesData, mappings, recettes, caisseCategories]);
@@ -160,17 +171,19 @@ export default function MappingCaissePage() {
         <table className="w-full text-sm">
           <thead className="bg-yellow-50 text-gray-500 text-xs uppercase">
             <tr>
-              <th className="px-3 py-3 text-left w-[30%]">Touche caisse</th>
+              <th className="px-3 py-3 text-left w-[28%]">Touche caisse</th>
+              <th className="px-2 py-3 text-right w-[7%]">Prix</th>
               <th className="px-2 py-3 text-left w-[12%]">Catégorie</th>
-              <th className="px-2 py-3 text-left w-[10%]">Menu</th>
-              <th className="px-2 py-3 text-left w-[38%]">Recette</th>
-              <th className="px-2 py-3 w-[10%]"></th>
+              <th className="px-2 py-3 text-left w-[8%]">Menu</th>
+              <th className="px-2 py-3 text-left w-[37%]">Recette</th>
+              <th className="px-2 py-3 w-[8%]"></th>
             </tr>
           </thead>
           <tbody className="divide-y divide-yellow-50">
             {filtered.map(item => (
               <tr key={item.nom} className={`transition-colors ${item.mappedTo ? 'hover:bg-yellow-50' : 'bg-orange-50/30 hover:bg-orange-50/50'}`}>
                 <td className="px-3 py-3 font-medium">{item.nom}</td>
+                <td className="px-2 py-3 text-right text-xs font-mono text-gray-500">{item.prixUnit > 0 ? item.prixUnit.toFixed(2) + ' €' : '—'}</td>
                 <td className="px-2 py-3 text-xs text-gray-500">{item.catPopina || '—'}</td>
                 <td className="px-2 py-3 text-xs text-gray-400">{item.menuNom || '—'}</td>
                 <td className="px-2 py-3">
@@ -199,7 +212,7 @@ export default function MappingCaissePage() {
               </tr>
             ))}
             {filtered.length === 0 && (
-              <tr><td colSpan={5} className="px-4 py-8 text-center text-gray-400">
+              <tr><td colSpan={6} className="px-4 py-8 text-center text-gray-400">
                 {filterNonMappé ? 'Toutes les touches sont attribuées !' : 'Aucune touche trouvée'}
               </td></tr>
             )}
