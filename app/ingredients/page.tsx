@@ -226,8 +226,10 @@ export default function IngredientsPage() {
       return a.categorie.localeCompare(b.categorie) || a.nom.localeCompare(b.nom);
     });
 
+  const [triPrep, setTriPrep] = useState<'defaut' | 'cout'>('defaut');
   const filteredPreps = preparations
-    .filter(p => p.nom.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').includes(search.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')));
+    .filter(p => p.nom.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').includes(search.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')))
+    .sort((a, b) => triPrep === 'cout' ? (b.coutAuKg || 0) - (a.coutAuKg || 0) : a.nom.localeCompare(b.nom));
 
   // Infinite scroll
   useEffect(() => { setVisibleCount(PAGE_SIZE); }, [search, filterSansPrix, filterSansRecette, filterSansRef, tri]);
@@ -306,6 +308,12 @@ export default function IngredientsPage() {
               <option value="recettes">Tri : plus utilisés</option>
             </select>
           </>
+        )}
+        {tab === 'preparations' && (
+          <select className="border border-yellow-200 focus:border-yellow-400 focus:outline-none rounded-lg px-3 py-2 text-sm ml-2" value={triPrep} onChange={e => setTriPrep(e.target.value as any)}>
+            <option value="defaut">Tri : nom</option>
+            <option value="cout">Tri : plus cher au kg</option>
+          </select>
         )}
       </div>
 
@@ -437,24 +445,24 @@ export default function IngredientsPage() {
           <table className="w-full text-sm">
             <thead className="bg-yellow-50 text-gray-500 text-xs uppercase">
               <tr>
-                <th className="px-4 py-3 text-left">Nom</th>
-                <th className="px-4 py-3 text-right">Coût/kg</th>
-                <th className="px-4 py-3 text-left">Sous-ingrédients</th>
-                <th className="px-4 py-3 text-left">Utilisée dans</th>
+                <th className="px-3 py-3 text-left w-[20%]">Nom</th>
+                <th className="px-2 py-3 text-right w-[10%]">Coût/kg</th>
+                <th className="px-2 py-3 text-left w-[35%]">Sous-ingrédients</th>
+                <th className="px-2 py-3 text-left w-[35%]">Utilisée dans</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-yellow-50">
               {filteredPreps.map(prep => (
                 <tr key={prep.id} className="hover:bg-yellow-50 transition-colors">
-                  <td className="px-4 py-3 font-medium">{prep.nom}</td>
-                  <td className="px-4 py-3 text-right">
+                  <td className="px-3 py-3 font-medium">{prep.nom}</td>
+                  <td className="px-2 py-3 text-right">
                     {prep.coutAuKg > 0 ? (
                       <span className="font-semibold text-yellow-600">{prep.coutAuKg.toFixed(2)} €/kg</span>
                     ) : (
                       <span className="text-gray-300">—</span>
                     )}
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="px-2 py-3">
                     {prep.sousIngredients.length ? (
                       <div className="flex flex-wrap gap-1">
                         {prep.sousIngredients.map((nom, i) => (
@@ -465,7 +473,7 @@ export default function IngredientsPage() {
                       <span className="text-gray-300">—</span>
                     )}
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="px-2 py-3">
                     {prep.recettesUtilisees.length ? (
                       <div className="flex flex-wrap gap-1">
                         {prep.recettesUtilisees.map((nom, i) => (
