@@ -571,9 +571,17 @@
 
                 return (
                     <div key={idx} className="bg-white rounded-xl border border-yellow-100 overflow-hidden">
-                    <div className="bg-yellow-50 px-4 py-3 flex items-center justify-between">
-                        <h2 className="font-semibold text-gray-700">{cat.nom} <span className="text-xs text-gray-400 font-normal ml-2">{platsCategorie.length} plats</span></h2>
-                        <div className="flex items-center gap-3">
+                    {(() => {
+                      const avecPrix = ventsCat.filter(p => p.prixVente > 0);
+                      const prixMoyen = avecPrix.length > 0 ? avecPrix.reduce((s, p) => s + p.prixVente, 0) / avecPrix.length : 0;
+                      const coutMoyen = catAvecCout.length > 0 ? catAvecCout.reduce((s, p) => s + p.coutCalcule, 0) / catAvecCout.length : 0;
+                      const margeMoyenne = catAvecCout.length > 0 ? catAvecCout.reduce((s, p) => s + (p.prixVente / 1.1 - p.coutCalcule), 0) / catAvecCout.length : 0;
+                      const caTotal = ventsCat.reduce((s, p) => s + p.caReel, 0);
+                      return (
+                    <div className="bg-yellow-50 px-4 py-3">
+                      <div className="flex items-center gap-3 mb-1">
+                        <h2 className="font-semibold text-gray-700">{cat.nom}</h2>
+                        <span className="text-xs text-gray-400">{platsCategorie.length} plats</span>
                         {!isEditing && <button onClick={() => {
                             setMenuEdit(menuCourant.id);
                             setCatNom(cat.nom);
@@ -584,8 +592,19 @@
                             setFilterCatEdit('all');
                         }} className="text-xs text-gray-400 hover:text-yellow-500">Modifier</button>}
                         {!isEditing && <button onClick={() => handleSupprimerCategorie(menuCourant.id, idx)} className="text-xs text-gray-400 hover:text-yellow-500">Supprimer</button>}
-                        </div>
+                      </div>
+                      <div className="grid grid-cols-7 text-xs" style={{ gridTemplateColumns: '34% 11% 11% 11% 11% 11% 11%' }}>
+                        <span></span>
+                        <span className="text-right text-gray-500 font-semibold">{prixMoyen > 0 ? prixMoyen.toFixed(2) + ' €' : ''}</span>
+                        <span className="text-right text-gray-500 font-semibold">{coutMoyen > 0 ? coutMoyen.toFixed(2) + ' €' : ''}</span>
+                        <span className={`text-right font-semibold ${catFcMoyen > fcSeuil ? 'text-red-500' : catFcMoyen > fcSeuil * 0.85 ? 'text-orange-500' : 'text-green-600'}`}>{catFcMoyen > 0 ? `${fcIcon} ${catFcMoyen.toFixed(1)}%` : ''}</span>
+                        <span className="text-right text-green-600 font-semibold">{margeMoyenne > 0 ? margeMoyenne.toFixed(2) + ' €' : ''}</span>
+                        <span className="text-right text-gray-700 font-semibold">{totalVendusCat > 0 ? totalVendusCat : ''}</span>
+                        <span className="text-right text-yellow-600 font-semibold">{caTotal > 0 ? Math.round(caTotal) + ' €' : ''}</span>
+                      </div>
                     </div>
+                      );
+                    })()}
                     {isEditing ? (
                         <div className="p-4">
                         <div className="flex gap-3 mb-4 flex-wrap items-center">
@@ -640,29 +659,6 @@
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-yellow-50">
-                            {/* Ligne moyennes / totaux */}
-                            {(() => {
-                              const avecPrix = ventsCat.filter(p => p.prixVente > 0);
-                              const prixMoyen = avecPrix.length > 0 ? avecPrix.reduce((s, p) => s + p.prixVente, 0) / avecPrix.length : 0;
-                              const coutMoyen = catAvecCout.length > 0 ? catAvecCout.reduce((s, p) => s + p.coutCalcule, 0) / catAvecCout.length : 0;
-                              const margeMoyenne = catAvecCout.length > 0 ? catAvecCout.reduce((s, p) => s + (p.prixVente / 1.1 - p.coutCalcule), 0) / catAvecCout.length : 0;
-                              const caTotal = ventsCat.reduce((s, p) => s + p.caReel, 0);
-                              return (
-                                <tr className="bg-yellow-50/50 text-xs font-semibold">
-                                  <td className="px-4 py-2 text-gray-400 uppercase">Moyennes / Totaux</td>
-                                  <td className="px-4 py-2 text-right text-gray-500">{prixMoyen > 0 ? prixMoyen.toFixed(2) + ' €' : '—'}</td>
-                                  <td className="px-4 py-2 text-right text-gray-500">{coutMoyen > 0 ? coutMoyen.toFixed(2) + ' €' : '—'}</td>
-                                  <td className="px-4 py-2 text-right">
-                                    {catFcMoyen > 0 ? <span className={catFcMoyen > fcSeuil ? 'text-red-500' : catFcMoyen > fcSeuil * 0.85 ? 'text-orange-500' : 'text-green-600'}>{fcIcon} {catFcMoyen.toFixed(1)}%</span> : <span className="text-gray-300">—</span>}
-                                  </td>
-                                  <td className="px-4 py-2 text-right">
-                                    {margeMoyenne > 0 ? <span className="text-green-600">{margeMoyenne.toFixed(2)} €</span> : <span className="text-gray-300">—</span>}
-                                  </td>
-                                  <td className="px-4 py-2 text-right text-gray-700">{totalVendusCat > 0 ? totalVendusCat : '—'}</td>
-                                  <td className="px-4 py-2 text-right">{caTotal > 0 ? <span className="text-yellow-600">{Math.round(caTotal)} €</span> : <span className="text-gray-300">—</span>}</td>
-                                </tr>
-                              );
-                            })()}
                             {(() => {
                             const sortedByVendus = [...ventsCat].sort((a, b) => b.vendus - a.vendus);
                             const nbAvecVentes = sortedByVendus.filter(p => p.vendus > 0).length;
