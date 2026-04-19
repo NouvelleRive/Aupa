@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { collection, getDocs, addDoc, deleteDoc, doc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Recette, Ingredient, ProduitFournisseur, Preparation, CategorieRecette, TypePlat } from '@/lib/types';
@@ -498,8 +498,7 @@ export default function RecettesPage() {
     }
     setLignes(resolvedLignes);
     setNomIngredients(unresolvedNoms);
-    setShowForm(true);
-    window.scrollTo(0, 0);
+    setShowForm(false); // l'édition est inline, pas en haut
   };
 
   const handleDelete = async (id: string) => {
@@ -645,9 +644,9 @@ export default function RecettesPage() {
         </div>
       </div>
 
-      {showForm && (
+      {showForm && !editId && (
         <div className="bg-white rounded-xl border border-yellow-100 p-6 mb-6">
-          <h2 className="font-semibold text-gray-700 mb-4">{editId ? 'Modifier la recette' : 'Nouvelle recette'}</h2>
+          <h2 className="font-semibold text-gray-700 mb-4">Nouvelle recette</h2>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
             <div className="col-span-2 flex flex-col gap-1">
               <label className="text-xs text-gray-500 font-medium">Nom</label>
@@ -872,8 +871,11 @@ export default function RecettesPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-yellow-50">
-              {filtered.map(r => (
-                <tr key={r.id} className={`hover:bg-yellow-50 transition-colors ${selected.has(r.id) ? 'bg-yellow-50' : ''} ${(!r.ingredients || r.ingredients.length === 0) ? 'opacity-40' : ''}`}>
+              {filtered.map(r => {
+                const isEditing = editId === r.id;
+                return (
+                <React.Fragment key={r.id}>
+                <tr className={`transition-colors ${isEditing ? 'bg-yellow-50' : selected.has(r.id) ? 'bg-yellow-50' : 'hover:bg-yellow-50'} ${(!r.ingredients || r.ingredients.length === 0) ? 'opacity-40' : ''}`}>
                   <td className="px-4 py-3 text-center">
                     <input type="checkbox" checked={selected.has(r.id)} className="accent-yellow-400"
                       onChange={e => { const s = new Set(selected); e.target.checked ? s.add(r.id) : s.delete(r.id); setSelected(s); }} />
@@ -914,7 +916,6 @@ export default function RecettesPage() {
                           const prixMoyen = prices.reduce((s, p) => s + p, 0) / prices.length;
                           return total + prixMoyen * i.grammage;
                         }
-                        // Pas de PF trouvé par ingredientId → fallback par nomIngredient ci-dessous
                       }
                       if (i.recetteId) {
                         const prep = recettes.find(x => x.id === i.recetteId) as any;
@@ -923,16 +924,13 @@ export default function RecettesPage() {
                         if (prep.coutCalcule && prep.quantiteProduite) return total + (prep.coutCalcule / prep.quantiteProduite) * i.grammage;
                         return total;
                       }
-                      // Résolution par nomIngredient (recettes importées sans ingredientId)
                       if (i.nomIngredient) {
-                        // Chercher si c'est une préparation
                         const prep = recettes.find(x => x.categorie === 'Préparations' && x.nom === i.nomIngredient) as any;
                         if (prep) {
                           if (prep.coutAuKg) return total + prep.coutAuKg * i.grammage;
                           if (prep.coutCalcule && prep.quantiteProduite) return total + (prep.coutCalcule / prep.quantiteProduite) * i.grammage;
                           return total;
                         }
-                        // Chercher le produit fournisseur lié par nom (champ ingredient)
                         const pfs = produitsFournisseurs.filter(pf => (pf as any).ingredient === i.nomIngredient);
                         if (pfs.length > 0) {
                           const plusRecent = pfs.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())[0];
@@ -956,13 +954,125 @@ export default function RecettesPage() {
                     </>;
                   })()}
                   <td className="px-4 py-3 text-right whitespace-nowrap">
-                    <div className="flex items-center justify-end gap-2">
-                      <button onClick={() => handleEdit(r)} className="text-gray-400 hover:text-yellow-500" title="Modifier">✏️</button>
-                      <button onClick={() => handleDelete(r.id)} className="text-gray-400 hover:text-red-500" title="Supprimer">🗑️</button>
-                    </div>
+                    {!isEditing && (
+                      <div className="flex items-center justify-end gap-2">
+                        <button onClick={() => handleEdit(r)} className="text-gray-400 hover:text-yellow-500" title="Modifier">✏️</button>
+                        <button onClick={() => handleDelete(r.id)} className="text-gray-400 hover:text-red-500" title="Supprimer">🗑️</button>
+                      </div>
+                    )}
                   </td>
                 </tr>
-              ))}
+                {isEditing && (
+                  <tr>
+                    <td colSpan={9} className="bg-yellow-50 px-6 py-4 border-b-2 border-yellow-200">
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+                        <div className="col-span-2 flex flex-col gap-1">
+                          <label className="text-xs text-gray-500 font-medium">Nom</label>
+                          <input className="border border-yellow-200 focus:border-yellow-400 focus:outline-none rounded-lg px-3 py-2 text-sm" value={form.nom} onChange={e => setForm({ ...form, nom: e.target.value })} />
+                        </div>
+                        <div className="flex flex-col gap-1">
+                          <label className="text-xs text-gray-500 font-medium">Catégorie</label>
+                          <select className="border border-yellow-200 focus:border-yellow-400 focus:outline-none rounded-lg px-3 py-2 text-sm" value={form.categorie} onChange={e => setForm({ ...form, categorie: e.target.value as CategorieRecette })}>
+                            {CATEGORIES.map(c => <option key={c}>{c}</option>)}
+                          </select>
+                        </div>
+                        <div className="flex flex-col gap-1">
+                          <label className="text-xs text-gray-500 font-medium">Prix TTC</label>
+                          <div className="flex items-center gap-1">
+                            <input className="border border-yellow-200 focus:border-yellow-400 focus:outline-none rounded-lg px-3 py-2 text-sm w-full" type="number" value={(form as any).prixVente || ''} onChange={e => setForm({ ...form, prixVente: e.target.value } as any)} />
+                            {(form as any).prixVente && <span className="text-xs text-gray-400 whitespace-nowrap">{(parseFloat((form as any).prixVente) / 1.1).toFixed(2)} HT</span>}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex gap-2 mb-4">
+                        {TYPES_PLAT.map(t => (
+                          <button key={t} onClick={() => setForm(f => ({ ...f, type: t }))}
+                            className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${form.type === t ? 'bg-yellow-400 border-yellow-400 text-black' : 'border-yellow-200 text-gray-500 hover:border-yellow-400'}`}>
+                            {t === 'food' ? 'Food' : 'Boisson'}
+                          </button>
+                        ))}
+                      </div>
+
+                      {form.categorie === 'Préparations' && (
+                        <div className="flex gap-3 mb-4 items-center">
+                          <span className="text-sm text-gray-600">Quantité produite :</span>
+                          <input className="border border-yellow-200 rounded-lg px-3 py-2 text-sm w-24" type="number" value={form.quantiteProduite} onChange={e => setForm(f => ({ ...f, quantiteProduite: e.target.value }))} />
+                          <select className="border border-yellow-200 rounded-lg px-3 py-2 text-sm" value={form.uniteProduction} onChange={e => setForm(f => ({ ...f, uniteProduction: e.target.value }))}>
+                            <option value="kg">kg</option><option value="L">L</option><option value="pièce">pièce</option><option value="portion">portion</option>
+                          </select>
+                          {form.quantiteProduite && coutPreview > 0 && (
+                            <span className="text-sm text-yellow-600 font-semibold">{(coutPreview / parseFloat(form.quantiteProduite)).toFixed(2)} €/{form.uniteProduction}</span>
+                          )}
+                        </div>
+                      )}
+
+                      <div className="mb-4">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-sm font-medium text-gray-700">Ingrédients & Préparations</span>
+                          <div className="flex gap-2">
+                            <button onClick={() => { const ing = ingredients[0]; const u = ing ? defaultUnite(ing.unite) : 'kg'; setLignes([...lignes, { type: 'ingredient', id: ing?.id || '', grammage: '', unite: u }]); }} className="text-xs border border-yellow-200 hover:bg-yellow-50 rounded px-2 py-1">+ Ingrédient</button>
+                            <button onClick={() => { const preps = recettes.filter(r2 => r2.categorie === 'Préparations'); setLignes([...lignes, { type: 'preparation', id: preps[0]?.id || '', grammage: '' }]); }} className="text-xs border border-yellow-200 hover:bg-yellow-50 rounded px-2 py-1">+ Préparation</button>
+                          </div>
+                        </div>
+                        <div className="space-y-2">
+                          {lignes.map((ligne, i) => {
+                            const ingCanon = ingredients.find(x => x.id === ligne.id);
+                            const prep = recettes.find(x => x.id === ligne.id) as any;
+                            const grammageBase = toBase(parseFloat(ligne.grammage) || 0, ligne.unite || 'kg');
+                            const pfData = ligne.type === 'ingredient' ? getPrixProduitFournisseur(ligne.id) : { prix: 0, unite: 'kg' };
+                            const coutLigne = ligne.type === 'ingredient' ? pfData.prix * grammageBase : ligne.type === 'preparation' && prep?.coutAuKg ? prep.coutAuKg * grammageBase : 0;
+                            const prixLabel = ligne.type === 'ingredient' && pfData.prix > 0 ? `${pfData.prix.toFixed(2)} €/${pfData.unite}` : ligne.type === 'preparation' && prep?.coutAuKg ? `${prep.coutAuKg.toFixed(2)} €/kg` : null;
+                            return (
+                              <div key={i} className="flex gap-2 items-center">
+                                <select className="border border-yellow-200 rounded-lg px-3 py-2 text-sm flex-1" value={ligne.id} onChange={e => { const n = [...lignes]; n[i].id = e.target.value; const isPrep = !!recettes.find(r2 => r2.id === e.target.value); n[i].type = isPrep ? 'preparation' : 'ingredient'; if (!isPrep) { const newIng = ingredients.find(x => x.id === e.target.value); n[i].unite = newIng ? defaultUnite(newIng.unite) : 'kg'; } else { n[i].unite = 'kg'; } setLignes(n); }}>
+                                  <optgroup label="Ingrédients">
+                                    {ingredients.slice().sort((a, b) => a.nom.localeCompare(b.nom, 'fr', { sensitivity: 'base' })).map(ing => <option key={ing.id} value={ing.id}>{ing.nom}</option>)}
+                                  </optgroup>
+                                  <optgroup label="Préparations">
+                                    {recettes.filter(r2 => r2.categorie === 'Préparations').sort((a, b) => a.nom.localeCompare(b.nom, 'fr', { sensitivity: 'base' })).map(p => <option key={p.id} value={p.id}>{p.nom}</option>)}
+                                  </optgroup>
+                                </select>
+                                <input className="border border-yellow-200 rounded-lg px-3 py-2 text-sm w-24" placeholder="Qté" type="number" value={ligne.grammage} onChange={e => { const n = [...lignes]; n[i].grammage = e.target.value; setLignes(n); }} />
+                                <select className="text-xs text-gray-500 w-10 border-none bg-transparent cursor-pointer" value={ligne.unite || 'kg'} onChange={e => { const n = [...lignes]; n[i].unite = e.target.value; setLignes(n); }}>
+                                  {unitesCompatibles(ligne.type === 'ingredient' ? (ingredients.find(x => x.id === ligne.id)?.unite || 'kg') : 'kg').map((u: string) => <option key={u} value={u}>{u}</option>)}
+                                </select>
+                                <span className="text-xs text-gray-400 w-20 text-right">{prixLabel || ''}</span>
+                                <span className="text-xs font-semibold text-yellow-600 w-16 text-right">{coutLigne > 0 ? coutLigne.toFixed(3) + ' €' : ''}</span>
+                                <button onClick={() => setLignes(lignes.filter((_, j) => j !== i))} className="text-gray-400 hover:text-yellow-500 text-sm">✕</button>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {nomIngredients.map((n, i) => (
+                        <div key={'nom-' + i} className="flex gap-2 items-center mb-2">
+                          <span className="flex-1 border border-yellow-100 bg-yellow-100 rounded-lg px-3 py-2 text-sm text-gray-400 italic">{n.nom}</span>
+                          <input className="border border-yellow-200 rounded-lg px-3 py-2 text-sm w-24" type="number" value={n.grammage}
+                            onChange={e => { const nn = [...nomIngredients]; nn[i] = { ...nn[i], grammage: parseFloat(e.target.value) || 0 }; setNomIngredients(nn); }} />
+                          <span className="text-xs text-gray-400 w-20 text-right">— €/{n.unite}</span>
+                          <span className="text-xs text-gray-300 w-16 text-right">non lié</span>
+                          <button onClick={() => setNomIngredients(nomIngredients.filter((_, j) => j !== i))} className="text-gray-400 hover:text-yellow-500 text-sm">✕</button>
+                        </div>
+                      ))}
+
+                      {lignes.length > 0 && (
+                        <div className="bg-yellow-100 rounded-lg p-4 mb-4 flex gap-6 text-sm">
+                          <div><span className="text-gray-500">Coût matière</span><br /><span className="font-bold">{coutPreview.toFixed(2)} €</span></div>
+                        </div>
+                      )}
+
+                      <div className="flex gap-2">
+                        <button onClick={handleSubmit} className="bg-yellow-400 hover:bg-yellow-500 text-black font-semibold rounded-lg px-6 py-2 text-sm">Enregistrer</button>
+                        <button onClick={() => { setEditId(null); setForm(emptyForm); setLignes([]); }} className="border border-yellow-200 rounded-lg px-4 py-2 text-sm text-gray-500 hover:bg-gray-50">Annuler</button>
+                      </div>
+                    </td>
+                  </tr>
+                )}
+                </React.Fragment>
+                );
+              })}
               {filtered.length === 0 && <tr><td colSpan={6} className="px-4 py-8 text-center text-gray-400">Aucune recette</td></tr>}
             </tbody>
           </table>
