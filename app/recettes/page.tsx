@@ -465,7 +465,18 @@ export default function RecettesPage() {
     setForm(emptyForm); setLignes([]); setShowForm(false); fetchAll();
   };
 
+  // Fermer l'éditeur quand on appuie sur retour
+  useEffect(() => {
+    const onPopState = () => {
+      if (editId) { setEditId(null); setForm(emptyForm); setLignes([]); }
+      if (showForm) { setShowForm(false); setForm(emptyForm); setLignes([]); }
+    };
+    window.addEventListener('popstate', onPopState);
+    return () => window.removeEventListener('popstate', onPopState);
+  }, [editId, showForm]);
+
   const handleEdit = (r: Recette) => {
+    window.history.pushState({ editing: true }, '');
     setEditId(r.id);
     setForm({ nom: r.nom, categorie: r.categorie, type: r.type || 'food', actif: r.actif, quantiteProduite: String((r as any).quantiteProduite || ''), uniteProduction: (r as any).uniteProduction || 'kg', prixVente: String(r.prixVente || '') } as any);
     const resolvedLignes: typeof lignes = [];
@@ -634,7 +645,7 @@ export default function RecettesPage() {
           <button disabled={updating} onClick={async () => { setUpdating(true); await recalculerTousLesCouts(); await fetchAll(); setUpdating(false); }} className="border border-gray-200 text-gray-600 hover:bg-gray-50 font-semibold rounded-lg px-4 py-2 text-sm">
             {updating ? 'Mise à jour...' : 'Mettre à jour'}
           </button>
-<button onClick={() => { setShowForm(!showForm); setEditId(null); setForm(emptyForm); setLignes([]); }} className="bg-yellow-400 hover:bg-yellow-500 text-black font-semibold rounded-lg px-4 py-2 text-sm">
+<button onClick={() => { if (!showForm) window.history.pushState({ editing: true }, ''); setShowForm(!showForm); setEditId(null); setForm(emptyForm); setLignes([]); }} className="bg-yellow-400 hover:bg-yellow-500 text-black font-semibold rounded-lg px-4 py-2 text-sm">
             + Nouvelle recette
           </button>
         </div>
