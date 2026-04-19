@@ -3,10 +3,9 @@
 import { useState, useEffect } from 'react';
 import { collection, getDocs, addDoc, deleteDoc, doc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { Ingredient, Unite, Categorie } from '@/lib/types';
+import { Ingredient, Categorie } from '@/lib/types';
 import { recalculerTousLesCouts } from '@/lib/recalculCouts';
 
-const UNITES: Unite[] = ['kg', 'g', 'L', 'cL', 'pièce', 'lot'];
 const CATEGORIES: Categorie[] = ['viande', 'poisson', 'légume', 'fruit', 'laitage', 'épicerie salée', 'épicerie sucrée', 'boisson', 'autre'];
 
 type Tab = 'bruts' | 'preparations';
@@ -32,7 +31,7 @@ export default function IngredientsPage() {
   const [filterSansPrix, setFilterSansPrix] = useState(false);
   const [filterSansRecette, setFilterSansRecette] = useState(false);
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ nom: '', unite: 'kg' as Unite, categorie: 'épicerie salée' as Categorie });
+  const [form, setForm] = useState({ nom: '', categorie: 'épicerie salée' as Categorie });
   const [editId, setEditId] = useState<string | null>(null);
   const [pfOptions, setPfOptions] = useState<Record<string, { id: string; nom: string; fournisseur: string; prixUnit: number; unite: string }[]>>({});
   const [pfPrix, setPfPrix] = useState<Record<string, { prix: number; unite: string }>>({});
@@ -168,14 +167,14 @@ export default function IngredientsPage() {
 
   const handleSubmit = async () => {
     if (!form.nom) return;
-    const data = { nom: form.nom, unite: form.unite, categorie: form.categorie };
+    const data = { nom: form.nom, categorie: form.categorie };
     if (editId) {
       await updateDoc(doc(db, 'ingredients', editId), data);
       setEditId(null);
     } else {
       await addDoc(collection(db, 'ingredients'), data);
     }
-    setForm({ nom: '', unite: 'kg', categorie: 'épicerie salée' });
+    setForm({ nom: '', categorie: 'épicerie salée' });
     setShowForm(false);
     await recalculerTousLesCouts();
     fetchAll();
@@ -194,7 +193,7 @@ export default function IngredientsPage() {
 
   const handleEdit = (ing: Ingredient) => {
     setEditId(ing.id);
-    setForm({ nom: ing.nom, unite: ing.unite, categorie: ing.categorie });
+    setForm({ nom: ing.nom, categorie: ing.categorie });
     setShowForm(true);
   };
 
@@ -219,7 +218,7 @@ export default function IngredientsPage() {
         <h1 className="text-2xl font-bold">Ingrédients</h1>
         {tab === 'bruts' && (
           <button
-            onClick={() => { setShowForm(!showForm); setEditId(null); setForm({ nom: '', unite: 'kg', categorie: 'épicerie salée' }); }}
+            onClick={() => { setShowForm(!showForm); setEditId(null); setForm({ nom: '', categorie: 'épicerie salée' }); }}
             className="bg-yellow-400 hover:bg-yellow-500 text-black font-semibold rounded-lg px-4 py-2 text-sm"
           >
             + Ajouter
@@ -268,16 +267,6 @@ export default function IngredientsPage() {
                 onChange={e => setForm({ ...form, categorie: e.target.value as Categorie })}
               >
                 {CATEGORIES.map(c => <option key={c}>{c}</option>)}
-              </select>
-            </div>
-            <div className="flex flex-col gap-1">
-              <label className="text-xs text-gray-500 font-medium">Unité</label>
-              <select
-                className="border border-yellow-200 focus:border-yellow-400 focus:outline-none rounded-lg px-3 py-2 text-sm"
-                value={form.unite}
-                onChange={e => setForm({ ...form, unite: e.target.value as Unite })}
-              >
-                {UNITES.map(u => <option key={u}>{u}</option>)}
               </select>
             </div>
             <div className="flex gap-2">
