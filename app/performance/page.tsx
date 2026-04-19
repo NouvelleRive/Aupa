@@ -96,7 +96,9 @@ export default function PerformancePage() {
   const ventesFiltrées = useMemo(() => {
     if (!timePeriod) return ventes;
     return ventes.filter(v => {
-      const d = v.jour || v.mois;
+      let d = v.jour || v.mois;
+      // Si format YYYY-MM, convertir en YYYY-MM-01 pour que isInPeriod fonctionne
+      if (d && d.length === 7) d = d + '-01';
       return isInPeriod(d, timePeriod);
     });
   }, [ventes, timePeriod]);
@@ -114,7 +116,8 @@ export default function PerformancePage() {
   const ventesN1 = useMemo(() => {
     if (!periodN1) return [];
     return ventes.filter(v => {
-      const d = v.jour || v.mois;
+      let d = v.jour || v.mois;
+      if (d && d.length === 7) d = d + '-01';
       return isInPeriod(d, periodN1);
     });
   }, [ventes, periodN1]);
