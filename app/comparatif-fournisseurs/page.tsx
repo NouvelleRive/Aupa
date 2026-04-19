@@ -282,13 +282,14 @@ export default function ComparatifFournisseurs() {
                     const isCheapest = f === l.moinsCher && l.pfs.length > 1;
                     const isMostExpensive = f === l.plusCher && l.pfs.length > 1;
                     const isActuel = f === l.fournisseurActuel;
+                    const prixProduit = entry.pf.prix;
                     return (
-                      <td key={f} className="px-2 py-3 text-right">
-                        <div className="text-[10px] text-gray-400 truncate" title={entry.pf.nom}>{entry.pf.nom}</div>
-                        <span className={`font-mono text-sm ${isCheapest ? 'text-green-600 font-bold' : isMostExpensive ? 'text-red-400' : 'text-gray-600'} ${isActuel ? 'underline decoration-yellow-400' : ''}`}>
-                          {entry.prixNormalise.toFixed(2)}
-                        </span>
-                        <span className="text-[10px] text-gray-300 ml-0.5">{unite}</span>
+                      <td key={f} className="px-2 py-3">
+                        <div className="text-xs text-gray-600 break-words leading-tight">{entry.pf.nom}</div>
+                        <div className="font-mono text-sm text-gray-800">{prixProduit.toFixed(2)} €</div>
+                        <div className={`font-mono text-xs ${isCheapest ? 'text-green-600 font-bold' : isMostExpensive ? 'text-red-400' : 'text-gray-400'}`}>
+                          {entry.prixNormalise.toFixed(2)} {unite}
+                        </div>
                       </td>
                     );
                   })}
