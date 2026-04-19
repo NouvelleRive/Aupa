@@ -32,7 +32,7 @@ export default function IngredientsPage() {
   const [filterSansRecette, setFilterSansRecette] = useState(false);
   const [filterSansRef, setFilterSansRef] = useState(false);
   const [tri, setTri] = useState<'defaut' | 'prix' | 'recettes'>('defaut');
-  const [pfOptions, setPfOptions] = useState<Record<string, { id: string; nom: string; fournisseur: string; prixUnit: number; unite: string }[]>>({});
+  const [pfOptions, setPfOptions] = useState<Record<string, { id: string; nom: string; fournisseur: string; prixUnit: number; unite: string; quantite: number }[]>>({});
   const [pfPrix, setPfPrix] = useState<Record<string, { prix: number; unite: string }>>({});
   const [recetteNames, setRecetteNames] = useState<Record<string, string[]>>({});
 
@@ -42,6 +42,7 @@ export default function IngredientsPage() {
   // Ajout inline (nouvelle ligne)
   const [showAddRow, setShowAddRow] = useState(false);
   const [addForm, setAddForm] = useState({ nom: '', categorie: 'épicerie salée' as Categorie });
+  const [updating, setUpdating] = useState(false);
 
   // Infinite scroll
   const PAGE_SIZE = 50;
@@ -111,7 +112,7 @@ export default function IngredientsPage() {
     };
 
     // Collecter les produits fournisseurs liés (pour bruts uniquement)
-    const pfOpts: Record<string, { id: string; nom: string; fournisseur: string; prixUnit: number; unite: string }[]> = {};
+    const pfOpts: Record<string, { id: string; nom: string; fournisseur: string; prixUnit: number; unite: string; quantite: number }[]> = {};
     for (const d of pfSnap.docs) {
       const data = d.data();
       const nomIngredient = data.ingredient;
@@ -124,7 +125,8 @@ export default function IngredientsPage() {
           const qte = convertQte(data.quantite || data.nbKg || data.nbPieces || 1, data.unite || 'kg');
           const prixUnit = data.prix / qte / (data.rendement || 1);
           const uniteNormPf = (data.unite || 'kg') === 'g' ? 'kg' : (data.unite || 'kg') === 'cL' ? 'L' : (data.unite || 'kg');
-          pfOpts[ing.id].push({ id: d.id, nom: nomProduit, fournisseur, prixUnit, unite: uniteNormPf });
+          const quantiteRaw = data.quantite || data.nbKg || data.nbPieces || 1;
+          pfOpts[ing.id].push({ id: d.id, nom: nomProduit, fournisseur, prixUnit, unite: uniteNormPf, quantite: quantiteRaw });
         }
       }
     }
@@ -251,14 +253,22 @@ export default function IngredientsPage() {
     <div className="max-w-7xl mx-auto">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold">Ingrédients</h1>
-        {tab === 'bruts' && (
-          <button
-            onClick={() => { setShowAddRow(true); setAddForm({ nom: '', categorie: 'épicerie salée' }); }}
-            className="bg-yellow-400 hover:bg-yellow-500 text-black font-semibold rounded-lg px-4 py-2 text-sm"
-          >
-            + Ajouter
-          </button>
-        )}
+        <div className="flex gap-3">
+          {tab === 'bruts' && (
+            <>
+              <button disabled={updating} onClick={async () => { setUpdating(true); await recalculerTousLesCouts(); await fetchAll(); setUpdating(false); }}
+                className="border border-gray-200 text-gray-600 hover:bg-gray-50 font-semibold rounded-lg px-4 py-2 text-sm">
+                {updating ? 'Mise à jour...' : 'Mettre à jour'}
+              </button>
+              <button
+                onClick={() => { setShowAddRow(true); setAddForm({ nom: '', categorie: 'épicerie salée' }); }}
+                className="bg-yellow-400 hover:bg-yellow-500 text-black font-semibold rounded-lg px-4 py-2 text-sm"
+              >
+                + Ajouter
+              </button>
+            </>
+          )}
+        </div>
       </div>
 
       {/* Onglets */}
@@ -399,7 +409,7 @@ export default function IngredientsPage() {
                         >
                           <option value="">— Choisir —</option>
                           {pfOptions[ing.id].map(pf => (
-                            <option key={pf.id} value={pf.id}>{pf.nom} ({pf.fournisseur || '?'}) — {pf.prixUnit.toFixed(2)} €</option>
+                            <option key={pf.id} value={pf.id}>{pf.nom} ({pf.fournisseur || '?'}) — {pf.quantite} {pf.unite} — {pf.prixUnit.toFixed(2)} €/{pf.unite}</option>
                           ))}
                         </select>
                       ) : (
