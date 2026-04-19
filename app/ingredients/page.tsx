@@ -30,6 +30,8 @@ export default function IngredientsPage() {
   const [search, setSearch] = useState('');
   const [filterSansPrix, setFilterSansPrix] = useState(false);
   const [filterSansRecette, setFilterSansRecette] = useState(false);
+  const [filterSansRef, setFilterSansRef] = useState(false);
+  const [tri, setTri] = useState<'defaut' | 'prix' | 'recettes'>('defaut');
   const [pfOptions, setPfOptions] = useState<Record<string, { id: string; nom: string; fournisseur: string; prixUnit: number; unite: string }[]>>({});
   const [pfPrix, setPfPrix] = useState<Record<string, { prix: number; unite: string }>>({});
   const [recetteNames, setRecetteNames] = useState<Record<string, string[]>>({});
@@ -217,13 +219,18 @@ export default function IngredientsPage() {
     .filter(i => i.nom.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').includes(search.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')))
     .filter(i => !filterSansPrix || !pfPrix[i.id]?.prix)
     .filter(i => !filterSansRecette || !recetteNames[i.id]?.length)
-    .sort((a, b) => a.categorie.localeCompare(b.categorie) || a.nom.localeCompare(b.nom));
+    .filter(i => !filterSansRef || !(i as any).fournisseurRefId)
+    .sort((a, b) => {
+      if (tri === 'prix') return (pfPrix[b.id]?.prix || 0) - (pfPrix[a.id]?.prix || 0);
+      if (tri === 'recettes') return (recetteNames[b.id]?.length || 0) - (recetteNames[a.id]?.length || 0);
+      return a.categorie.localeCompare(b.categorie) || a.nom.localeCompare(b.nom);
+    });
 
   const filteredPreps = preparations
     .filter(p => p.nom.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').includes(search.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')));
 
   // Infinite scroll
-  useEffect(() => { setVisibleCount(PAGE_SIZE); }, [search, filterSansPrix, filterSansRecette]);
+  useEffect(() => { setVisibleCount(PAGE_SIZE); }, [search, filterSansPrix, filterSansRecette, filterSansRef, tri]);
   const hasMore = visibleCount < filtered.length;
   const onIntersect = useCallback((entries: IntersectionObserverEntry[]) => {
     if (entries[0].isIntersecting && hasMore) {
@@ -289,6 +296,15 @@ export default function IngredientsPage() {
               <input type="checkbox" checked={filterSansRecette} onChange={e => setFilterSansRecette(e.target.checked)} className="accent-yellow-400" />
               Sans recette
             </label>
+            <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer ml-2">
+              <input type="checkbox" checked={filterSansRef} onChange={e => setFilterSansRef(e.target.checked)} className="accent-yellow-400" />
+              Sans PF de réf
+            </label>
+            <select className="border border-yellow-200 focus:border-yellow-400 focus:outline-none rounded-lg px-3 py-2 text-sm ml-2" value={tri} onChange={e => setTri(e.target.value as any)}>
+              <option value="defaut">Tri : catégorie</option>
+              <option value="prix">Tri : plus chers</option>
+              <option value="recettes">Tri : plus utilisés</option>
+            </select>
           </>
         )}
       </div>
