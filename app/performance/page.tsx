@@ -375,16 +375,14 @@ export default function PerformancePage() {
       <TopTrois topProduits={topProduits} coutParNom={coutParNom} recettes={recettes} menus={menus} timePeriod={timePeriod} />
 
       {/* Détail des ventes — infinite scroll */}
-      <VentesDetail ventes={ventesFiltrées} matchVente={matchVenteToRecette} recetteNoms={recetteNoms} onMapUpdated={() => setCaisseMapLoaded(v => !v)} />
+      <VentesDetail ventes={ventesFiltrées} matchVente={matchVenteToRecette} />
     </div>
   );
 }
 
-function VentesDetail({ ventes, matchVente, recetteNoms, onMapUpdated }: {
+function VentesDetail({ ventes, matchVente }: {
   ventes: Vente[];
   matchVente: (nom: string) => string | null;
-  recetteNoms: string[];
-  onMapUpdated: () => void;
 }) {
   const PAGE_SIZE = 50;
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
@@ -444,15 +442,7 @@ function VentesDetail({ ventes, matchVente, recetteNoms, onMapUpdated }: {
               <tr key={`${g.nom}-${i}`} className="border-b border-gray-50 hover:bg-yellow-50/30">
                 <td className="py-2 px-4">
                   <div>{g.nom}</div>
-                  {recette ? (
-                    <div className="text-xs text-gray-400">({recette})</div>
-                  ) : (
-                    <VenteAttribution
-                      venteNom={g.nom}
-                      recetteNoms={recetteNoms}
-                      onMapped={onMapUpdated}
-                    />
-                  )}
+                  {recette && <div className="text-xs text-gray-400">({recette})</div>}
                 </td>
                 <td className="py-2 px-4 text-right font-mono">{g.qty}</td>
                 <td className="py-2 px-4 text-right font-mono">{fmtEur(g.ttc)}</td>
