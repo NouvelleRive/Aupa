@@ -1,6 +1,6 @@
     'use client';
 
-    import { useState, useEffect, useRef } from 'react';
+    import { useState, useEffect, useRef, useCallback } from 'react';
     import { collection, getDocs, deleteDoc, doc, addDoc, updateDoc } from 'firebase/firestore';
     import { db } from '@/lib/firebase';
     import { ProduitFournisseur, Unite, Categorie } from '@/lib/types';
@@ -1021,6 +1021,9 @@
     const [filterCategorie, setFilterCategorie] = useState<string>('all');
     const [filterFournisseur, setFilterFournisseur] = useState<string>('all');
     const [filterNonLie, setFilterNonLie] = useState(false);
+    const PAGE_SIZE = 50;
+    const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+    const loaderRef = useRef<HTMLDivElement>(null);
 
     const handleDelete = async (id: string) => {
         if (!confirm('Supprimer cet ingrédient ?')) return;
@@ -1038,6 +1041,24 @@
     })
     .filter(i => !filterNonLie || !ingredientParProduit[i.id])
     .sort((a, b) => a.categorie.localeCompare(b.categorie) || a.nom.localeCompare(b.nom));
+
+    // Reset infinite scroll quand les filtres changent
+    useEffect(() => { setVisibleCount(PAGE_SIZE); }, [search, filterCategorie, filterFournisseur, filterNonLie]);
+
+    const hasMore = visibleCount < filtered.length;
+    const onIntersect = useCallback((entries: IntersectionObserverEntry[]) => {
+      if (entries[0].isIntersecting && hasMore) {
+        setVisibleCount(c => Math.min(c + PAGE_SIZE, filtered.length));
+      }
+    }, [hasMore, filtered.length]);
+
+    useEffect(() => {
+      const el = loaderRef.current;
+      if (!el) return;
+      const obs = new IntersectionObserver(onIntersect, { threshold: 0.1 });
+      obs.observe(el);
+      return () => obs.disconnect();
+    }, [onIntersect]);
 
     return (
         <div className="max-w-7xl mx-auto">
@@ -1159,7 +1180,7 @@
                 </tr>
                 </thead>
                 <tbody className="divide-y divide-yellow-50">
-                {filtered.map(ing => {
+                {filtered.slice(0, visibleCount).map(ing => {
                     const isEditing = editInlineId === ing.id;
                     return (
                     <tr key={ing.id} className={`transition-colors ${isEditing ? 'bg-yellow-50' : 'hover:bg-yellow-50'}`}>
@@ -1267,9 +1288,14 @@
                     </td>
                     </tr>
                 )}
-                {filtered.length === 0 && <tr><td colSpan={9} className="px-4 py-8 text-center text-gray-400">Aucun ingrédient</td></tr>}
+                {filtered.length === 0 && <tr><td colSpan={10} className="px-4 py-8 text-center text-gray-400">Aucun ingrédient</td></tr>}
                 </tbody>
             </table>
+            {hasMore && (
+              <div ref={loaderRef} className="py-4 text-center text-xs text-gray-400">
+                Chargement…
+              </div>
+            )}
             </div>
         )}
         </div>
