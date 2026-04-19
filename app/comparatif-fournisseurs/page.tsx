@@ -230,13 +230,13 @@ export default function ComparatifFournisseurs() {
         <table className="w-full text-sm table-fixed">
           <thead>
             <tr className="bg-gray-50 border-b border-gray-100">
-              <th className="px-3 py-3 text-left font-semibold text-gray-600 cursor-pointer hover:text-yellow-500 w-[14%]" onClick={() => handleSort('nom')}>
+              <th className="px-3 py-3 text-left font-semibold text-gray-600 cursor-pointer hover:text-yellow-500 w-[10%]" onClick={() => handleSort('nom')}>
                 Ingrédient{sortIcon('nom')}
               </th>
-              <th className="px-2 py-3 text-left font-semibold text-gray-600 cursor-pointer hover:text-yellow-500 w-[8%]" onClick={() => handleSort('categorie')}>
+              <th className="px-2 py-3 text-left font-semibold text-gray-600 cursor-pointer hover:text-yellow-500 w-[7%]" onClick={() => handleSort('categorie')}>
                 Cat.{sortIcon('categorie')}
               </th>
-              <th className="px-2 py-3 text-left font-semibold text-gray-600 cursor-pointer hover:text-yellow-500 w-[14%]" onClick={() => handleSort('fournisseur')}>
+              <th className="px-2 py-3 text-left font-semibold text-gray-600 cursor-pointer hover:text-yellow-500 w-[19%]" onClick={() => handleSort('fournisseur')}>
                 PF de réf{sortIcon('fournisseur')}
               </th>
               {fournisseurs.map(f => (
