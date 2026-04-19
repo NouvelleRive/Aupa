@@ -390,15 +390,28 @@ function VentesDetail({ ventes, matchVente, recetteNoms, onMapUpdated }: {
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const loaderRef = useRef<HTMLDivElement>(null);
 
+  // Regrouper par produit (somme qté + TTC)
+  const grouped = useMemo(() => {
+    const m = new Map<string, { nom: string; qty: number; ttc: number }>();
+    for (const v of ventes) {
+      const key = v.nom;
+      const e = m.get(key) || { nom: v.nom, qty: 0, ttc: 0 };
+      e.qty += v.quantity;
+      e.ttc += v.ttc;
+      m.set(key, e);
+    }
+    return Array.from(m.values()).sort((a, b) => b.qty - a.qty);
+  }, [ventes]);
+
   useEffect(() => { setVisibleCount(PAGE_SIZE); }, [ventes]);
 
-  const hasMore = visibleCount < ventes.length;
+  const hasMore = visibleCount < grouped.length;
 
   const onIntersect = useCallback((entries: IntersectionObserverEntry[]) => {
     if (entries[0].isIntersecting && hasMore) {
-      setVisibleCount(c => Math.min(c + PAGE_SIZE, ventes.length));
+      setVisibleCount(c => Math.min(c + PAGE_SIZE, grouped.length));
     }
-  }, [hasMore, ventes.length]);
+  }, [hasMore, grouped.length]);
 
   useEffect(() => {
     const el = loaderRef.current;
@@ -408,47 +421,41 @@ function VentesDetail({ ventes, matchVente, recetteNoms, onMapUpdated }: {
     return () => obs.disconnect();
   }, [onIntersect]);
 
-  const sorted = useMemo(() =>
-    [...ventes].sort((a, b) => (b.jour || b.mois).localeCompare(a.jour || a.mois) || b.ttc - a.ttc),
-    [ventes]);
-
   if (ventes.length === 0) return null;
 
   return (
     <div className="bg-white rounded-xl border border-yellow-100 overflow-x-auto">
       <div className="flex items-center justify-between px-5 pt-5 pb-2">
         <h2 className="font-semibold">Détail des ventes</h2>
-        <span className="text-xs text-gray-400">{ventes.length} lignes</span>
+        <span className="text-xs text-gray-400">{grouped.length} produits · {ventes.length} lignes</span>
       </div>
       <table className="w-full text-sm">
         <thead>
           <tr className="text-left text-xs text-gray-400 border-b border-gray-100">
-            <th className="py-2 px-4">Date</th>
             <th className="py-2 px-4">Produit</th>
             <th className="py-2 px-4 text-right">Qté</th>
-            <th className="py-2 px-4 text-right">TTC</th>
+            <th className="py-2 px-4 text-right">CA TTC</th>
           </tr>
         </thead>
         <tbody>
-          {sorted.slice(0, visibleCount).map((v, i) => {
-            const recette = matchVente(v.nom);
+          {grouped.slice(0, visibleCount).map((g, i) => {
+            const recette = matchVente(g.nom);
             return (
-              <tr key={`${v.nom}-${v.jour}-${i}`} className="border-b border-gray-50 hover:bg-yellow-50/30">
-                <td className="py-2 px-4 font-mono text-xs text-gray-500">{v.jour || v.mois}</td>
+              <tr key={`${g.nom}-${i}`} className="border-b border-gray-50 hover:bg-yellow-50/30">
                 <td className="py-2 px-4">
-                  <div>{v.nom}</div>
+                  <div>{g.nom}</div>
                   {recette ? (
                     <div className="text-xs text-gray-400">({recette})</div>
                   ) : (
                     <VenteAttribution
-                      venteNom={v.nom}
+                      venteNom={g.nom}
                       recetteNoms={recetteNoms}
                       onMapped={onMapUpdated}
                     />
                   )}
                 </td>
-                <td className="py-2 px-4 text-right font-mono">{v.quantity}</td>
-                <td className="py-2 px-4 text-right font-mono">{fmtEur(v.ttc)}</td>
+                <td className="py-2 px-4 text-right font-mono">{g.qty}</td>
+                <td className="py-2 px-4 text-right font-mono">{fmtEur(g.ttc)}</td>
               </tr>
             );
           })}
