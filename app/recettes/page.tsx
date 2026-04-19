@@ -634,11 +634,7 @@ export default function RecettesPage() {
           <button disabled={updating} onClick={async () => { setUpdating(true); await recalculerTousLesCouts(); await fetchAll(); setUpdating(false); }} className="border border-gray-200 text-gray-600 hover:bg-gray-50 font-semibold rounded-lg px-4 py-2 text-sm">
             {updating ? 'Mise à jour...' : 'Mettre à jour'}
           </button>
-          <button onClick={() => xlRef.current?.click()} disabled={importing} className="border border-gray-200 text-gray-600 hover:bg-gray-50 font-semibold rounded-lg px-4 py-2 text-sm">
-            {importing ? 'Import en cours...' : 'Importer Excel'}
-          </button>
-          <input ref={xlRef} type="file" accept=".xlsx,.xls" className="hidden" onChange={handleImportXL} />
-          <button onClick={() => { setShowForm(!showForm); setEditId(null); setForm(emptyForm); setLignes([]); }} className="bg-yellow-400 hover:bg-yellow-500 text-black font-semibold rounded-lg px-4 py-2 text-sm">
+<button onClick={() => { setShowForm(!showForm); setEditId(null); setForm(emptyForm); setLignes([]); }} className="bg-yellow-400 hover:bg-yellow-500 text-black font-semibold rounded-lg px-4 py-2 text-sm">
             + Nouvelle recette
           </button>
         </div>
