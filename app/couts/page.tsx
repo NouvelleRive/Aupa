@@ -42,7 +42,7 @@ export default function CoutsPage() {
   const [filterFournisseur, setFilterFournisseur] = useState<string>('all');
   const [filterCategorie, setFilterCategorie] = useState<string>('all');
   const [timePeriod, setTimePeriod] = useState<TimePeriod | null>(null);
-  const [sortKey, setSortKey] = useState<SortKey>('date');
+  const [sortKey, setSortKey] = useState<SortKey>('total');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
 
   useEffect(() => {
