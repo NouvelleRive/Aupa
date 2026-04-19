@@ -372,7 +372,7 @@ export default function PerformancePage() {
       </div>
 
       {/* 3 tops côte à côte */}
-      <TopTrois topProduits={topProduits} coutParNom={coutParNom} recettes={recettes} />
+      <TopTrois topProduits={topProduits} coutParNom={coutParNom} recettes={recettes} menus={menus} timePeriod={timePeriod} />
 
       {/* Détail des ventes — infinite scroll */}
       <VentesDetail ventes={ventesFiltrées} matchVente={matchVenteToRecette} recetteNoms={recetteNoms} onMapUpdated={() => setCaisseMapLoaded(v => !v)} />
@@ -521,17 +521,35 @@ function TreemapContent({ x, y, width, height, name, value }: any) {
   );
 }
 
-function TopTrois({ topProduits, coutParNom, recettes }: { topProduits: { nom: string; qty: number; ca: number }[]; coutParNom: Map<string, number>; recettes: Recette[] }) {
+function TopTrois({ topProduits, coutParNom, recettes, menus, timePeriod }: { topProduits: { nom: string; qty: number; ca: number }[]; coutParNom: Map<string, number>; recettes: Recette[]; menus: MenuDoc[]; timePeriod: TimePeriod | null }) {
   const [showVendus, setShowVendus] = useState(10);
   const [showCA, setShowCA] = useState(10);
   const [showMarge, setShowMarge] = useState(10);
   const [treemapCat, setTreemapCat] = useState<string | null>(null);
 
+  // Catégorie par nom de recette — depuis le menu actif à la période filtrée
   const catParNom = useMemo(() => {
     const m = new Map<string, string>();
-    for (const r of recettes) { if (r.nom && r.categorie) m.set(r.nom.toLowerCase(), r.categorie); }
+    // Trouver le menu actif pour la période
+    const dateRef = timePeriod?.dateDebut || new Date().toISOString().slice(0, 10);
+    const menuActif = menus.find(menu => menu.dateDebut && menu.dateFin && dateRef >= menu.dateDebut && dateRef <= menu.dateFin)
+      || menus.find(menu => menu.actif);
+    if (menuActif) {
+      for (const cat of menuActif.categories || []) {
+        for (const mr of cat.recettes || []) {
+          const r = recettes.find(x => x.id === mr.id);
+          if (r) m.set(r.nom.toLowerCase(), cat.nom);
+        }
+      }
+    }
+    // Fallback : catégorie de la recette pour celles pas dans le menu
+    for (const r of recettes) {
+      if (r.nom && r.categorie && !m.has(r.nom.toLowerCase())) {
+        m.set(r.nom.toLowerCase(), r.categorie);
+      }
+    }
     return m;
-  }, [recettes]);
+  }, [recettes, menus, timePeriod]);
 
   const topCA = useMemo(() => [...topProduits].sort((a, b) => (b.ca / 1.10) - (a.ca / 1.10)), [topProduits]);
 
