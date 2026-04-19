@@ -905,47 +905,7 @@ export default function RecettesPage() {
                   </td>
                   {(() => {
                     const prixVenteEffectif = filterMenu !== 'all' && menuPrix[r.id] !== undefined ? menuPrix[r.id] : r.prixVente;
-                    const cout = (r.ingredients || []).reduce((total: number, i: any) => {
-                      if (i.ingredientId || i.ingredientIds?.length > 0) {
-                        const ids = i.ingredientIds || [i.ingredientId];
-                        const prices: number[] = [];
-                        for (const id of ids) {
-                          const pfs = produitsFournisseurs.filter(pf => pf.ingredientId === id);
-                          if (pfs.length > 0) {
-                            const plusRecent = pfs.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())[0];
-                            prices.push(prixUnitPF(plusRecent));
-                          } else {
-                            const direct = produitsFournisseurs.find(pf => pf.id === id);
-                            if (direct) prices.push(prixUnitPF(direct));
-                          }
-                        }
-                        if (prices.length > 0) {
-                          const prixMoyen = prices.reduce((s, p) => s + p, 0) / prices.length;
-                          return total + prixMoyen * i.grammage;
-                        }
-                      }
-                      if (i.recetteId) {
-                        const prep = recettes.find(x => x.id === i.recetteId) as any;
-                        if (!prep) return total;
-                        if (prep.coutAuKg) return total + prep.coutAuKg * i.grammage;
-                        if (prep.coutCalcule && prep.quantiteProduite) return total + (prep.coutCalcule / prep.quantiteProduite) * i.grammage;
-                        return total;
-                      }
-                      if (i.nomIngredient) {
-                        const prep = recettes.find(x => x.categorie === 'Préparations' && x.nom === i.nomIngredient) as any;
-                        if (prep) {
-                          if (prep.coutAuKg) return total + prep.coutAuKg * i.grammage;
-                          if (prep.coutCalcule && prep.quantiteProduite) return total + (prep.coutCalcule / prep.quantiteProduite) * i.grammage;
-                          return total;
-                        }
-                        const pfs = produitsFournisseurs.filter(pf => (pf as any).ingredient === i.nomIngredient);
-                        if (pfs.length > 0) {
-                          const plusRecent = pfs.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())[0];
-                          return total + prixUnitPF(plusRecent) * i.grammage;
-                        }
-                      }
-                      return total;
-                    }, 0);
+                    const cout = r.coutCalcule || 0;
                     const ht = prixVenteEffectif ? prixVenteEffectif / 1.1 : 0;
                     const fc = cout > 0 && ht > 0 ? cout / ht * 100 : 0;
                     return <>
