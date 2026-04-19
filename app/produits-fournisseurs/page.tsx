@@ -8,7 +8,7 @@
 
     const UNITES: Unite[] = ['kg', 'g', 'L', 'cL', 'pièce', 'lot'];
     const CATEGORIES: Categorie[] = ['viande', 'poisson', 'légume', 'fruit', 'laitage', 'épicerie salée', 'épicerie sucrée', 'boisson', 'consommable', 'autre'];
-    const FOURNISSEURS = ['Foodflow', 'Milliet', 'LBA', 'MPF', 'Lidl', 'Les Assembleurs', 'Koro'] as const;
+    const FOURNISSEURS = ['Foodflow', 'Milliet', 'LBA', 'MPF', 'Lidl', 'Les Assembleurs', 'Koro', 'Amazon'] as const;
     const emptyForm = { nom: '', prix: '', unite: 'kg' as Unite, categorie: 'épicerie salée' as Categorie, rendement: '100', quantite: '1', fournisseur: '' };
 
     const detectUnite = (nom: string): Unite => {
@@ -1030,7 +1030,7 @@
     .sort((a, b) => a.categorie.localeCompare(b.categorie) || a.nom.localeCompare(b.nom));
 
     return (
-        <div className="max-w-5xl mx-auto">
+        <div className="max-w-7xl mx-auto">
         <div className="flex items-center justify-between mb-6">
             <h1 className="text-2xl font-bold">Produits fournisseur</h1>
             <div className="flex gap-3">
@@ -1136,16 +1136,16 @@
             <table className="w-full text-sm">
                 <thead className="bg-yellow-50 text-gray-500 text-xs uppercase">
                 <tr>
-                    <th className="px-4 py-3 text-left">Nom</th>
-                    <th className="px-4 py-3 text-left">Catégorie</th>
-                    <th className="px-4 py-3 text-right">Prix achat</th>
-                    <th className="px-4 py-3 text-right">Quantité</th>
-                    <th className="px-4 py-3 text-left">Unité</th>
-                    <th className="px-4 py-3 text-left">Ingrédient</th>
-                    <th className="px-4 py-3 text-left">Fournisseur</th>
-                    <th className="px-4 py-3 text-right">Prix/unité</th>
-                    <th className="px-4 py-3 text-left">Dernière MAJ</th>
-                    <th className="px-4 py-3"></th>
+                    <th className="px-3 py-3 text-left w-[30%]">Nom</th>
+                    <th className="px-2 py-3 text-left w-[8%]">Cat.</th>
+                    <th className="px-2 py-3 text-right w-[7%]">Prix</th>
+                    <th className="px-2 py-3 text-right w-[5%]">Qté</th>
+                    <th className="px-2 py-3 text-left w-[4%]">Unité</th>
+                    <th className="px-2 py-3 text-left w-[18%]">Ingrédient</th>
+                    <th className="px-2 py-3 text-left w-[7%]">Fourn.</th>
+                    <th className="px-2 py-3 text-right w-[8%]">Prix/u</th>
+                    <th className="px-2 py-3 text-left w-[8%]">MAJ</th>
+                    <th className="px-2 py-3 w-[5%]"></th>
                 </tr>
                 </thead>
                 <tbody className="divide-y divide-yellow-50">
@@ -1153,23 +1153,23 @@
                     const isEditing = editInlineId === ing.id;
                     return (
                     <tr key={ing.id} className={`transition-colors ${isEditing ? 'bg-yellow-50' : 'hover:bg-yellow-50'}`}>
-                    <td className="px-4 py-3 font-medium">
+                    <td className="px-3 py-3 font-medium">
                         {isEditing ? <div><span className="text-xs text-gray-400 block mb-1">Nom</span><input className="border border-yellow-200 rounded px-2 py-1 text-sm w-full" value={editInlineForm.nom} onChange={e => setEditInlineForm({ ...editInlineForm, nom: e.target.value })} /><div className="flex gap-2 mt-2"><button onClick={handleSaveInline} className="bg-yellow-400 hover:bg-yellow-500 text-black font-semibold rounded px-3 py-1 text-xs">Enregistrer</button><button onClick={() => setEditInlineId(null)} className="border border-gray-200 rounded px-3 py-1 text-xs text-gray-500 hover:bg-gray-50">Annuler</button></div></div> : ing.nom}
                     </td>
-                    <td className="px-4 py-3 text-gray-500">
-                        <select className="bg-transparent text-sm cursor-pointer hover:text-yellow-600" value={ing.categorie} onChange={async e => { await updateDoc(doc(db, 'produitsFournisseurs', ing.id), { categorie: e.target.value }); fetchIngredients(); }}>{CATEGORIES.map(c => <option key={c}>{c}</option>)}</select>
+                    <td className="px-2 py-3 text-gray-500">
+                        <select className="bg-transparent text-xs cursor-pointer hover:text-yellow-600 max-w-[90px]" value={ing.categorie} onChange={async e => { await updateDoc(doc(db, 'produitsFournisseurs', ing.id), { categorie: e.target.value }); fetchIngredients(); }}>{CATEGORIES.map(c => <option key={c}>{c}</option>)}</select>
                     </td>
-                    <td className="px-4 py-3 text-right">
+                    <td className="px-2 py-3 text-right">
                         {isEditing ? <div><span className="text-xs text-gray-400 block mb-1">Prix (€)</span><input className="border border-yellow-200 rounded px-2 py-1 text-sm w-20 text-right" type="number" value={editInlineForm.prix} onChange={e => setEditInlineForm({ ...editInlineForm, prix: e.target.value })} /></div> : <>{ing.prix.toFixed(2)} €</>}
                     </td>
-                    <td className="px-4 py-3 text-right">
-                        {isEditing ? <div><span className="text-xs text-gray-400 block mb-1">Quantité</span><input className="border border-yellow-200 rounded px-2 py-1 text-sm w-16 text-right" type="number" step="0.01" min="0.01" value={editInlineForm.quantite} onChange={e => setEditInlineForm({ ...editInlineForm, quantite: e.target.value })} /></div> : <>{(() => { const q = (ing as any).quantite || (ing as any).nbKg || (ing as any).nbPieces || 1; return q !== 1 ? q : <span className="text-gray-300">1</span>; })()}</>}
+                    <td className="px-2 py-3 text-right">
+                        {isEditing ? <div><span className="text-xs text-gray-400 block mb-1">Qté</span><input className="border border-yellow-200 rounded px-2 py-1 text-sm w-14 text-right" type="number" step="0.01" min="0.01" value={editInlineForm.quantite} onChange={e => setEditInlineForm({ ...editInlineForm, quantite: e.target.value })} /></div> : <>{(() => { const q = (ing as any).quantite || (ing as any).nbKg || (ing as any).nbPieces || 1; return q !== 1 ? q : <span className="text-gray-300">1</span>; })()}</>}
                     </td>
-                    <td className="px-4 py-3 text-gray-500">
-                        {isEditing ? <div><span className="text-xs text-gray-400 block mb-1">Unité</span><select className="border border-yellow-200 rounded px-2 py-1 text-sm" value={editInlineForm.unite} onChange={e => setEditInlineForm({ ...editInlineForm, unite: e.target.value as Unite })}>{UNITES.map(u => <option key={u}>{u}</option>)}</select></div> : ing.unite}
+                    <td className="px-2 py-3 text-gray-500 text-xs">
+                        {isEditing ? <div><select className="border border-yellow-200 rounded px-1 py-1 text-xs" value={editInlineForm.unite} onChange={e => setEditInlineForm({ ...editInlineForm, unite: e.target.value as Unite })}>{UNITES.map(u => <option key={u}>{u}</option>)}</select></div> : ing.unite}
                     </td>
-                    <td className="px-4 py-3 text-xs">
-                      <select className="border border-gray-200 rounded px-2 py-1 text-xs w-full max-w-[160px]"
+                    <td className="px-2 py-3 text-xs">
+                      <select className="border border-gray-200 rounded px-1 py-1 text-xs w-full"
                         value={ingredientParProduit[ing.id] || ''}
                         onChange={async e => {
                           const nomChoisi = e.target.value;
@@ -1196,13 +1196,13 @@
                         {Array.from(ingredientsMap.keys()).sort((a, b) => a.localeCompare(b, 'fr', { sensitivity: 'base' })).map(nom => <option key={nom} value={nom}>{nom}</option>)}
                       </select>
                     </td>
-                    <td className="px-4 py-3 text-gray-500 text-xs">
-                        {(ing as any).fournisseur || ((ing as any).foodflowCode ? 'Foodflow' : (ing as any).millietCode ? 'Milliet' : (ing as any).lbaCode ? 'LBA' : '—')}
+                    <td className="px-2 py-3 text-gray-500 text-xs">
+                        {((ing as any).fournisseur || ((ing as any).foodflowCode ? 'Foodflow' : (ing as any).millietCode ? 'Milliet' : (ing as any).lbaCode ? 'LBA' : '—')).replace('Les Assembleurs', 'Assembl.').replace('Foodflow', 'FF')}
                     </td>
-                    <td className="px-4 py-3 text-right font-semibold text-yellow-600">
+                    <td className="px-2 py-3 text-right font-semibold text-yellow-600 text-xs">
                         {(ing.prix / ((ing as any).quantite || (ing as any).nbKg || (ing as any).nbPieces || 1) / ing.rendement).toFixed(2)} €
                     </td>
-                    <td className="px-4 py-3 text-sm">
+                    <td className="px-2 py-3 text-xs">
                         {(() => {
                         const date = new Date(ing.updatedAt);
                         const jours = Math.floor((Date.now() - date.getTime()) / (1000 * 60 * 60 * 24));
@@ -1210,7 +1210,7 @@
                         return <span className={jours > 30 ? 'text-red-500 font-semibold' : 'text-gray-400'}>{label}{jours > 30 ? ' ⚠️' : ''}</span>;
                         })()}
                     </td>
-                    <td className="px-4 py-3 text-right whitespace-nowrap">
+                    <td className="px-2 py-3 text-right whitespace-nowrap">
                         <div className="flex items-center justify-end gap-2">
                         {!isEditing && (() => {
                         const hist = (ing.historiquesPrix || []).slice().sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime());

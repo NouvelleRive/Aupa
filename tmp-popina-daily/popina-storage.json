@@ -1,0 +1,139 @@
+{
+  "cookies": [
+    {
+      "name": "__utma",
+      "value": "172093232.212696709.1776583528.1776583528.1776583528.1",
+      "domain": ".backoffice.popina.com",
+      "path": "/",
+      "expires": 1811143561.898601,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "__utmc",
+      "value": "172093232",
+      "domain": ".backoffice.popina.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "__utmz",
+      "value": "172093232.1776583528.1.1.utmcsr=(direct)|utmccn=(direct)|utmcmd=(none)",
+      "domain": ".backoffice.popina.com",
+      "path": "/",
+      "expires": 1792351561,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "__utmt",
+      "value": "1",
+      "domain": ".backoffice.popina.com",
+      "path": "/",
+      "expires": 1776584127,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "m",
+      "value": "01332e02-0820-44ef-8a4a-135818bc7af393bf1f",
+      "domain": "m.stripe.com",
+      "path": "/",
+      "expires": 1811143562.474591,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "name": "__stripe_sid",
+      "value": "2577d62f-dbf5-4c2e-91d8-b13cd4fcf4ea3a20f9",
+      "domain": ".backoffice.popina.com",
+      "path": "/",
+      "expires": 1776585362,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "__stripe_mid",
+      "value": "42d1895d-ae51-430a-b4db-108c1ba0573cf1cbe0",
+      "domain": ".backoffice.popina.com",
+      "path": "/",
+      "expires": 1808119562,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "account_credentials",
+      "value": "8a6c2e192e0bb29007cfd60fe63cd75d14e577f6448f6491d763e37c33a656b9de1a3b48f93531998383c20dd812f5a508938012e12dbffa36a9a12cc6e8daee%3A%3A26907",
+      "domain": "backoffice.popina.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "intercom-device-id-uqt0cdhp",
+      "value": "3371833b-fe53-40a2-9d4d-ad8993ed91b3",
+      "domain": ".popina.com",
+      "path": "/",
+      "expires": 1799913562,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "__utmb",
+      "value": "172093232.3.10.1776583528",
+      "domain": ".backoffice.popina.com",
+      "path": "/",
+      "expires": 1776585361,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "intercom-session-uqt0cdhp",
+      "value": "bms5UStQOS9ac21oLzRObWI5dlRzSldiR2h4aHJTUnlUbUdCWFRrdlFoY0l5YWZ2YkpudW84T0FlWXdBVjYwdHljaHlZVWJxLzNFTitRRDRLSnFkeUNYcXZNTzZKSjZhd2pTcGE5Nk5yTDc4Wkp1THl2ZzE0VmVHdjhKSEtxcWdldmlCd3dJa2t4YURpSzIyN2VlenBNNEltQnNjdGEvUWpUQ3RVUm44a2hoYk10RnFwRld6OHdXM0JwY0cyb1c5Y2kybU4zVjl2Q3c5Q1pqSlFBcnF5UT09LS0vT3BZTnBURlZPd1JCRUtoVTV3b2FBPT0=--a92cd75a9436afb0783d20ca873c8b09c8b5476f",
+      "domain": ".popina.com",
+      "path": "/",
+      "expires": 1777188362,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "_popina_session",
+      "value": "ajRYYlVXS0V0Y1RyMWFraG1GSVRoYXpwVzFlcU1RaU1LdkJHUTVCMHZIWFpnVC84QzlCUUw5VmhUTm1IMFJZcEFHcGFFY1NoZHZCU0JCa3ROYUZ3UE00cG1UYXpKSXlEejlHRFd3dHdrdnVTckNUVmhLYkYwUktnOUFHS2NPRFM0WnZwNXdjYnRidXJ4YTBRRVBZd1d3S1Uzem5vRFZVdkE0OVVSMGdsRFFlZ3VuUWs0WGNlRVBQVExoTCtIaWhpNlo4SkFYR2pveXhZNXppKzFvb1JmU2YyeURuR3hjQ1lLb2VkdFluZTJlMmliRDFyWmZlN2szczVCMlVxMjdiVXZGOWlqbE0xVElRNnc5QTFsaE8vWCsyYXV2eTlVekRnaEdURVlPenZaL1YrTUVOVExmdjFWR2RRcGNaRXpUTEJNNkJMQU9RczhYc3hsS09YOU1CTFF4bUNoZGV6NnFNckdsWWg3QWYrSjNJMFNDQnBOai9STiszQjRQdmoxRjRQZTlhV3gvWGlpcmMvcXFpWTNRK1NlcWhhVFhhZmJkWmFsSGZLYXlmM3VlejBMVllUb2ZtWHJ6T0RlOWF0TkdqTy0tbVBHWjAwQWI1Ykp4TC85T2ZrODJEQT09--7ebbca04851c16234e3bf743731bba720258dab7",
+      "domain": "backoffice.popina.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "Lax"
+    }
+  ],
+  "origins": [
+    {
+      "origin": "https://backoffice.popina.com",
+      "localStorage": [
+        {
+          "name": "NRBA_SESSION",
+          "value": "{\"value\":\"3ae284eea7990b20\",\"inactiveAt\":1776585333406,\"expiresAt\":1776597928351,\"updatedAt\":1776583561834,\"sessionReplayMode\":0,\"sessionReplaySentFirstChunk\":false,\"sessionTraceMode\":0,\"traceHarvestStarted\":false,\"loggingMode\":0,\"logApiMode\":0,\"serverTimeDiff\":-65,\"custom\":{},\"numOfResets\":0,\"consent\":false}"
+        },
+        {
+          "name": "intercom.intercom-state-uqt0cdhp",
+          "value": "{\"app\":{\"openConfig\":{\"unifiedStyling\":true,\"openTo\":\"home\",\"spaces\":[{\"type\":\"home\",\"label\":\"Accueil\",\"navigationLabel\":\"Accueil\",\"badge\":null},{\"type\":\"messages\",\"label\":\"Conversations\",\"navigationLabel\":\"Conversations\",\"badge\":null},{\"type\":\"tickets\",\"label\":\"Tickets\",\"navigationLabel\":\"Tickets\",\"badge\":null},{\"type\":\"help\",\"label\":\"Aide\",\"navigationLabel\":\"Aide\",\"badge\":null}],\"userHasReceivedChecklists\":false,\"userHasLiveNewsfeed\":false,\"userHasTickets\":false},\"selfServeSuggestionsMatch\":false,\"name\":\"L'équipe Popina\",\"features\":{\"anonymousInboundMessages\":true,\"googleAnalytics\":true,\"hubspotInstalled\":false,\"inboundMessages\":true,\"marketoEnrichmentInstalled\":false,\"googleAnalytics4Integration\":true},\"helpCenterSiteUrl\":\"https://help.popina.com\",\"inboundConversationsDisabled\":false,\"isDeveloperWorkspace\":false,\"customGoogleAnalyticsTrackerId\":\"G-ZQZQ4V3VL9\"},\"launcher\":{\"isLauncherEnabled\":true},\"launcherDiscoveryMode\":{\"hasDiscoveredLauncher\":true},\"launcherSettings\":{\"alignment\":\"right\",\"color\":\"#000000\",\"colorDark\":\"#9c9c9c\",\"hasRequiredFeatures\":true,\"horizontalPadding\":20,\"instantBootEnabled\":true,\"launcherLogoUrl\":null,\"launcherLogoDarkUrl\":null,\"messengerLayout\":\"widget\",\"secondaryColor\":\"#0735E5\",\"secondaryColorDark\":\"#0735E5\",\"showLauncher\":true,\"themeMode\":\"light\",\"updatedAt\":1776524444,\"verticalPadding\":20,\"isLoading\":false},\"user\":{\"id\":\"600c1024d2865e1af70dabfe\",\"role\":\"user\",\"locale\":\"fr\",\"hasConversations\":true},\"message\":{},\"conversations\":{\"byId\":{}},\"openOnBoot\":{\"type\":null,\"metadata\":{},\"lastOpenAtTimestamp\":1776583562644},\"operator\":{\"lastComposerEvent\":0},\"router\":{\"isInitialized\":false,\"navigationQueue\":[]}}"
+        }
+      ]
+    }
+  ]
+}

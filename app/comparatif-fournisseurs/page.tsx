@@ -24,6 +24,7 @@ const FOURNISSEURS_COULEURS: Record<string, string> = {
   LBA: 'bg-purple-100 text-purple-800',
   Lidl: 'bg-orange-100 text-orange-800',
   'Les Assembleurs': 'bg-rose-100 text-rose-800',
+  Amazon: 'bg-yellow-100 text-yellow-800',
 };
 
 function normalisePrix(pf: PFWithFournisseur): number {

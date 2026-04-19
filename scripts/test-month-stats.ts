@@ -1,16 +1,11 @@
-// Scrape les ventes Popina JOUR PAR JOUR via export statistiques et importe dans Firestore
+// Test : scrape un mois entier via export statistiques, affiche le total TTC sans écrire en base
 import { chromium } from 'playwright';
-import { collection, getDocs, addDoc } from 'firebase/firestore';
-import { db } from '../lib/firebase';
 import * as fs from 'fs';
 import * as path from 'path';
 import { config } from 'dotenv';
 import XLSX from 'xlsx';
 
 config({ path: '.env.local' });
-const EMAIL = process.env.POPINA_EMAIL!;
-const PASSWORD = process.env.POPINA_PASSWORD!;
-if (!EMAIL || !PASSWORD) { console.error('POPINA_EMAIL et POPINA_PASSWORD requis'); process.exit(1); }
 
 const ESTAB = '26798';
 const BASE = `https://backoffice.popina.com/fr/dashboard/establishment/${ESTAB}`;
@@ -33,61 +28,40 @@ function normalize(s: string): string {
     .replace(/[^\w\s]/g, ' ').replace(/\s+/g, ' ').trim();
 }
 
-function generateDays(startDate: string): string[] {
-  const days: string[] = [];
-  const d = new Date(startDate + 'T12:00:00'); // midi pour éviter le décalage UTC
-  const yesterday = new Date();
-  yesterday.setDate(yesterday.getDate() - 1);
-  while (d <= yesterday) {
-    const y = d.getFullYear();
-    const m = String(d.getMonth() + 1).padStart(2, '0');
-    const day = String(d.getDate()).padStart(2, '0');
-    days.push(`${y}-${m}-${day}`);
-    d.setDate(d.getDate() + 1);
-  }
-  return days;
-}
-
-// Format ISO → dd.mm.yyyy pour le date picker Popina
 function toPopinaDate(iso: string): string {
   const [y, m, d] = iso.split('-');
   return `${d}.${m}.${y}`;
 }
 
+function generateDaysForMonth(yearMonth: string): string[] {
+  const [y, m] = yearMonth.split('-').map(Number);
+  const days: string[] = [];
+  const d = new Date(y, m - 1, 1, 12); // midi pour éviter le décalage UTC
+  while (d.getMonth() === m - 1) {
+    const yy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    days.push(`${yy}-${mm}-${dd}`);
+    d.setDate(d.getDate() + 1);
+  }
+  return days;
+}
+
 async function main() {
-  // Charger les menus pour le mapping date → menuNom
-  const menusSnap = await getDocs(collection(db, 'menus'));
-  const menus = menusSnap.docs.map(d => ({ id: d.id, ...d.data() } as any));
+  const month = process.argv[2] || '2025-10';
+  const days = generateDaysForMonth(month);
+  console.log(`Test export statistiques pour ${month} (${days.length} jours)\n`);
 
-  // Jours déjà en base
-  const existingSnap = await getDocs(collection(db, 'ventes'));
-  const joursExistants = new Set<string>();
-  for (const d of existingSnap.docs) {
-    const jour = d.data().jour;
-    if (jour) joursExistants.add(jour);
-  }
-  console.log(`${joursExistants.size} jours déjà en base`);
-
-  const allDays = generateDays('2025-01-01');
-  const daysToProcess = allDays.filter(d => !joursExistants.has(d));
-  console.log(`${allDays.length} jours total, ${daysToProcess.length} à traiter\n`);
-
-  if (daysToProcess.length === 0) {
-    console.log('Tout est déjà importé.');
-    return;
-  }
-
-  // Login
-  console.log('Login Popina...');
   const browser = await chromium.launch({ headless: true });
   const context = await browser.newContext({ acceptDownloads: true });
   const page = await context.newPage();
 
+  console.log('Login...');
   await page.goto('https://backoffice.popina.com/fr/session/index');
   await page.waitForLoadState('networkidle');
   await page.waitForTimeout(3000);
-  await page.fill('#email', EMAIL);
-  await page.fill('#password', PASSWORD);
+  await page.fill('#email', process.env.POPINA_EMAIL!);
+  await page.fill('#password', process.env.POPINA_PASSWORD!);
   await page.click('#button_arrow');
   await page.waitForLoadState('networkidle');
   await page.waitForTimeout(5000);
@@ -99,18 +73,16 @@ async function main() {
   }
   console.log('Connecté\n');
 
-  // Aller sur la page statistiques une première fois
   await page.goto(`${BASE}/statistics`);
   await page.waitForLoadState('networkidle');
   await page.waitForTimeout(5000);
 
-  let totalVentes = 0;
-  let totalJours = 0;
+  let grandTotalTTC = 0;
+  let grandTotalArticles = 0;
+  let joursAvecDonnees = 0;
 
-  for (const day of daysToProcess) {
+  for (const day of days) {
     const popDate = toPopinaDate(day);
-
-    // Changer les dates via JS + submit du form
     await page.evaluate((d: string) => {
       const start = document.getElementById('date_start') as HTMLInputElement;
       const end = document.getElementById('date_end') as HTMLInputElement;
@@ -129,8 +101,19 @@ async function main() {
     await page.waitForLoadState('networkidle').catch(() => {});
     await page.waitForTimeout(3000);
 
-    // Télécharger l'export statistiques (inclut ventes delivery)
-    const filePath = path.join(OUT, `tmp-${day}.xlsx`);
+    // Forcer toutes les checkboxes catégories à cochées
+    await page.evaluate(() => {
+      document.querySelectorAll<HTMLInputElement>('input[name="macro_names[]"]').forEach(cb => {
+        if (!cb.checked) {
+          cb.checked = true;
+          cb.dispatchEvent(new Event('change', { bubbles: true }));
+          cb.click();
+        }
+      });
+    });
+    await page.waitForTimeout(1000);
+
+    const filePath = path.join(OUT, `test-month-${day}.xlsx`);
     try {
       const [dl] = await Promise.all([
         page.waitForEvent('download', { timeout: 15000 }),
@@ -142,53 +125,37 @@ async function main() {
       continue;
     }
 
-    // Parser l'export statistiques (colonnes: parent, cat, name, quantity, TTC, HT, etc.)
     const wb = XLSX.readFile(filePath);
     const ws = wb.Sheets[wb.SheetNames[0]];
     const rows = XLSX.utils.sheet_to_json(ws, { raw: true }) as any[];
 
-    const menuMatch = menus.find((m: any) => m.dateDebut && m.dateFin && day >= m.dateDebut && day <= m.dateFin);
-    const menuNom = menuMatch ? menuMatch.nom : '';
-    const mois = day.slice(0, 7);
-
-    // Agréger par nom de produit (l'export stats peut avoir plusieurs lignes par produit)
-    const agg = new Map<string, { quantity: number; ttc: number }>();
+    let dayTTC = 0;
+    let dayArticles = 0;
     for (const row of rows) {
       const nom = row['name'];
       const quantity = row['quantity'];
       const ttc = row['TTC'];
       if (!nom || !quantity || quantity <= 0 || !ttc || ttc <= 0) continue;
       if (CATEGORIES_POPINA.has(normalize(nom))) continue;
-
-      const existing = agg.get(nom);
-      if (existing) {
-        existing.quantity += quantity;
-        existing.ttc += ttc;
-      } else {
-        agg.set(nom, { quantity, ttc });
-      }
+      dayTTC += ttc;
+      dayArticles += quantity;
     }
 
-    let dayVentes = 0;
-    for (const [nom, { quantity, ttc }] of agg) {
-      await addDoc(collection(db, 'ventes'), {
-        nom, quantity, ttc: Math.round(ttc * 100) / 100, menuNom, mois, jour: day,
-      });
-      dayVentes++;
-    }
+    grandTotalTTC += dayTTC;
+    grandTotalArticles += dayArticles;
+    joursAvecDonnees++;
+    console.log(`  ${day}: ${dayArticles} articles, ${dayTTC.toFixed(2)} € TTC`);
 
-    totalVentes += dayVentes;
-    totalJours++;
-    console.log(`  ${day}: ${dayVentes} ventes (menu: ${menuNom || '—'})`);
-
-    // Nettoyer le fichier temporaire
     fs.unlinkSync(filePath);
     await page.waitForTimeout(500);
   }
 
   await browser.close();
   console.log(`\n========================================`);
-  console.log(`${totalJours} jours importés, ${totalVentes} ventes créées`);
+  console.log(`${month} — ${joursAvecDonnees} jours avec données`);
+  console.log(`Total articles: ${grandTotalArticles}`);
+  console.log(`Total TTC: ${grandTotalTTC.toFixed(2)} €`);
+  console.log(`========================================`);
 }
 
 main().catch(console.error);

@@ -334,7 +334,7 @@ export default function IngredientsPage() {
               {filtered.map(ing => (
                 <tr key={ing.id} className="hover:bg-yellow-50 transition-colors">
                   <td className="px-4 py-3 font-medium">{ing.nom}</td>
-                  <td className="px-4 py-3 text-gray-500">{pfPrix[ing.id]?.unite || ''}</td>
+                  <td className="px-4 py-3 text-gray-500">{pfPrix[ing.id]?.unite || ing.unite}</td>
                   <td className="px-4 py-3 text-gray-500">{ing.categorie}</td>
                   <td className="px-4 py-3 text-right">
                     {pfPrix[ing.id]?.prix ? (
