@@ -60,11 +60,11 @@ export default function IngredientsPage() {
 
     // Identifier les recettes de type Préparations
     const prepRecettes = recSnap.docs.filter(d => d.data().categorie === 'Préparations');
-    const prepNomsSet = new Set(prepRecettes.map(d => d.data().nom as string));
+    const prepNomsSet = new Set(prepRecettes.map(d => (d.data().nom as string).toLowerCase().trim()));
     setPrepNoms(prepNomsSet);
 
     // Séparer ingrédients bruts (exclure ceux qui sont des prépas)
-    const brutIngredients = ings.filter(i => !prepNomsSet.has(i.nom));
+    const brutIngredients = ings.filter(i => !prepNomsSet.has(i.nom.toLowerCase().trim()));
     setIngredients(brutIngredients);
 
     // Construire les données préparations
