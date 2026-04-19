@@ -301,13 +301,13 @@ export default function IngredientsPage() {
           <table className="w-full text-sm">
             <thead className="bg-yellow-50 text-gray-500 text-xs uppercase">
               <tr>
-                <th className="px-3 py-3 text-left w-[22%]">Nom</th>
-                <th className="px-2 py-3 text-left w-[5%]">Unité</th>
-                <th className="px-2 py-3 text-left w-[10%]">Catégorie</th>
-                <th className="px-2 py-3 text-right w-[10%]">Prix/unité</th>
-                <th className="px-2 py-3 text-left w-[22%]">PF de réf</th>
-                <th className="px-2 py-3 text-left w-[22%]">Recettes liées</th>
-                <th className="px-2 py-3 w-[9%]"></th>
+                <th className="px-3 py-3 text-left w-[20%]">Nom</th>
+                <th className="px-2 py-3 text-left w-[4%]">Unité</th>
+                <th className="px-2 py-3 text-left w-[9%]">Catégorie</th>
+                <th className="px-2 py-3 text-right w-[8%]">Prix/u</th>
+                <th className="px-2 py-3 text-left w-[30%]">PF de réf</th>
+                <th className="px-2 py-3 text-left w-[15%]">Recettes liées</th>
+                <th className="px-2 py-3 w-[6%]"></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-yellow-50">
