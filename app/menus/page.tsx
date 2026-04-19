@@ -567,11 +567,31 @@
                 });
                 const totalVendusCat = ventsCat.reduce((s, p) => s + p.vendus, 0);
 
+                // Food cost moyen et marge totale de la catégorie
+                const catAvecCout = ventsCat.filter(p => p.coutCalcule > 0 && p.prixVente > 0);
+                const catFcMoyen = catAvecCout.length > 0
+                  ? catAvecCout.reduce((s, p) => s + (p.coutCalcule / (p.prixVente / 1.1)) * 100, 0) / catAvecCout.length
+                  : 0;
+                const catMarge = catAvecCout.reduce((s, p) => s + (p.prixVente / 1.1 - p.coutCalcule) * (p.vendus || 0), 0);
+                const isFoodCat = !cat.nom.toLowerCase().includes('cocktail') && !cat.nom.toLowerCase().includes('vin') && !cat.nom.toLowerCase().includes('bière') && !cat.nom.toLowerCase().includes('apéritif') && !cat.nom.toLowerCase().includes('soda') && !cat.nom.toLowerCase().includes('chaud') && !cat.nom.toLowerCase().includes('iced');
+                const fcSeuil = isFoodCat ? 32 : 20;
+                const fcIcon = catFcMoyen > 0 ? (catFcMoyen > fcSeuil ? '🚨' : catFcMoyen > fcSeuil * 0.85 ? '⚠️' : '🔥') : '';
+
                 return (
                     <div key={idx} className="bg-white rounded-xl border border-yellow-100 overflow-hidden">
                     <div className="bg-yellow-50 px-4 py-3 flex items-center justify-between">
                         <h2 className="font-semibold text-gray-700">{cat.nom}</h2>
                         <div className="flex items-center gap-3">
+                        {catFcMoyen > 0 && (
+                          <span className={`text-xs font-semibold ${catFcMoyen > fcSeuil ? 'text-red-500' : catFcMoyen > fcSeuil * 0.85 ? 'text-orange-500' : 'text-green-600'}`}>
+                            {fcIcon} FC {catFcMoyen.toFixed(1)}%
+                          </span>
+                        )}
+                        {catMarge > 0 && (
+                          <span className="text-xs font-semibold text-green-600">
+                            Marge {Math.round(catMarge)} €
+                          </span>
+                        )}
                         <span className="text-xs text-gray-400">{platsCategorie.length} plats {totalVendusCat > 0 ? `· ${totalVendusCat} vendus` : ''}</span>
                         {!isEditing && <button onClick={() => {
                             setMenuEdit(menuCourant.id);
