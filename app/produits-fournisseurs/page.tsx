@@ -53,6 +53,7 @@
     const [editInlineForm, setEditInlineForm] = useState({ nom: '', prix: '', unite: 'kg' as Unite, categorie: 'épicerie salée' as Categorie, rendement: '100', quantite: '1' });
     const [ingredientsMap, setNomsXLMap] = useState<Map<string, string[]>>(new Map());
     const [ingredientParProduit, setNomsXLParIngredient] = useState<Record<string, string>>({});
+    const [pfRefsSet, setPfRefsSet] = useState<Set<string>>(new Set());
 
     const fetchIngredients = async () => {
         const [snap, recSnap, ingSnap] = await Promise.all([
@@ -94,6 +95,13 @@
           }
         }
         setNomsXLMap(xlMap);
+        // Collecter les PF de référence
+        const refs = new Set<string>();
+        for (const d of ingSnap.docs) {
+          const refId = d.data().fournisseurRefId;
+          if (refId) refs.add(refId);
+        }
+        setPfRefsSet(refs);
         setLoading(false);
     };
 
@@ -1182,8 +1190,9 @@
                 <tbody className="divide-y divide-yellow-50">
                 {filtered.slice(0, visibleCount).map(ing => {
                     const isEditing = editInlineId === ing.id;
+                    const isRef = pfRefsSet.has(ing.id);
                     return (
-                    <tr key={ing.id} className={`transition-colors ${isEditing ? 'bg-yellow-50' : 'hover:bg-yellow-50'}`}>
+                    <tr key={ing.id} className={`transition-colors ${isEditing ? 'bg-yellow-50' : 'hover:bg-yellow-50'} ${!isRef && !isEditing ? 'opacity-40' : ''}`}>
                     <td className="px-3 py-3 font-medium">
                         {isEditing ? <div><span className="text-xs text-gray-400 block mb-1">Nom</span><input className="border border-yellow-200 rounded px-2 py-1 text-sm w-full" value={editInlineForm.nom} onChange={e => setEditInlineForm({ ...editInlineForm, nom: e.target.value })} /><div className="flex gap-2 mt-2"><button onClick={handleSaveInline} className="bg-yellow-400 hover:bg-yellow-500 text-black font-semibold rounded px-3 py-1 text-xs">Enregistrer</button><button onClick={() => setEditInlineId(null)} className="border border-gray-200 rounded px-3 py-1 text-xs text-gray-500 hover:bg-gray-50">Annuler</button></div></div> : ing.nom}
                     </td>
