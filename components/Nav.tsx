@@ -27,6 +27,12 @@ export default function Nav() {
           {label}
         </Link>
       ))}
+      <div className="ml-auto">
+        <Link href="/mapping-caisse"
+          className={`text-sm transition-colors ${pathname === '/mapping-caisse' ? 'text-yellow-500 font-semibold' : 'text-gray-400 hover:text-yellow-400'}`}>
+          Mapping caisse
+        </Link>
+      </div>
     </nav>
   );
 }
