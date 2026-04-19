@@ -1073,6 +1073,9 @@
         <div className="flex items-center justify-between mb-6">
             <h1 className="text-2xl font-bold">Produits fournisseur</h1>
             <div className="flex gap-3">
+            <button disabled={importing} onClick={async () => { setImporting(true); setImportProgress('Mise à jour...'); await recalculerTousLesCouts(); await fetchIngredients(); setImporting(false); setImportProgress(''); }} className="border border-gray-200 text-gray-600 hover:bg-gray-50 font-semibold rounded-lg px-4 py-2 text-sm">
+                Mettre à jour
+            </button>
             <button onClick={() => { setShowForm(!showForm); setForm(emptyForm); }} className="border border-gray-200 text-gray-600 hover:bg-gray-50 font-semibold rounded-lg px-4 py-2 text-sm">
                 + Ajouter manuellement
             </button>
