@@ -385,14 +385,6 @@
                 className="border border-gray-200 text-gray-600 hover:bg-gray-50 font-semibold rounded-lg px-4 py-2 text-sm">
                 + Nouveau menu
             </button>
-            <button onClick={() => setShowImport(!showImport)}
-                className="border border-gray-200 text-gray-600 hover:bg-gray-50 font-semibold rounded-lg px-4 py-2 text-sm">
-                Importer XL mensuel
-            </button>
-            <button onClick={() => setShowImportRecap(!showImportRecap)}
-                className="border border-gray-200 text-gray-600 hover:bg-gray-50 font-semibold rounded-lg px-4 py-2 text-sm">
-                Importer récap quotidien
-            </button>
             <button onClick={async () => {
                 const r = await fetch('/api/gmail/sync');
                 const data = await r.json();
