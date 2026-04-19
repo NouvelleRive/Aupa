@@ -227,27 +227,27 @@ export default function ComparatifFournisseurs() {
 
       {/* Tableau */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-x-auto">
-        <table className="w-full text-sm">
+        <table className="w-full text-sm table-fixed">
           <thead>
             <tr className="bg-gray-50 border-b border-gray-100">
-              <th className="px-4 py-3 text-left font-semibold text-gray-600 cursor-pointer hover:text-yellow-500" onClick={() => handleSort('nom')}>
+              <th className="px-3 py-3 text-left font-semibold text-gray-600 cursor-pointer hover:text-yellow-500 w-[14%]" onClick={() => handleSort('nom')}>
                 Ingrédient{sortIcon('nom')}
               </th>
-              <th className="px-4 py-3 text-left font-semibold text-gray-600 cursor-pointer hover:text-yellow-500" onClick={() => handleSort('categorie')}>
-                Catégorie{sortIcon('categorie')}
+              <th className="px-2 py-3 text-left font-semibold text-gray-600 cursor-pointer hover:text-yellow-500 w-[8%]" onClick={() => handleSort('categorie')}>
+                Cat.{sortIcon('categorie')}
               </th>
-              <th className="px-4 py-3 text-left font-semibold text-gray-600 cursor-pointer hover:text-yellow-500" onClick={() => handleSort('fournisseur')}>
-                Actuel{sortIcon('fournisseur')}
+              <th className="px-2 py-3 text-left font-semibold text-gray-600 cursor-pointer hover:text-yellow-500 w-[14%]" onClick={() => handleSort('fournisseur')}>
+                PF de réf{sortIcon('fournisseur')}
               </th>
               {fournisseurs.map(f => (
-                <th key={f} className="px-4 py-3 text-right font-semibold text-gray-600">
+                <th key={f} className="px-2 py-3 text-right font-semibold text-gray-600" style={{ width: `${Math.floor(50 / fournisseurs.length)}%` }}>
                   <span className={`text-xs px-2 py-0.5 rounded-full ${FOURNISSEURS_COULEURS[f] || 'bg-gray-100 text-gray-600'}`}>{f}</span>
                 </th>
               ))}
-              <th className="px-4 py-3 text-right font-semibold text-gray-600 cursor-pointer hover:text-yellow-500" onClick={() => handleSort('economie')}>
-                Économie{sortIcon('economie')}
+              <th className="px-2 py-3 text-right font-semibold text-gray-600 cursor-pointer hover:text-yellow-500 w-[8%]" onClick={() => handleSort('economie')}>
+                Éco.{sortIcon('economie')}
               </th>
-              <th className="px-4 py-3 text-center font-semibold text-gray-600">Reco</th>
+              <th className="px-2 py-3 text-center font-semibold text-gray-600 w-[6%]">Reco</th>
             </tr>
           </thead>
           <tbody>
@@ -278,17 +278,17 @@ export default function ComparatifFournisseurs() {
                   </td>
                   {fournisseurs.map(f => {
                     const entry = prixParFournisseur.get(f);
-                    if (!entry) return <td key={f} className="px-4 py-3 text-right text-gray-200">—</td>;
+                    if (!entry) return <td key={f} className="px-2 py-3 text-right text-gray-200">—</td>;
                     const isCheapest = f === l.moinsCher && l.pfs.length > 1;
                     const isMostExpensive = f === l.plusCher && l.pfs.length > 1;
                     const isActuel = f === l.fournisseurActuel;
                     return (
-                      <td key={f} className="px-4 py-3 text-right">
+                      <td key={f} className="px-2 py-3 text-right">
+                        <div className="text-[10px] text-gray-400 truncate" title={entry.pf.nom}>{entry.pf.nom}</div>
                         <span className={`font-mono text-sm ${isCheapest ? 'text-green-600 font-bold' : isMostExpensive ? 'text-red-400' : 'text-gray-600'} ${isActuel ? 'underline decoration-yellow-400' : ''}`}>
                           {entry.prixNormalise.toFixed(2)}
                         </span>
                         <span className="text-[10px] text-gray-300 ml-0.5">{unite}</span>
-                        <div className="text-[10px] text-gray-300 truncate max-w-[140px] ml-auto" title={entry.pf.nom}>{entry.pf.nom}</div>
                       </td>
                     );
                   })}
