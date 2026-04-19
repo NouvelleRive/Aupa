@@ -1,33 +1,38 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { collection, getDocs, addDoc, deleteDoc, doc } from 'firebase/firestore';
+import { collection, getDocs, addDoc, deleteDoc, doc, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Recette } from '@/lib/types';
 import { CAISSE_MAP, normalizeCaisse } from '@/lib/caisseMap';
 
 export default function MappingCaissePage() {
-  const [ventesNoms, setVentesNoms] = useState<string[]>([]);
+  const [ventesData, setVentesData] = useState<{ nom: string; menuNom: string }[]>([]);
   const [recettes, setRecettes] = useState<Recette[]>([]);
   const [mappings, setMappings] = useState<{ id: string; caisse: string; recette: string; original: string; recetteNom: string }[]>([]);
+  const [caisseCategories, setCaisseCategories] = useState<Record<string, { nom: string; parent: string; cat: string }>>({});
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [filterNonMappé, setFilterNonMappé] = useState(true);
+  const [filterCat, setFilterCat] = useState('all');
   const [saving, setSaving] = useState<string | null>(null);
 
   const fetchAll = async () => {
-    const [vSnap, rSnap, mSnap] = await Promise.all([
+    const [vSnap, rSnap, mSnap, catDoc] = await Promise.all([
       getDocs(collection(db, 'ventes')),
       getDocs(collection(db, 'recettes')),
       getDocs(collection(db, 'caisseMapCustom')),
+      getDoc(doc(db, 'config', 'caisseCategories')),
     ]);
 
-    const nomsSet = new Set<string>();
+    // Noms caisse uniques + dernier menuNom vu
+    const nomsMap = new Map<string, { nom: string; menuNom: string }>();
     for (const d of vSnap.docs) {
-      const nom = d.data().nom;
-      if (nom) nomsSet.add(nom);
+      const data = d.data();
+      const nom = data.nom;
+      if (nom && !nomsMap.has(nom)) nomsMap.set(nom, { nom, menuNom: data.menuNom || '' });
     }
-    setVentesNoms(Array.from(nomsSet));
+    setVentesData(Array.from(nomsMap.values()));
     setRecettes(rSnap.docs.map(d => ({ id: d.id, ...d.data() } as Recette)));
 
     const maps = mSnap.docs.map(d => ({ id: d.id, ...d.data() } as any));
@@ -35,6 +40,8 @@ export default function MappingCaissePage() {
     for (const m of maps) {
       if (m.caisse && m.recette) CAISSE_MAP[m.caisse] = m.recette;
     }
+
+    if (catDoc.exists()) setCaisseCategories(catDoc.data() as any);
     setLoading(false);
   };
 
@@ -45,10 +52,22 @@ export default function MappingCaissePage() {
     [recettes]
   );
 
-  // Pour chaque touche caisse, trouver son mapping
+  // Trouver la catégorie Popina d'un nom de touche
+  const getCatPopina = (nom: string): string => {
+    const key = nom.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^\w\s]/g, '').trim().replace(/\s+/g, '_');
+    const entry = caisseCategories[key];
+    if (entry) {
+      // Simplifier le parent
+      const p = entry.parent;
+      if (p.includes('Croissant Burger')) return 'Plats';
+      return p;
+    }
+    return '';
+  };
+
   const touches = useMemo(() => {
-    return ventesNoms.map(nom => {
-      const caisseKey = normalizeCaisse(nom);
+    return ventesData.map(v => {
+      const caisseKey = normalizeCaisse(v.nom);
       const mapping = mappings.find(m => m.caisse === caisseKey);
       let recetteNom: string | null = null;
       if (mapping) {
@@ -58,13 +77,22 @@ export default function MappingCaissePage() {
         }
         if (!recetteNom) recetteNom = mapping.recetteNom || mapping.recette;
       }
-      return { nom, caisseKey, mappedTo: mapping?.recette || null, mappingId: mapping?.id || null, recetteNom };
-    }).sort((a, b) => a.nom.localeCompare(b.nom, 'fr', { sensitivity: 'base' }));
-  }, [ventesNoms, mappings, recettes]);
+      const catPopina = getCatPopina(v.nom);
+      return { nom: v.nom, caisseKey, mappedTo: mapping?.recette || null, mappingId: mapping?.id || null, recetteNom, catPopina, menuNom: v.menuNom };
+    }).sort((a, b) => a.catPopina.localeCompare(b.catPopina) || a.nom.localeCompare(b.nom, 'fr', { sensitivity: 'base' }));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ventesData, mappings, recettes, caisseCategories]);
+
+  // Catégories Popina uniques pour le filtre
+  const catsPopina = useMemo(() => {
+    const s = new Set(touches.map(t => t.catPopina).filter(Boolean));
+    return Array.from(s).sort();
+  }, [touches]);
 
   const filtered = useMemo(() => {
     let list = touches;
     if (filterNonMappé) list = list.filter(t => !t.mappedTo);
+    if (filterCat !== 'all') list = list.filter(t => t.catPopina === filterCat);
     if (search) {
       const s = search.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
       list = list.filter(t =>
@@ -73,7 +101,7 @@ export default function MappingCaissePage() {
       );
     }
     return list;
-  }, [touches, filterNonMappé, search]);
+  }, [touches, filterNonMappé, filterCat, search]);
 
   const nbMappés = touches.filter(t => t.mappedTo).length;
 
@@ -100,10 +128,10 @@ export default function MappingCaissePage() {
     fetchAll();
   };
 
-  if (loading) return <div className="max-w-5xl mx-auto p-6"><p className="text-gray-400">Chargement...</p></div>;
+  if (loading) return <div className="max-w-6xl mx-auto p-6"><p className="text-gray-400">Chargement...</p></div>;
 
   return (
-    <div className="max-w-5xl mx-auto">
+    <div className="max-w-7xl mx-auto">
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold">Mapping caisse</h1>
@@ -111,13 +139,17 @@ export default function MappingCaissePage() {
         </div>
       </div>
 
-      <div className="flex items-center gap-3 mb-4">
+      <div className="flex items-center gap-3 mb-4 flex-wrap">
         <input
           className="border border-yellow-200 focus:border-yellow-400 focus:outline-none rounded-lg px-3 py-2 text-sm w-64"
           placeholder="Rechercher..."
           value={search}
           onChange={e => setSearch(e.target.value)}
         />
+        <select className="border border-yellow-200 focus:border-yellow-400 focus:outline-none rounded-lg px-3 py-2 text-sm" value={filterCat} onChange={e => setFilterCat(e.target.value)}>
+          <option value="all">Toutes catégories</option>
+          {catsPopina.map(c => <option key={c} value={c}>{c}</option>)}
+        </select>
         <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
           <input type="checkbox" checked={filterNonMappé} onChange={e => setFilterNonMappé(e.target.checked)} className="accent-yellow-400" />
           Non attribués seulement
@@ -128,16 +160,20 @@ export default function MappingCaissePage() {
         <table className="w-full text-sm">
           <thead className="bg-yellow-50 text-gray-500 text-xs uppercase">
             <tr>
-              <th className="px-4 py-3 text-left w-[40%]">Touche caisse</th>
-              <th className="px-4 py-3 text-left w-[50%]">Recette</th>
-              <th className="px-4 py-3 w-[10%]"></th>
+              <th className="px-3 py-3 text-left w-[30%]">Touche caisse</th>
+              <th className="px-2 py-3 text-left w-[12%]">Catégorie</th>
+              <th className="px-2 py-3 text-left w-[10%]">Menu</th>
+              <th className="px-2 py-3 text-left w-[38%]">Recette</th>
+              <th className="px-2 py-3 w-[10%]"></th>
             </tr>
           </thead>
           <tbody className="divide-y divide-yellow-50">
             {filtered.map(item => (
               <tr key={item.nom} className={`transition-colors ${item.mappedTo ? 'hover:bg-yellow-50' : 'bg-orange-50/30 hover:bg-orange-50/50'}`}>
-                <td className="px-4 py-3 font-medium">{item.nom}</td>
-                <td className="px-4 py-3">
+                <td className="px-3 py-3 font-medium">{item.nom}</td>
+                <td className="px-2 py-3 text-xs text-gray-500">{item.catPopina || '—'}</td>
+                <td className="px-2 py-3 text-xs text-gray-400">{item.menuNom || '—'}</td>
+                <td className="px-2 py-3">
                   {item.mappedTo ? (
                     <span className="text-green-700 font-medium">{item.recetteNom}</span>
                   ) : (
@@ -154,7 +190,7 @@ export default function MappingCaissePage() {
                     </select>
                   )}
                 </td>
-                <td className="px-4 py-3 text-right">
+                <td className="px-2 py-3 text-right">
                   {item.mappedTo && item.mappingId && (
                     <button onClick={() => handleUnmap(item.mappingId!, item.caisseKey)} className="text-gray-400 hover:text-red-500 text-xs">Retirer</button>
                   )}
@@ -163,7 +199,7 @@ export default function MappingCaissePage() {
               </tr>
             ))}
             {filtered.length === 0 && (
-              <tr><td colSpan={3} className="px-4 py-8 text-center text-gray-400">
+              <tr><td colSpan={5} className="px-4 py-8 text-center text-gray-400">
                 {filterNonMappé ? 'Toutes les touches sont attribuées !' : 'Aucune touche trouvée'}
               </td></tr>
             )}
