@@ -244,10 +244,10 @@ export default function ComparatifFournisseurs() {
                   <span className={`text-xs px-2 py-0.5 rounded-full ${FOURNISSEURS_COULEURS[f] || 'bg-gray-100 text-gray-600'}`}>{f}</span>
                 </th>
               ))}
-              <th className="px-2 py-3 text-right font-semibold text-gray-600 cursor-pointer hover:text-yellow-500 w-[8%]" onClick={() => handleSort('economie')}>
+              <th className="px-2 py-3 text-center font-semibold text-gray-600 w-[7%]">Reco</th>
+              <th className="px-2 py-3 text-right font-semibold text-gray-600 cursor-pointer hover:text-yellow-500 w-[7%]" onClick={() => handleSort('economie')}>
                 Éco.{sortIcon('economie')}
               </th>
-              <th className="px-2 py-3 text-center font-semibold text-gray-600 w-[6%]">Reco</th>
             </tr>
           </thead>
           <tbody>
@@ -292,22 +292,20 @@ export default function ComparatifFournisseurs() {
                       </td>
                     );
                   })}
-                  <td className="px-4 py-3 text-right">
-                    {l.economiePotentielle > 0.01 ? (
-                      <span className="font-semibold text-yellow-600">-{l.economiePotentielle.toFixed(2)} {unite}</span>
+                  <td className="px-2 py-3 text-center">
+                    {shouldSwitch ? (
+                      <span className="bg-red-100 text-red-700 px-2 py-1 rounded-full text-xs font-semibold">CHANGER</span>
+                    ) : l.pfs.length > 1 ? (
+                      <span className="bg-green-100 text-green-700 px-2 py-1 rounded-full text-xs font-semibold">GARDER</span>
                     ) : (
-                      <span className="text-gray-200">—</span>
+                      <span className="text-gray-300 text-xs">—</span>
                     )}
                   </td>
-                  <td className="px-4 py-3 text-center text-xs">
-                    {shouldSwitch && l.moinsCher ? (
-                      <span className={`px-2 py-0.5 rounded-full ${FOURNISSEURS_COULEURS[l.moinsCher] || 'bg-gray-100 text-gray-600'}`}>
-                        {l.moinsCher}
-                      </span>
-                    ) : l.pfs.length > 1 ? (
-                      <span className="text-green-500">OK</span>
+                  <td className="px-2 py-3 text-right">
+                    {l.economiePotentielle > 0.01 ? (
+                      <span className="font-semibold text-red-600">-{l.economiePotentielle.toFixed(2)} {unite}</span>
                     ) : (
-                      <span className="text-gray-300">—</span>
+                      <span className="text-gray-200">—</span>
                     )}
                   </td>
                 </tr>
