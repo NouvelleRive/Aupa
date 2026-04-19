@@ -43,7 +43,7 @@ function uniteLabel(ing: Ingredient): string {
   return '€/pce';
 }
 
-type SortKey = 'nom' | 'categorie' | 'economie' | 'fournisseur';
+type SortKey = 'nom' | 'categorie' | 'economie' | 'fournisseur' | 'prix';
 type SortDir = 'asc' | 'desc';
 
 export default function ComparatifFournisseurs() {
@@ -53,8 +53,8 @@ export default function ComparatifFournisseurs() {
   const [search, setSearch] = useState('');
   const [filterCategorie, setFilterCategorie] = useState('all');
   const [filterMode, setFilterMode] = useState<'all' | 'multi' | 'single' | 'switch'>('all');
-  const [sortKey, setSortKey] = useState<SortKey>('economie');
-  const [sortDir, setSortDir] = useState<SortDir>('desc');
+  const [sortKey, setSortKey] = useState<SortKey>('nom');
+  const [sortDir, setSortDir] = useState<SortDir>('asc');
 
   useEffect(() => {
     (async () => {
@@ -120,6 +120,7 @@ export default function ComparatifFournisseurs() {
       else if (sortKey === 'categorie') { va = a.ingredient.categorie; vb = b.ingredient.categorie; }
       else if (sortKey === 'economie') { va = a.economiePotentielle; vb = b.economiePotentielle; }
       else if (sortKey === 'fournisseur') { va = a.fournisseurActuel || ''; vb = b.fournisseurActuel || ''; }
+      else if (sortKey === 'prix') { va = a.prixActuel || a.prixMoinsCher || 0; vb = b.prixActuel || b.prixMoinsCher || 0; }
       if (va < vb) return sortDir === 'asc' ? -1 : 1;
       if (va > vb) return sortDir === 'asc' ? 1 : -1;
       return 0;
@@ -213,6 +214,15 @@ export default function ComparatifFournisseurs() {
           <option value="single">Mono-fournisseur ({stats.single})</option>
           <option value="switch">Switch possibles ({stats.switchables})</option>
         </select>
+        <select
+          className="border border-yellow-200 focus:border-yellow-400 focus:outline-none rounded-lg px-3 py-2 text-sm"
+          value={`${sortKey}-${sortDir}`}
+          onChange={e => { const [k, d] = e.target.value.split('-'); setSortKey(k as SortKey); setSortDir(d as SortDir); }}
+        >
+          <option value="nom-asc">Tri : A → Z</option>
+          <option value="prix-desc">Tri : plus cher</option>
+          <option value="economie-desc">Tri : économie</option>
+        </select>
       </div>
 
       {/* Tableau */}
@@ -247,13 +257,21 @@ export default function ComparatifFournisseurs() {
               const unite = uniteLabel(l.ingredient);
               return (
                 <tr key={l.ingredient.id} className={`border-b border-gray-50 hover:bg-yellow-50/50 transition-colors ${shouldSwitch ? 'bg-red-50/20' : ''}`}>
-                  <td className="px-4 py-3 font-medium">{l.ingredient.nom}</td>
+                  <td className="px-4 py-3">
+                    <div className="font-medium">{l.ingredient.nom}</div>
+                  </td>
                   <td className="px-4 py-3 text-gray-400 text-xs">{l.ingredient.categorie}</td>
                   <td className="px-4 py-3">
                     {l.fournisseurActuel ? (
-                      <span className={`text-xs px-2 py-0.5 rounded-full ${FOURNISSEURS_COULEURS[l.fournisseurActuel] || 'bg-gray-100 text-gray-600'}`}>
-                        {l.fournisseurActuel}
-                      </span>
+                      <div>
+                        <div className="text-xs text-gray-600 truncate max-w-[160px]" title={l.pfs.find(p => p.fournisseur === l.fournisseurActuel)?.pf.nom}>
+                          {l.pfs.find(p => p.fournisseur === l.fournisseurActuel)?.pf.nom || '—'}
+                        </div>
+                        <span className={`text-xs px-2 py-0.5 rounded-full ${FOURNISSEURS_COULEURS[l.fournisseurActuel] || 'bg-gray-100 text-gray-600'}`}>
+                          {l.fournisseurActuel}
+                        </span>
+                        {l.prixActuel && <span className="text-xs text-gray-500 ml-1">{l.prixActuel.toFixed(2)} {unite}</span>}
+                      </div>
                     ) : (
                       <span className="text-gray-300 text-xs">—</span>
                     )}
