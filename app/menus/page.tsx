@@ -691,12 +691,23 @@
                                 .filter(x => x.fc !== Infinity)
                                 .sort((a, b) => a.fc - b.fc);
                             const topRentaIdx = new Set(sortedByFc.slice(0, Math.max(1, Math.ceil(sortedByFc.length * 0.2))).map(x => sortedByVendus.findIndex(p => p === ventsCat[x.idx])));
+                            // Top/flop marge (par valeur absolue de marge unitaire)
+                            const sortedByMarge = ventsCat
+                                .map((p, idx) => ({ idx, marge: p.coutCalcule > 0 && p.prixVente > 0 ? p.prixVente / 1.1 - p.coutCalcule : -Infinity }))
+                                .filter(x => x.marge !== -Infinity)
+                                .sort((a, b) => b.marge - a.marge);
+                            const topMargeCount = Math.max(1, Math.ceil(sortedByMarge.length * 0.2));
+                            const topMargeIdx = new Set(sortedByMarge.slice(0, topMargeCount).map(x => x.idx));
+                            const flopMargeIdx = new Set(sortedByMarge.slice(-topMargeCount).map(x => x.idx));
                             return sortedByVendus.map((plat, i) => {
                             const pHT = plat.prixVente / 1.1;
                             const fc = pHT > 0 ? (plat.coutCalcule / pHT) * 100 : 0;
                             const isTopVendu = plat.vendus > 0 && i < topCount;
                             const isFlopVendu = plat.vendus > 0 && i >= nbAvecVentes - flopCount && !isTopVendu;
                             const isTopRenta = topRentaIdx.has(i);
+                            const origIdx = ventsCat.indexOf(plat);
+                            const isTopMarge = topMargeIdx.has(origIdx);
+                            const isFlopMarge = flopMargeIdx.has(origIdx) && !isTopMarge;
                             const isVege = plat.nom.toLowerCase().includes('lait végétal');
                             return (
                                 <tr key={i} className={`transition-colors ${isVege ? 'bg-green-50/60 hover:bg-green-100/60' : 'hover:bg-yellow-50'}`}>
@@ -710,7 +721,7 @@
                                     <span className={`font-semibold ${fc > 32 ? 'text-yellow-500' : 'text-gray-700'}`}>{isTopRenta && '🔥 '}{fc > 0 ? fc.toFixed(1) + '%' : '—'}</span>
                                 </td>
                                 <td className="px-4 py-3 text-right">
-                                    {pHT > 0 && plat.coutCalcule > 0 ? <span className="font-semibold text-gray-700">{(pHT - plat.coutCalcule).toFixed(2)} €</span> : <span className="text-gray-300">—</span>}
+                                    {pHT > 0 && plat.coutCalcule > 0 ? <span className="font-semibold text-gray-700">{isTopMarge && '🔥 '}{isFlopMarge && '🥶 '}{(pHT - plat.coutCalcule).toFixed(2)} €</span> : <span className="text-gray-300">—</span>}
                                 </td>
                                 <td className="px-4 py-3 text-right">
                                     {plat.vendus > 0 ? <span className="font-semibold">{isTopVendu && '🔥 '}{isFlopVendu && '🥶 '}{plat.vendus}</span> : <span className="text-gray-300">—</span>}
