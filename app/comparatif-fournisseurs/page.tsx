@@ -213,6 +213,21 @@ export default function ComparatifFournisseurs() {
 
   const sortIcon = (key: SortKey) => sortKey === key ? (sortDir === 'asc' ? ' \u25B2' : ' \u25BC') : '';
 
+  const [refreshingFM, setRefreshingFM] = useState(false);
+  const refreshFoodomarket = async () => {
+    setRefreshingFM(true);
+    try {
+      const res = await fetch('/api/foodomarket/refresh', { method: 'POST' });
+      const data = await res.json();
+      alert(`Foodomarket : ${data.updated || 0} maj, ${data.created || 0} créés${data.errors?.length ? ` (${data.errors.length} erreurs)` : ''}`);
+      window.location.reload();
+    } catch (e: unknown) {
+      alert('Erreur : ' + (e instanceof Error ? e.message : String(e)));
+    } finally {
+      setRefreshingFM(false);
+    }
+  };
+
   if (loading) return <div className="text-center py-12 text-gray-400">Chargement...</div>;
 
   return (
@@ -220,7 +235,14 @@ export default function ComparatifFournisseurs() {
       {/* Header + Stats */}
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold text-gray-800">Comparatif Fournisseurs</h1>
-        <div className="flex gap-2 text-sm">
+        <div className="flex gap-2 text-sm items-center">
+          <button
+            onClick={refreshFoodomarket}
+            disabled={refreshingFM}
+            className="bg-teal-100 hover:bg-teal-200 text-teal-800 rounded-lg px-4 py-2 border border-teal-200 font-semibold disabled:opacity-50"
+          >
+            {refreshingFM ? 'Actualisation...' : 'Actualiser Foodomarket'}
+          </button>
           <div className="bg-white rounded-lg px-4 py-2 border border-gray-200">
             <span className="text-gray-500">{stats.total} ingrédients</span>
           </div>
