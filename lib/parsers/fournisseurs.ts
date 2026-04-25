@@ -20,7 +20,46 @@ export type LigneAssembleurs = {
 };
 
 // Pdfjs Node-compat. On l'importe dynamiquement pour éviter le bundling client.
+// pdfjs-dist v5+ a besoin de DOMMatrix/ImageData/Path2D en Node — on stubbe pour
+// l'extraction de texte (pas de rendering).
+function ensureDomShims() {
+  const g = globalThis as Record<string, unknown>;
+  if (typeof g.DOMMatrix === 'undefined') {
+    g.DOMMatrix = class {
+      a = 1; b = 0; c = 0; d = 1; e = 0; f = 0;
+      m11 = 1; m12 = 0; m13 = 0; m14 = 0;
+      m21 = 0; m22 = 1; m23 = 0; m24 = 0;
+      m31 = 0; m32 = 0; m33 = 1; m34 = 0;
+      m41 = 0; m42 = 0; m43 = 0; m44 = 1;
+      constructor(_init?: unknown) {}
+      multiply() { return this; }
+      multiplySelf() { return this; }
+      translate() { return this; }
+      translateSelf() { return this; }
+      scale() { return this; }
+      scaleSelf() { return this; }
+      rotate() { return this; }
+      rotateSelf() { return this; }
+      invertSelf() { return this; }
+      transformPoint(p: { x: number; y: number }) { return p; }
+    };
+  }
+  if (typeof g.ImageData === 'undefined') {
+    g.ImageData = class {
+      data: Uint8ClampedArray; width: number; height: number;
+      constructor(w: number, h: number) { this.width = w; this.height = h; this.data = new Uint8ClampedArray(w * h * 4); }
+    };
+  }
+  if (typeof g.Path2D === 'undefined') {
+    g.Path2D = class {
+      addPath() {} moveTo() {} lineTo() {} bezierCurveTo() {} quadraticCurveTo() {}
+      arc() {} arcTo() {} ellipse() {} rect() {} closePath() {}
+    };
+  }
+}
+
 async function loadPdfjs() {
+  ensureDomShims();
   const pdfjs = await import('pdfjs-dist/legacy/build/pdf.mjs');
   return pdfjs;
 }
