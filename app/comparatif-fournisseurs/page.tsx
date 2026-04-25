@@ -43,12 +43,13 @@ function uniteLabel(ing: Ingredient): string {
   return '€/pce';
 }
 
-type SortKey = 'nom' | 'categorie' | 'economie' | 'fournisseur' | 'prix';
+type SortKey = 'nom' | 'categorie' | 'economie' | 'fournisseur' | 'prix' | 'commande';
 type SortDir = 'asc' | 'desc';
 
 export default function ComparatifFournisseurs() {
   const [ingredients, setIngredients] = useState<Ingredient[]>([]);
   const [pfs, setPfs] = useState<PFWithFournisseur[]>([]);
+  const [depensesParIng, setDepensesParIng] = useState<Map<string, number>>(new Map());
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [filterCategorie, setFilterCategorie] = useState('all');
@@ -58,12 +59,43 @@ export default function ComparatifFournisseurs() {
 
   useEffect(() => {
     (async () => {
-      const [ingSnap, pfSnap] = await Promise.all([
+      const [ingSnap, pfSnap, achatsSnap] = await Promise.all([
         getDocs(collection(db, 'ingredients')),
         getDocs(collection(db, 'produitsFournisseurs')),
+        getDocs(collection(db, 'achats')),
       ]);
-      setIngredients(ingSnap.docs.map(d => ({ id: d.id, ...d.data() } as Ingredient)));
-      setPfs(pfSnap.docs.map(d => ({ id: d.id, ...d.data() } as PFWithFournisseur)));
+      const ings = ingSnap.docs.map(d => ({ id: d.id, ...d.data() } as Ingredient));
+      const pfsArr = pfSnap.docs.map(d => ({ id: d.id, ...d.data() } as PFWithFournisseur));
+
+      // Map PF id → ingredient id (via fournisseurRefId ou matching nom)
+      const pfToIngId = new Map<string, string>();
+      for (const ing of ings) {
+        if (ing.fournisseurRefId) pfToIngId.set(ing.fournisseurRefId, ing.id);
+      }
+      for (const pf of pfsArr) {
+        if (pfToIngId.has(pf.id)) continue;
+        if ((pf as any).ingredientId) pfToIngId.set(pf.id, (pf as any).ingredientId);
+      }
+
+      // Total dépensé par ingrédient sur les 12 derniers mois
+      const cutoff = new Date();
+      cutoff.setFullYear(cutoff.getFullYear() - 1);
+      const cutoffStr = cutoff.toISOString().slice(0, 10);
+      const depMap = new Map<string, number>();
+      for (const d of achatsSnap.docs) {
+        const a = d.data() as { pfId?: string; total?: number; date?: string | { toDate: () => Date } };
+        const total = a.total || 0;
+        if (total <= 0 || !a.pfId) continue;
+        const dateStr = typeof a.date === 'string' ? a.date : (a.date as { toDate: () => Date })?.toDate?.()?.toISOString?.() || '';
+        if (dateStr < cutoffStr) continue;
+        const ingId = pfToIngId.get(a.pfId);
+        if (!ingId) continue;
+        depMap.set(ingId, (depMap.get(ingId) || 0) + total);
+      }
+
+      setIngredients(ings);
+      setPfs(pfsArr);
+      setDepensesParIng(depMap);
       setLoading(false);
     })();
   }, []);
@@ -121,11 +153,12 @@ export default function ComparatifFournisseurs() {
       else if (sortKey === 'economie') { va = a.economiePotentielle; vb = b.economiePotentielle; }
       else if (sortKey === 'fournisseur') { va = a.fournisseurActuel || ''; vb = b.fournisseurActuel || ''; }
       else if (sortKey === 'prix') { va = a.prixActuel || a.prixMoinsCher || 0; vb = b.prixActuel || b.prixMoinsCher || 0; }
+      else if (sortKey === 'commande') { va = depensesParIng.get(a.ingredient.id) || 0; vb = depensesParIng.get(b.ingredient.id) || 0; }
       if (va < vb) return sortDir === 'asc' ? -1 : 1;
       if (va > vb) return sortDir === 'asc' ? 1 : -1;
       return 0;
     });
-  }, [lignes, sortKey, sortDir]);
+  }, [lignes, sortKey, sortDir, depensesParIng]);
 
   const filteredLignes = useMemo(() => {
     return sortedLignes.filter(l => {
@@ -220,6 +253,7 @@ export default function ComparatifFournisseurs() {
           onChange={e => { const [k, d] = e.target.value.split('-'); setSortKey(k as SortKey); setSortDir(d as SortDir); }}
         >
           <option value="nom-asc">Tri : A → Z</option>
+          <option value="commande-desc">Tri : plus commandés</option>
           <option value="prix-desc">Tri : plus cher</option>
           <option value="economie-desc">Tri : économie</option>
         </select>
@@ -229,23 +263,23 @@ export default function ComparatifFournisseurs() {
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-x-auto">
         <table className="w-full text-sm table-fixed">
           <thead>
-            <tr className="bg-gray-50 border-b border-gray-100">
-              <th className="px-3 py-3 text-left font-semibold text-gray-600 cursor-pointer hover:text-yellow-500 w-[10%]" onClick={() => handleSort('nom')}>
+            <tr>
+              <th className="sticky top-0 z-10 bg-gray-50 border-b border-gray-200 px-3 py-3 text-left font-semibold text-gray-600 cursor-pointer hover:text-yellow-500 w-[10%]" onClick={() => handleSort('nom')}>
                 Ingrédient{sortIcon('nom')}
               </th>
-              <th className="px-2 py-3 text-left font-semibold text-gray-600 cursor-pointer hover:text-yellow-500 w-[7%]" onClick={() => handleSort('categorie')}>
+              <th className="sticky top-0 z-10 bg-gray-50 border-b border-gray-200 px-2 py-3 text-left font-semibold text-gray-600 cursor-pointer hover:text-yellow-500 w-[7%]" onClick={() => handleSort('categorie')}>
                 Cat.{sortIcon('categorie')}
               </th>
-              <th className="px-2 py-3 text-left font-semibold text-gray-600 cursor-pointer hover:text-yellow-500 w-[19%]" onClick={() => handleSort('fournisseur')}>
+              <th className="sticky top-0 z-10 bg-gray-50 border-b border-gray-200 px-2 py-3 text-left font-semibold text-gray-600 cursor-pointer hover:text-yellow-500 w-[19%]" onClick={() => handleSort('fournisseur')}>
                 PF de réf{sortIcon('fournisseur')}
               </th>
               {fournisseurs.map(f => (
-                <th key={f} className="px-2 py-3 text-right font-semibold text-gray-600" style={{ width: `${Math.floor(50 / fournisseurs.length)}%` }}>
+                <th key={f} className="sticky top-0 z-10 bg-gray-50 border-b border-gray-200 px-2 py-3 text-right font-semibold text-gray-600" style={{ width: `${Math.floor(50 / fournisseurs.length)}%` }}>
                   <span className={`text-xs px-2 py-0.5 rounded-full ${FOURNISSEURS_COULEURS[f] || 'bg-gray-100 text-gray-600'}`}>{f}</span>
                 </th>
               ))}
-              <th className="px-2 py-3 text-center font-semibold text-gray-600 w-[7%]">Reco</th>
-              <th className="px-2 py-3 text-right font-semibold text-gray-600 cursor-pointer hover:text-yellow-500 w-[7%]" onClick={() => handleSort('economie')}>
+              <th className="sticky top-0 z-10 bg-gray-50 border-b border-gray-200 px-2 py-3 text-center font-semibold text-gray-600 w-[7%]">Reco</th>
+              <th className="sticky top-0 z-10 bg-gray-50 border-b border-gray-200 px-2 py-3 text-right font-semibold text-gray-600 cursor-pointer hover:text-yellow-500 w-[7%]" onClick={() => handleSort('economie')}>
                 Éco.{sortIcon('economie')}
               </th>
             </tr>

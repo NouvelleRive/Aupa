@@ -1,4 +1,4 @@
-// Scrape les ventes Popina JOUR PAR JOUR via export statistiques et importe dans Firestore
+// Scrape les ventes Popina JOUR PAR JOUR via export simplifié et importe dans Firestore
 import { chromium } from 'playwright';
 import { collection, getDocs, addDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
@@ -68,7 +68,7 @@ async function main() {
   }
   console.log(`${joursExistants.size} jours déjà en base`);
 
-  const allDays = generateDays('2025-01-01');
+  const allDays = generateDays('2023-01-01');
   const daysToProcess = allDays.filter(d => !joursExistants.has(d));
   console.log(`${allDays.length} jours total, ${daysToProcess.length} à traiter\n`);
 
@@ -110,31 +110,29 @@ async function main() {
   for (const day of daysToProcess) {
     const popDate = toPopinaDate(day);
 
-    // Changer les dates via JS + submit du form
-    await page.evaluate((d: string) => {
+    // Recharger la page avec les bonnes dates via GET (inclut Deliveroo)
+    await page.evaluate(({ d, url }: { d: string; url: string }) => {
       const start = document.getElementById('date_start') as HTMLInputElement;
       const end = document.getElementById('date_end') as HTMLInputElement;
       if (start && end) {
         start.value = d;
         end.value = d;
-        start.dispatchEvent(new Event('input', { bubbles: true }));
-        start.dispatchEvent(new Event('change', { bubbles: true }));
-        end.dispatchEvent(new Event('input', { bubbles: true }));
-        end.dispatchEvent(new Event('change', { bubbles: true }));
-        const form = start.closest('form');
-        if (form) form.submit();
+        const form = start.closest('form')!;
+        form.action = url;
+        form.method = 'get';
+        form.submit();
       }
-    }, popDate);
+    }, { d: popDate, url: `${BASE}/statistics` });
 
     await page.waitForLoadState('networkidle').catch(() => {});
     await page.waitForTimeout(3000);
 
-    // Télécharger l'export statistiques (inclut ventes delivery)
+    // Télécharger l'export simplifié
     const filePath = path.join(OUT, `tmp-${day}.xlsx`);
     try {
       const [dl] = await Promise.all([
         page.waitForEvent('download', { timeout: 15000 }),
-        page.click('#export_statistics_button'),
+        page.click('#export_stocks_button'),
       ]);
       await dl.saveAs(filePath);
     } catch {
@@ -142,7 +140,7 @@ async function main() {
       continue;
     }
 
-    // Parser l'export statistiques (colonnes: parent, cat, name, quantity, TTC, HT, etc.)
+    // Parser
     const wb = XLSX.readFile(filePath);
     const ws = wb.Sheets[wb.SheetNames[0]];
     const rows = XLSX.utils.sheet_to_json(ws, { raw: true }) as any[];
@@ -151,28 +149,16 @@ async function main() {
     const menuNom = menuMatch ? menuMatch.nom : '';
     const mois = day.slice(0, 7);
 
-    // Agréger par nom de produit (l'export stats peut avoir plusieurs lignes par produit)
-    const agg = new Map<string, { quantity: number; ttc: number }>();
+    let dayVentes = 0;
     for (const row of rows) {
       const nom = row['name'];
       const quantity = row['quantity'];
-      const ttc = row['TTC'];
+      const ttc = row['total ttc'];
       if (!nom || !quantity || quantity <= 0 || !ttc || ttc <= 0) continue;
       if (CATEGORIES_POPINA.has(normalize(nom))) continue;
 
-      const existing = agg.get(nom);
-      if (existing) {
-        existing.quantity += quantity;
-        existing.ttc += ttc;
-      } else {
-        agg.set(nom, { quantity, ttc });
-      }
-    }
-
-    let dayVentes = 0;
-    for (const [nom, { quantity, ttc }] of agg) {
       await addDoc(collection(db, 'ventes'), {
-        nom, quantity, ttc: Math.round(ttc * 100) / 100, menuNom, mois, jour: day,
+        nom, quantity, ttc, menuNom, mois, jour: day,
       });
       dayVentes++;
     }
