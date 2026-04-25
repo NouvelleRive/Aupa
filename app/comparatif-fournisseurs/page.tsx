@@ -263,7 +263,7 @@ export default function ComparatifFournisseurs() {
         fetch('/api/rungis/refresh', { method: 'POST' }).then(r => r.json()).catch(e => ({ ok: false, error: String(e) })),
       ]);
       const msgFM = fmRes.ok ? `Foodomarket : ${fmRes.updated || 0} maj, ${fmRes.created || 0} créés` : `Foodomarket : ${fmRes.error}`;
-      const msgRu = ruRes.ok ? `Rungis : ${ruRes.updated || 0} maj, ${ruRes.created || 0} créés` : `Rungis : ${ruRes.error}`;
+      const msgRu = ruRes.ok ? `Rungis : ${ruRes.updated || 0} maj, ${ruRes.created || 0} créés${ruRes.noMatch ? `, ${ruRes.noMatch} sans match` : ''} (à valider)` : `Rungis : ${ruRes.error}`;
       alert(msgFM + '\n' + msgRu);
       window.location.reload();
     } catch (e: unknown) {
