@@ -193,6 +193,22 @@ export default function PerformancePage() {
     return null;
   };
 
+  // === Ratios entrées / desserts par nb plats vendus (depuis ventes) ===
+  const ratiosV = useMemo(() => {
+    let nbEntrees = 0, nbPlats = 0, nbDesserts = 0;
+    const PLATS_CATS = new Set(['Croger', 'Bols', 'Salade', 'Salades']);
+    for (const v of ventesFiltrées) {
+      const recetteNom = matchVenteToRecette(v.nom) || v.nom;
+      const rec = recettes.find(r => r.nom === recetteNom);
+      if (!rec?.categorie) continue;
+      if (rec.categorie === 'Entrées') nbEntrees += v.quantity;
+      else if (PLATS_CATS.has(rec.categorie)) nbPlats += v.quantity;
+      else if (rec.categorie === 'Desserts') nbDesserts += v.quantity;
+    }
+    return { nbEntrees, nbPlats, nbDesserts };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ventesFiltrées, recettes, caisseMapLoaded]);
+
   // === Top produits (groupés par nom recette) ===
   const topProduits = useMemo(() => {
     const m = new Map<string, { nom: string; qty: number; ca: number }>();
@@ -237,10 +253,12 @@ export default function PerformancePage() {
   const ticketMoyen = kpi.couverts > 0 ? kpi.caTTC / kpi.couverts : 0;
   const pctFood = (kpi.foodCA + kpi.drinkCA) > 0 ? (kpi.foodCA / (kpi.foodCA + kpi.drinkCA)) * 100 : 0;
   const pctDrink = 100 - pctFood;
-  // Nb personnes estimé = nb plats principaux vendus (plats + crogers)
-  const nbPersonnes = kpi.nbPlats;
-  const pctEntrees = nbPersonnes > 0 ? (kpi.nbEntrees / nbPersonnes) * 100 : 0;
-  const pctDesserts = nbPersonnes > 0 ? (kpi.nbDesserts / nbPersonnes) * 100 : 0;
+  // Nb personnes estimé = nb plats principaux vendus (depuis ventes via catégorie recette)
+  const nbPersonnes = ratiosV.nbPlats || kpi.nbPlats;
+  const nbEntrees = ratiosV.nbEntrees || kpi.nbEntrees;
+  const nbDesserts = ratiosV.nbDesserts || kpi.nbDesserts;
+  const pctEntrees = nbPersonnes > 0 ? (nbEntrees / nbPersonnes) * 100 : 0;
+  const pctDesserts = nbPersonnes > 0 ? (nbDesserts / nbPersonnes) * 100 : 0;
 
   const pieData = [
     { name: 'Food', value: Math.round(kpi.foodCA), color: '#facc15' },
@@ -362,11 +380,11 @@ export default function PerformancePage() {
 
         {/* % entrées */}
         <Kpi label="% clients entrée" value={fmtPct(pctEntrees)}
-          sub={`${kpi.nbEntrees} entrées / ${nbPersonnes} plats`} />
+          sub={`${nbEntrees} entrées / ${nbPersonnes} plats`} />
 
         {/* % desserts */}
         <Kpi label="% clients dessert" value={fmtPct(pctDesserts)}
-          sub={`${kpi.nbDesserts} desserts / ${nbPersonnes} plats`} />
+          sub={`${nbDesserts} desserts / ${nbPersonnes} plats`} />
       </div>
 
       {/* 3 tops côte à côte */}
