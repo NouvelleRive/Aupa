@@ -12,7 +12,8 @@ interface LigneComparatif {
   pfs: { fournisseur: string; pf: PFWithFournisseur; prixNormalise: number }[];
   moinsCher: string | null;
   plusCher: string | null;
-  economiePotentielle: number;
+  economiePotentielle: number; // €/unité (différence par kg/L/pce)
+  economieAnnuelle: number;    // €/an (basé sur volumes 12 derniers mois)
   fournisseurActuel: string | null;
   prixActuel: number | null;
   prixMoinsCher: number | null;
@@ -173,11 +174,17 @@ export default function ComparatifFournisseurs() {
           prixActuel && prixMoinsCher && fournisseurActuel !== moinsCher
             ? prixActuel - prixMoinsCher
             : 0;
+        // Économie annuelle = dépense 12 derniers mois × (1 - prixMoinsCher/prixActuel)
+        const depAnn = depensesParIng.get(ing.id) || 0;
+        const economieAnnuelle =
+          prixActuel && prixMoinsCher && fournisseurActuel !== moinsCher && prixActuel > 0
+            ? depAnn * (1 - prixMoinsCher / prixActuel)
+            : 0;
 
-        return { ingredient: ing, pfs: entries, moinsCher, plusCher, economiePotentielle, fournisseurActuel, prixActuel, prixMoinsCher };
+        return { ingredient: ing, pfs: entries, moinsCher, plusCher, economiePotentielle, economieAnnuelle, fournisseurActuel, prixActuel, prixMoinsCher };
       })
       .filter(l => l.pfs.length > 0);
-  }, [ingredients, pfs]);
+  }, [ingredients, pfs, depensesParIng]);
 
   const sortedLignes = useMemo(() => {
     return [...lignes].sort((a, b) => {
@@ -185,7 +192,7 @@ export default function ComparatifFournisseurs() {
       let vb: string | number = '';
       if (sortKey === 'nom') { va = a.ingredient.nom.toLowerCase(); vb = b.ingredient.nom.toLowerCase(); }
       else if (sortKey === 'categorie') { va = a.ingredient.categorie; vb = b.ingredient.categorie; }
-      else if (sortKey === 'economie') { va = a.economiePotentielle; vb = b.economiePotentielle; }
+      else if (sortKey === 'economie') { va = a.economieAnnuelle; vb = b.economieAnnuelle; }
       else if (sortKey === 'fournisseur') { va = a.fournisseurActuel || ''; vb = b.fournisseurActuel || ''; }
       else if (sortKey === 'prix') { va = a.prixActuel || a.prixMoinsCher || 0; vb = b.prixActuel || b.prixMoinsCher || 0; }
       else if (sortKey === 'commande') { va = depensesParIng.get(a.ingredient.id) || 0; vb = depensesParIng.get(b.ingredient.id) || 0; }
@@ -213,7 +220,7 @@ export default function ComparatifFournisseurs() {
   const stats = useMemo(() => {
     const multi = lignes.filter(l => l.pfs.length >= 2);
     const switchables = lignes.filter(l => l.economiePotentielle > 0);
-    const totalEconomie = switchables.reduce((s, l) => s + l.economiePotentielle, 0);
+    const totalEconomie = switchables.reduce((s, l) => s + l.economieAnnuelle, 0);
     return {
       total: lignes.length,
       multi: multi.length,
@@ -284,7 +291,7 @@ export default function ComparatifFournisseurs() {
           {stats.switchables > 0 && (
             <div className="bg-red-50 rounded-lg px-4 py-2 border border-red-200">
               <span className="font-semibold text-red-600">{stats.switchables} switch possibles</span>
-              <span className="text-red-400 ml-1 text-xs">({stats.totalEconomie.toFixed(2)} €/u)</span>
+              <span className="text-red-400 ml-1 text-xs">(~{Math.round(stats.totalEconomie).toLocaleString('fr-FR')} €/an)</span>
             </div>
           )}
         </div>
@@ -345,8 +352,8 @@ export default function ComparatifFournisseurs() {
                 </th>
               ))}
               <th className="sticky top-0 z-10 bg-gray-50 border-b border-gray-200 px-2 py-3 text-center font-semibold text-gray-600 w-[7%]">Reco</th>
-              <th className="sticky top-0 z-10 bg-gray-50 border-b border-gray-200 px-2 py-3 text-right font-semibold text-gray-600 cursor-pointer hover:text-yellow-500 w-[7%]" onClick={() => handleSort('economie')}>
-                Éco.{sortIcon('economie')}
+              <th className="sticky top-0 z-10 bg-gray-50 border-b border-gray-200 px-2 py-3 text-right font-semibold text-gray-600 cursor-pointer hover:text-yellow-500 w-[9%]" onClick={() => handleSort('economie')}>
+                Économies sur un an{sortIcon('economie')}
               </th>
             </tr>
           </thead>
@@ -402,8 +409,11 @@ export default function ComparatifFournisseurs() {
                     )}
                   </td>
                   <td className="px-2 py-3 text-right">
-                    {l.economiePotentielle > 0.01 ? (
-                      <span className="font-semibold text-red-600">-{l.economiePotentielle.toFixed(2)} {unite}</span>
+                    {l.economieAnnuelle > 1 ? (
+                      <div>
+                        <div className="font-semibold text-red-600">-{Math.round(l.economieAnnuelle).toLocaleString('fr-FR')} €</div>
+                        <div className="text-xs text-gray-400">-{l.economiePotentielle.toFixed(2)} {unite}</div>
+                      </div>
                     ) : (
                       <span className="text-gray-200">—</span>
                     )}
