@@ -20,12 +20,15 @@ interface LigneComparatif {
 
 const FOURNISSEURS_COULEURS: Record<string, string> = {
   Foodflow: 'bg-green-100 text-green-800',
+  Foodomarket: 'bg-teal-100 text-teal-800',
   Milliet: 'bg-blue-100 text-blue-800',
   LBA: 'bg-purple-100 text-purple-800',
   Lidl: 'bg-orange-100 text-orange-800',
   'Les Assembleurs': 'bg-rose-100 text-rose-800',
   Amazon: 'bg-yellow-100 text-yellow-800',
 };
+
+const FOURNISSEURS_ORDRE = ['Foodflow', 'Foodomarket', 'Milliet', 'LBA', 'Lidl', 'Les Assembleurs', 'Amazon'];
 
 function normalisePrix(pf: PFWithFournisseur): number {
   const qte = pf.quantite || 1;
@@ -189,7 +192,19 @@ export default function ComparatifFournisseurs() {
   }, [lignes]);
 
   const categories: Categorie[] = ['viande', 'poisson', 'légume', 'fruit', 'laitage', 'épicerie salée', 'épicerie sucrée', 'boisson', 'autre'];
-  const fournisseurs = useMemo(() => Array.from(new Set(pfs.map(p => p.fournisseur).filter((f): f is string => !!f))).sort(), [pfs]);
+  const fournisseurs = useMemo(() => {
+    const set = new Set(pfs.map(p => p.fournisseur).filter((f): f is string => !!f));
+    set.add('Foodomarket');
+    const arr = Array.from(set);
+    return arr.sort((a, b) => {
+      const ia = FOURNISSEURS_ORDRE.indexOf(a);
+      const ib = FOURNISSEURS_ORDRE.indexOf(b);
+      if (ia !== -1 && ib !== -1) return ia - ib;
+      if (ia !== -1) return -1;
+      if (ib !== -1) return 1;
+      return a.localeCompare(b);
+    });
+  }, [pfs]);
 
   const handleSort = (key: SortKey) => {
     if (sortKey === key) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
@@ -264,11 +279,8 @@ export default function ComparatifFournisseurs() {
         <table className="w-full text-sm table-fixed">
           <thead>
             <tr>
-              <th className="sticky top-0 z-10 bg-gray-50 border-b border-gray-200 px-3 py-3 text-left font-semibold text-gray-600 cursor-pointer hover:text-yellow-500 w-[10%]" onClick={() => handleSort('nom')}>
+              <th className="sticky top-0 z-10 bg-gray-50 border-b border-gray-200 px-3 py-3 text-left font-semibold text-gray-600 cursor-pointer hover:text-yellow-500 w-[12%]" onClick={() => handleSort('nom')}>
                 Ingrédient{sortIcon('nom')}
-              </th>
-              <th className="sticky top-0 z-10 bg-gray-50 border-b border-gray-200 px-2 py-3 text-left font-semibold text-gray-600 cursor-pointer hover:text-yellow-500 w-[7%]" onClick={() => handleSort('categorie')}>
-                Cat.{sortIcon('categorie')}
               </th>
               <th className="sticky top-0 z-10 bg-gray-50 border-b border-gray-200 px-2 py-3 text-left font-semibold text-gray-600 cursor-pointer hover:text-yellow-500 w-[19%]" onClick={() => handleSort('fournisseur')}>
                 PF de réf{sortIcon('fournisseur')}
@@ -294,7 +306,6 @@ export default function ComparatifFournisseurs() {
                   <td className="px-4 py-3">
                     <div className="font-medium">{l.ingredient.nom}</div>
                   </td>
-                  <td className="px-4 py-3 text-gray-400 text-xs">{l.ingredient.categorie}</td>
                   <td className="px-4 py-3">
                     {l.fournisseurActuel ? (
                       <div>
