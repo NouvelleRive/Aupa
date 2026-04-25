@@ -346,22 +346,18 @@ export default function PerformancePage() {
         <div className="bg-white rounded-xl border border-yellow-100 p-4 flex flex-col items-center">
           <p className="text-xs text-gray-500 mb-2">Répartition CA</p>
           {pieData.length > 0 && (
-            <ResponsiveContainer width="100%" height={160}>
+            <ResponsiveContainer width="100%" height={220}>
               <PieChart>
                 <Pie data={pieData} dataKey="value" nameKey="name" cx="50%" cy="50%"
-                  innerRadius={40} outerRadius={65} paddingAngle={2}
-                  label={({ name, percent }: any) => `${name} ${(percent * 100).toFixed(0)}%`}
-                  labelLine={false} fontSize={12}>
+                  innerRadius={45} outerRadius={75} paddingAngle={2}
+                  label={({ name, value, percent }: any) => `${name} ${(percent * 100).toFixed(0)}% · ${fmtEur(Number(value))}`}
+                  labelLine={false} fontSize={11}>
                   {pieData.map((d, i) => <Cell key={i} fill={d.color} />)}
                 </Pie>
                 <Tooltip formatter={(v: any) => fmtEur(Number(v))} />
               </PieChart>
             </ResponsiveContainer>
           )}
-          <div className="flex gap-4 text-xs text-gray-500 mt-1">
-            <span><span className="inline-block w-2 h-2 rounded-full bg-yellow-400 mr-1" />Food {fmtEur(kpi.foodCA)}</span>
-            <span><span className="inline-block w-2 h-2 rounded-full bg-orange-500 mr-1" />Drink {fmtEur(kpi.drinkCA)}</span>
-          </div>
         </div>
 
         {/* % entrées */}
