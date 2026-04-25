@@ -290,6 +290,14 @@ export default function PerformancePage() {
               <Kpi label="Ticket moyen" value={fmtEur(ticketMoyen)}
                 sub={`${kpi.couverts} couverts${showMoy ? ` · moy. ${Math.round(kpi.couverts / nbJours)} / jour` : ''}`} />
             </div>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+              <Kpi label="Marge théorique" value={fmtEur(kpi.margeBrute)}
+                sub={kpi.caHT > 0 ? `${fmtPct((kpi.margeBrute / kpi.caHT) * 100)} du CA HT` : undefined} />
+              <Kpi label="Food cost théorique" value={fmtEur(kpi.foodCost)}
+                sub={kpi.caHT > 0 ? `${fmtPct((kpi.foodCost / kpi.caHT) * 100)} du CA HT` : undefined} />
+              <Kpi label="Marge moyenne / vente" value={ventesFiltrées.length > 0 ? fmtEur(kpi.margeBrute / ventesFiltrées.reduce((s, v) => s + v.quantity, 0)) : '—'}
+                sub={`sur ${ventesFiltrées.reduce((s, v) => s + v.quantity, 0)} articles vendus`} />
+            </div>
           </>
         );
       })()}
