@@ -57,8 +57,8 @@ export default function ComparatifFournisseurs() {
   const [search, setSearch] = useState('');
   const [filterCategorie, setFilterCategorie] = useState('all');
   const [filterMode, setFilterMode] = useState<'all' | 'multi' | 'single' | 'switch'>('all');
-  const [sortKey, setSortKey] = useState<SortKey>('nom');
-  const [sortDir, setSortDir] = useState<SortDir>('asc');
+  const [sortKey, setSortKey] = useState<SortKey>('commande');
+  const [sortDir, setSortDir] = useState<SortDir>('desc');
 
   useEffect(() => {
     (async () => {
