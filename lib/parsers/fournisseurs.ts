@@ -19,10 +19,10 @@ export type LigneAssembleurs = {
   date: string;
 };
 
-// Pdfjs Node-compat. On l'importe dynamiquement pour éviter le bundling client.
-// pdfjs-dist v5+ a besoin de DOMMatrix/ImageData/Path2D en Node — on stubbe pour
-// l'extraction de texte (pas de rendering).
-function ensureDomShims() {
+// pdfjs-dist v5+ a besoin de DOMMatrix/ImageData/Path2D en Node — on stubbe au
+// chargement du module (avant tout import dynamique de pdfjs) pour l'extraction
+// de texte (pas de rendering).
+(function applyDomShims() {
   const g = globalThis as Record<string, unknown>;
   if (typeof g.DOMMatrix === 'undefined') {
     g.DOMMatrix = class {
@@ -56,10 +56,10 @@ function ensureDomShims() {
       arc() {} arcTo() {} ellipse() {} rect() {} closePath() {}
     };
   }
-}
+})();
 
+// Pdfjs Node-compat. On l'importe dynamiquement pour éviter le bundling client.
 async function loadPdfjs() {
-  ensureDomShims();
   const pdfjs = await import('pdfjs-dist/legacy/build/pdf.mjs');
   return pdfjs;
 }
