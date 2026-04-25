@@ -30,13 +30,45 @@ const FOURNISSEURS_COULEURS: Record<string, string> = {
 
 const FOURNISSEURS_ORDRE = ['Foodflow', 'Foodomarket', 'Milliet', 'LBA', 'Lidl', 'Les Assembleurs', 'Amazon'];
 
-function normalisePrix(pf: PFWithFournisseur): number {
+// Extrait un poids/volume depuis le nom du PF pour convertir pièce → kg/L
+// Reconnaît "150g", "1kg", "33cl", "1L", "x9", etc.
+function parseGrammage(nom: string): { kg?: number; L?: number } {
+  const n = nom.toLowerCase();
+  // Multiplicateur "x9" ou "9x"
+  const multMatch = n.match(/(?:^|\s|x)\s*(\d+)\s*x|x\s*(\d+)(?:\s|$)/);
+  const mult = multMatch ? parseInt(multMatch[1] || multMatch[2]) : 1;
+  // Poids unitaire
+  const gMatch = n.match(/(\d+(?:[.,]\d+)?)\s*g(?:r|ramme)?(?:\s|\)|$|x|\b)/);
+  const kgMatch = n.match(/(\d+(?:[.,]\d+)?)\s*kg/);
+  const lMatch = n.match(/(\d+(?:[.,]\d+)?)\s*l(?:itre)?(?:\s|$|x|\b)/);
+  const clMatch = n.match(/(\d+(?:[.,]\d+)?)\s*cl/);
+  if (kgMatch) return { kg: parseFloat(kgMatch[1].replace(',', '.')) * mult };
+  if (gMatch) return { kg: parseFloat(gMatch[1].replace(',', '.')) / 1000 * mult };
+  if (lMatch) return { L: parseFloat(lMatch[1].replace(',', '.')) * mult };
+  if (clMatch) return { L: parseFloat(clMatch[1].replace(',', '.')) / 100 * mult };
+  return {};
+}
+
+function normalisePrix(pf: PFWithFournisseur, ingUnite?: string): number {
   const qte = pf.quantite || 1;
   const rendement = pf.rendement || 1;
   let prixBase = pf.prix;
   if (pf.unite === 'g') prixBase = pf.prix / (qte / 1000);
   else if (pf.unite === 'cL') prixBase = pf.prix / (qte / 100);
-  else prixBase = pf.prix / qte;
+  else if (pf.unite === 'kg' || pf.unite === 'L') prixBase = pf.prix / qte;
+  else {
+    // PF en pièce/pack — si l'ingrédient est en kg/L, essayer de parser le grammage
+    const ingIsKg = ingUnite === 'kg' || ingUnite === 'g';
+    const ingIsL = ingUnite === 'L' || ingUnite === 'cL';
+    if (ingIsKg || ingIsL) {
+      const gramm = parseGrammage(pf.nom || '');
+      if (ingIsKg && gramm.kg) prixBase = pf.prix / gramm.kg;
+      else if (ingIsL && gramm.L) prixBase = pf.prix / gramm.L;
+      else prixBase = pf.prix / qte; // fallback
+    } else {
+      prixBase = pf.prix / qte;
+    }
+  }
   return prixBase / rendement;
 }
 
@@ -113,7 +145,7 @@ export default function ComparatifFournisseurs() {
         const parFournisseur = new Map<string, { pf: PFWithFournisseur; prixNormalise: number }>();
         for (const pf of pfsIng) {
           const f = pf.fournisseur || 'Inconnu';
-          const prix = normalisePrix(pf);
+          const prix = normalisePrix(pf, ing.unite);
           if (prix <= 0 || !isFinite(prix)) continue;
           const existing = parFournisseur.get(f);
           if (!existing || new Date(pf.updatedAt) > new Date(existing.pf.updatedAt)) {
@@ -135,7 +167,7 @@ export default function ComparatifFournisseurs() {
 
         const pfActuel = pfs.find(p => p.id === ing.fournisseurRefId);
         const fournisseurActuel = pfActuel?.fournisseur || null;
-        const prixActuel = pfActuel ? normalisePrix(pfActuel as PFWithFournisseur) : null;
+        const prixActuel = pfActuel ? normalisePrix(pfActuel as PFWithFournisseur, ing.unite) : null;
 
         const economiePotentielle =
           prixActuel && prixMoinsCher && fournisseurActuel !== moinsCher
