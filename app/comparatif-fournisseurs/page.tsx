@@ -258,13 +258,15 @@ export default function ComparatifFournisseurs() {
   const refreshFoodomarket = async () => {
     setRefreshingFM(true);
     try {
-      const [fmRes, ruRes] = await Promise.all([
+      const [fmRes, ruRes, ffRes] = await Promise.all([
         fetch('/api/foodomarket/refresh', { method: 'POST' }).then(r => r.json()).catch(e => ({ ok: false, error: String(e) })),
         fetch('/api/rungis/refresh', { method: 'POST' }).then(r => r.json()).catch(e => ({ ok: false, error: String(e) })),
+        fetch('/api/foodflow/refresh', { method: 'POST' }).then(r => r.json()).catch(e => ({ ok: false, error: String(e) })),
       ]);
       const msgFM = fmRes.ok ? `Foodomarket : ${fmRes.updated || 0} maj, ${fmRes.created || 0} créés` : `Foodomarket : ${fmRes.error}`;
       const msgRu = ruRes.ok ? `Rungis : ${ruRes.updated || 0} maj, ${ruRes.created || 0} créés${ruRes.noMatch ? `, ${ruRes.noMatch} sans match` : ''} (à valider)` : `Rungis : ${ruRes.error}`;
-      alert(msgFM + '\n' + msgRu);
+      const msgFF = ffRes.ok ? `Foodflow : ${ffRes.updated || 0} maj, ${ffRes.created || 0} créés${ffRes.noMatch ? `, ${ffRes.noMatch} sans match` : ''} (à valider)` : `Foodflow : ${ffRes.error}`;
+      alert(msgFM + '\n' + msgRu + '\n' + msgFF);
       window.location.reload();
     } catch (e: unknown) {
       alert('Erreur : ' + (e instanceof Error ? e.message : String(e)));
