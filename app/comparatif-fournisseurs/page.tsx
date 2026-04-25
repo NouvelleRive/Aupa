@@ -22,6 +22,7 @@ interface LigneComparatif {
 const FOURNISSEURS_COULEURS: Record<string, string> = {
   Foodflow: 'bg-green-100 text-green-800',
   Foodomarket: 'bg-teal-100 text-teal-800',
+  Rungis: 'bg-red-100 text-red-800',
   Milliet: 'bg-blue-100 text-blue-800',
   LBA: 'bg-purple-100 text-purple-800',
   Lidl: 'bg-orange-100 text-orange-800',
@@ -29,7 +30,7 @@ const FOURNISSEURS_COULEURS: Record<string, string> = {
   Amazon: 'bg-yellow-100 text-yellow-800',
 };
 
-const FOURNISSEURS_ORDRE = ['Foodflow', 'Foodomarket', 'Milliet', 'LBA', 'Lidl', 'Les Assembleurs', 'Amazon'];
+const FOURNISSEURS_ORDRE = ['Foodflow', 'Foodomarket', 'Rungis', 'Milliet', 'LBA', 'Lidl', 'Les Assembleurs', 'Amazon'];
 
 // Extrait un poids/volume depuis le nom du PF pour convertir pièce → kg/L
 // Reconnaît "150g", "1kg", "33cl", "1L", "x9", etc.
@@ -234,6 +235,7 @@ export default function ComparatifFournisseurs() {
   const fournisseurs = useMemo(() => {
     const set = new Set(pfs.map(p => p.fournisseur).filter((f): f is string => !!f));
     set.add('Foodomarket');
+    set.add('Rungis');
     const arr = Array.from(set);
     return arr.sort((a, b) => {
       const ia = FOURNISSEURS_ORDRE.indexOf(a);
@@ -256,9 +258,13 @@ export default function ComparatifFournisseurs() {
   const refreshFoodomarket = async () => {
     setRefreshingFM(true);
     try {
-      const res = await fetch('/api/foodomarket/refresh', { method: 'POST' });
-      const data = await res.json();
-      alert(`Foodomarket : ${data.updated || 0} maj, ${data.created || 0} créés${data.errors?.length ? ` (${data.errors.length} erreurs)` : ''}`);
+      const [fmRes, ruRes] = await Promise.all([
+        fetch('/api/foodomarket/refresh', { method: 'POST' }).then(r => r.json()).catch(e => ({ ok: false, error: String(e) })),
+        fetch('/api/rungis/refresh', { method: 'POST' }).then(r => r.json()).catch(e => ({ ok: false, error: String(e) })),
+      ]);
+      const msgFM = fmRes.ok ? `Foodomarket : ${fmRes.updated || 0} maj, ${fmRes.created || 0} créés` : `Foodomarket : ${fmRes.error}`;
+      const msgRu = ruRes.ok ? `Rungis : ${ruRes.updated || 0} maj, ${ruRes.created || 0} créés` : `Rungis : ${ruRes.error}`;
+      alert(msgFM + '\n' + msgRu);
       window.location.reload();
     } catch (e: unknown) {
       alert('Erreur : ' + (e instanceof Error ? e.message : String(e)));
@@ -280,7 +286,7 @@ export default function ComparatifFournisseurs() {
             disabled={refreshingFM}
             className="bg-teal-100 hover:bg-teal-200 text-teal-800 rounded-lg px-4 py-2 border border-teal-200 font-semibold disabled:opacity-50"
           >
-            {refreshingFM ? 'Actualisation...' : 'Actualiser Foodomarket'}
+            {refreshingFM ? 'Actualisation...' : 'Actualiser tout'}
           </button>
           <div className="bg-white rounded-lg px-4 py-2 border border-gray-200">
             <span className="text-gray-500">{stats.total} ingrédients</span>
