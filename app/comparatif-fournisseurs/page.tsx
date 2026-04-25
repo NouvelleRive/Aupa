@@ -260,7 +260,7 @@ export default function ComparatifFournisseurs() {
       </div>
 
       {/* Tableau */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-x-auto">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100">
         <table className="w-full text-sm table-fixed">
           <thead>
             <tr>
