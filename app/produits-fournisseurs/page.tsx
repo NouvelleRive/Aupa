@@ -1040,7 +1040,7 @@
     };
 
     const filtered = ingredients
-    .filter(i => i.nom.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').includes(search.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')))
+    .filter(i => (i.nom || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').includes(search.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')))
     .filter(i => filterCategorie === 'all' || i.categorie === filterCategorie)
     .filter(i => {
       if (filterFournisseur === 'all') return true;
@@ -1048,7 +1048,7 @@
       return f === filterFournisseur;
     })
     .filter(i => !filterNonLie || !ingredientParProduit[i.id])
-    .sort((a, b) => a.categorie.localeCompare(b.categorie) || a.nom.localeCompare(b.nom));
+    .sort((a, b) => (a.categorie || '').localeCompare(b.categorie || '') || (a.nom || '').localeCompare(b.nom || ''));
 
     // Reset infinite scroll quand les filtres changent
     useEffect(() => { setVisibleCount(PAGE_SIZE); }, [search, filterCategorie, filterFournisseur, filterNonLie]);
@@ -1203,7 +1203,7 @@
                         <select className="bg-transparent text-xs cursor-pointer hover:text-yellow-600 max-w-[90px]" value={ing.categorie} onChange={async e => { await updateDoc(doc(db, 'produitsFournisseurs', ing.id), { categorie: e.target.value }); fetchIngredients(); }}>{CATEGORIES.map(c => <option key={c}>{c}</option>)}</select>
                     </td>
                     <td className="px-2 py-3 text-right">
-                        {isEditing ? <div><span className="text-xs text-gray-400 block mb-1">Prix (€)</span><input className="border border-yellow-200 rounded px-2 py-1 text-sm w-20 text-right" type="number" value={editInlineForm.prix} onChange={e => setEditInlineForm({ ...editInlineForm, prix: e.target.value })} /></div> : <>{ing.prix.toFixed(2)} €</>}
+                        {isEditing ? <div><span className="text-xs text-gray-400 block mb-1">Prix (€)</span><input className="border border-yellow-200 rounded px-2 py-1 text-sm w-20 text-right" type="number" value={editInlineForm.prix} onChange={e => setEditInlineForm({ ...editInlineForm, prix: e.target.value })} /></div> : <>{(ing.prix ?? 0).toFixed(2)} €</>}
                     </td>
                     <td className="px-2 py-3 text-right">
                         {isEditing ? <div><span className="text-xs text-gray-400 block mb-1">Qté</span><input className="border border-yellow-200 rounded px-2 py-1 text-sm w-14 text-right" type="number" step="0.01" min="0.01" value={editInlineForm.quantite} onChange={e => setEditInlineForm({ ...editInlineForm, quantite: e.target.value })} /></div> : <>{(() => { const q = (ing as any).quantite || (ing as any).nbKg || (ing as any).nbPieces || 1; return q !== 1 ? q : <span className="text-gray-300">1</span>; })()}</>}
@@ -1250,7 +1250,7 @@
                         {((ing as any).fournisseur || ((ing as any).foodflowCode ? 'Foodflow' : (ing as any).millietCode ? 'Milliet' : (ing as any).lbaCode ? 'LBA' : '—')).replace('Les Assembleurs', 'Assembl.').replace('Foodflow', 'FF')}
                     </td>
                     <td className="px-2 py-3 text-right font-semibold text-yellow-600 text-xs">
-                        {(ing.prix / ((ing as any).quantite || (ing as any).nbKg || (ing as any).nbPieces || 1) / ing.rendement).toFixed(2)} €
+                        {((ing.prix ?? 0) / ((ing as any).quantite || (ing as any).nbKg || (ing as any).nbPieces || 1) / (ing.rendement || 1)).toFixed(2)} €
                     </td>
                     <td className="px-2 py-3 text-xs">
                         {(() => {
