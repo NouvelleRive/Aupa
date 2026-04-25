@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { collection, getDocs, query, where, addDoc, updateDoc, doc } from 'firebase/firestore';
+import { collection, getDocs, addDoc, updateDoc, doc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 
 export const runtime = 'nodejs';
@@ -11,26 +11,31 @@ async function fetchProduct(slug: string) {
   if (!res.ok) return null;
   const html = await res.text();
 
-  const kgs = [...html.matchAll(/"pricePerKg\\?":\s*([\d.]+)/g)].map(m => parseFloat(m[1])).filter(n => n > 0);
-  const litres = [...html.matchAll(/"pricePerLiter\\?":\s*([\d.]+)/g)].map(m => parseFloat(m[1])).filter(n => n > 0);
-  const units = [...html.matchAll(/"pricePerUnit\\?":\s*([\d.]+)/g)].map(m => parseFloat(m[1])).filter(n => n > 0);
-  const unitText = html.match(/"unitText":"([^"]+)"/)?.[1] || 'kg';
-  const nameMatch = html.match(/<h1[^>]*>([^<]+)<\/h1>/);
+  // Prix principal : pattern "price":"X.XX" ou \"price\":\"X.XX\"
+  const prices = [...html.matchAll(/\\?"price\\?":\\?"([\d.]+)\\?"/g)]
+    .map(m => parseFloat(m[1]))
+    .filter(n => n > 0 && n < 1000); // exclure prix aberrants
+  if (prices.length === 0) return null;
+  const prix = Math.min(...prices);
 
-  let prix = 0;
+  // Unité : "unitText" ou "unit"
+  const unitText = html.match(/"unitText":"([^"]+)"/)?.[1] || html.match(/\\?"unit\\?":\\?"([^"]+?)\\?"/)?.[1] || 'kg';
+  const nameMatch = html.match(/<h1[^>]*>([^<]+)<\/h1>/) || html.match(/"name":"([^"]+)"/);
+
+  // Normaliser l'unité
+  const u = unitText.toLowerCase();
   let unite = 'kg';
-  let qte = 1;
-  if (kgs.length) { prix = Math.min(...kgs); unite = 'kg'; }
-  else if (litres.length) { prix = Math.min(...litres); unite = 'L'; }
-  else if (units.length) { prix = Math.min(...units); unite = unitText || 'pièce'; }
-
-  if (!prix) return null;
+  if (u.includes('kg') || u === 'kgm') unite = 'kg';
+  else if (u === 'l' || u.includes('litre')) unite = 'L';
+  else if (u === 'cl') unite = 'cL';
+  else if (u === 'g') unite = 'g';
+  else unite = 'pièce';
 
   return {
-    nom: nameMatch?.[1]?.trim() || slug.split('/').pop()?.replace(/-/g, ' '),
+    nom: nameMatch?.[1]?.trim() || slug.split('/').pop()?.replace(/-/g, ' ') || '?',
     prix,
     unite,
-    quantite: qte,
+    quantite: 1,
     url,
   };
 }
