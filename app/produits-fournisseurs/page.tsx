@@ -1179,12 +1179,12 @@
                 <thead className="bg-yellow-50 text-gray-500 text-xs uppercase">
                 <tr>
                     <th className="px-3 py-3 text-left w-[30%]">Nom</th>
+                    <th className="px-2 py-3 text-left w-[7%]">Fourn.</th>
                     <th className="px-2 py-3 text-left w-[8%]">Cat.</th>
                     <th className="px-2 py-3 text-right w-[7%]">Prix</th>
                     <th className="px-2 py-3 text-right w-[5%]">Qté</th>
                     <th className="px-2 py-3 text-left w-[4%]">Unité</th>
                     <th className="px-2 py-3 text-left w-[18%]">Ingrédient</th>
-                    <th className="px-2 py-3 text-left w-[7%]">Fourn.</th>
                     <th className="px-2 py-3 text-right w-[8%]">Prix/u</th>
                     <th className="px-2 py-3 text-left w-[8%]">MAJ</th>
                     <th className="px-2 py-3 w-[5%]"></th>
@@ -1198,6 +1198,9 @@
                     <tr key={ing.id} className={`transition-colors ${isEditing ? 'bg-yellow-50' : 'hover:bg-yellow-50'} ${!isRef && !isEditing ? 'opacity-40' : ''}`}>
                     <td className="px-3 py-3 font-medium">
                         {isEditing ? <div><span className="text-xs text-gray-400 block mb-1">Nom</span><input className="border border-yellow-200 rounded px-2 py-1 text-sm w-full" value={editInlineForm.nom} onChange={e => setEditInlineForm({ ...editInlineForm, nom: e.target.value })} /><div className="flex gap-2 mt-2"><button onClick={handleSaveInline} className="bg-yellow-400 hover:bg-yellow-500 text-black font-semibold rounded px-3 py-1 text-xs">Enregistrer</button><button onClick={() => setEditInlineId(null)} className="border border-gray-200 rounded px-3 py-1 text-xs text-gray-500 hover:bg-gray-50">Annuler</button></div></div> : ing.nom}
+                    </td>
+                    <td className="px-2 py-3 text-gray-500 text-xs">
+                        {((ing as any).fournisseur || ((ing as any).foodflowCode ? 'Foodflow' : (ing as any).millietCode ? 'Milliet' : (ing as any).lbaCode ? 'LBA' : '—')).replace('Les Assembleurs', 'Assembl.').replace('Foodflow', 'FF')}
                     </td>
                     <td className="px-2 py-3 text-gray-500">
                         <select className="bg-transparent text-xs cursor-pointer hover:text-yellow-600 max-w-[90px]" value={ing.categorie} onChange={async e => { await updateDoc(doc(db, 'produitsFournisseurs', ing.id), { categorie: e.target.value }); fetchIngredients(); }}>{CATEGORIES.map(c => <option key={c}>{c}</option>)}</select>
@@ -1245,9 +1248,6 @@
                         <option value="">— Non lié —</option>
                         {Array.from(ingredientsMap.keys()).sort((a, b) => a.localeCompare(b, 'fr', { sensitivity: 'base' })).map(nom => <option key={nom} value={nom}>{nom}</option>)}
                       </select>
-                    </td>
-                    <td className="px-2 py-3 text-gray-500 text-xs">
-                        {((ing as any).fournisseur || ((ing as any).foodflowCode ? 'Foodflow' : (ing as any).millietCode ? 'Milliet' : (ing as any).lbaCode ? 'LBA' : '—')).replace('Les Assembleurs', 'Assembl.').replace('Foodflow', 'FF')}
                     </td>
                     <td className="px-2 py-3 text-right font-semibold text-yellow-600 text-xs">
                         {((ing.prix ?? 0) / ((ing as any).quantite || (ing as any).nbKg || (ing as any).nbPieces || 1) / (ing.rendement || 1)).toFixed(2)} €
