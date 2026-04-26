@@ -309,13 +309,15 @@ export default function ComparatifFournisseurs() {
   const refreshFoodomarket = async () => {
     setRefreshingFM(true);
     try {
-      const [fmRes, ruRes] = await Promise.all([
+      const [fmRes, ruRes, ffRes] = await Promise.all([
         fetch('/api/foodomarket/refresh', { method: 'POST' }).then(r => r.json()).catch(e => ({ ok: false, error: String(e) })),
         fetch('/api/rungis/refresh', { method: 'POST' }).then(r => r.json()).catch(e => ({ ok: false, error: String(e) })),
+        fetch('/api/foodflow/refresh', { method: 'POST' }).then(r => r.json()).catch(e => ({ ok: false, error: String(e) })),
       ]);
       const msgFM = fmRes.ok ? `Foodomarket : ${fmRes.updated || 0} maj, ${fmRes.created || 0} créés` : `Foodomarket : ${fmRes.error}`;
       const msgRu = ruRes.ok ? `Rungis : ${ruRes.updated || 0} maj, ${ruRes.created || 0} créés` : `Rungis : ${ruRes.error}`;
-      alert(msgFM + '\n' + msgRu);
+      const msgFF = ffRes.ok ? `Foodflow : ${ffRes.updated || 0} maj` : `Foodflow : ${ffRes.error}`;
+      alert([msgFM, msgRu, msgFF].join('\n'));
       window.location.reload();
     } catch (e: unknown) {
       alert('Erreur : ' + (e instanceof Error ? e.message : String(e)));
@@ -485,9 +487,9 @@ export default function ComparatifFournisseurs() {
                           ) : (
                             <button
                               onClick={() => ajouterAuPanier(entry.pf, l.ingredient)}
-                              className="bg-yellow-50 hover:bg-yellow-100 text-yellow-600 hover:text-yellow-700 rounded px-1.5 py-0.5 text-xs border border-yellow-200"
+                              className="bg-yellow-50 hover:bg-yellow-100 text-yellow-600 hover:text-yellow-700 rounded w-5 h-5 text-xs font-bold leading-none border border-yellow-200"
                               aria-label="Ajouter au panier"
-                            >+ panier</button>
+                            >+</button>
                           )}
                         </div>
                       </td>
