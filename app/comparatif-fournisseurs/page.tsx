@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { collection, getDocs } from 'firebase/firestore';
+import { collection, getDocs, doc, setDoc, deleteDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Ingredient, ProduitFournisseur, Categorie } from '@/lib/types';
 
@@ -87,6 +87,7 @@ export default function ComparatifFournisseurs() {
   const [ingredients, setIngredients] = useState<Ingredient[]>([]);
   const [pfs, setPfs] = useState<PFWithFournisseur[]>([]);
   const [depensesParIng, setDepensesParIng] = useState<Map<string, number>>(new Map());
+  const [panier, setPanier] = useState<Map<string, number>>(new Map());
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [filterCategorie, setFilterCategorie] = useState('all');
@@ -96,10 +97,11 @@ export default function ComparatifFournisseurs() {
 
   useEffect(() => {
     (async () => {
-      const [ingSnap, pfSnap, achatsSnap] = await Promise.all([
+      const [ingSnap, pfSnap, achatsSnap, panierSnap] = await Promise.all([
         getDocs(collection(db, 'ingredients')),
         getDocs(collection(db, 'produitsFournisseurs')),
         getDocs(collection(db, 'achats')),
+        getDocs(collection(db, 'panier')),
       ]);
       const ings = ingSnap.docs.map(d => ({ id: d.id, ...d.data() } as Ingredient));
       const pfsArr = pfSnap.docs.map(d => ({ id: d.id, ...d.data() } as PFWithFournisseur));
@@ -130,12 +132,48 @@ export default function ComparatifFournisseurs() {
         depMap.set(ingId, (depMap.get(ingId) || 0) + total);
       }
 
+      const panMap = new Map<string, number>();
+      for (const d of panierSnap.docs) {
+        const data = d.data() as { quantite?: number };
+        panMap.set(d.id, data.quantite || 0);
+      }
+
       setIngredients(ings);
       setPfs(pfsArr);
       setDepensesParIng(depMap);
+      setPanier(panMap);
       setLoading(false);
     })();
   }, []);
+
+  const ajouterAuPanier = async (pf: PFWithFournisseur, ing: Ingredient) => {
+    const current = panier.get(pf.id) || 0;
+    const next = current + 1;
+    setPanier(prev => new Map(prev).set(pf.id, next));
+    await setDoc(doc(db, 'panier', pf.id), {
+      pfId: pf.id,
+      pfNom: pf.nom,
+      fournisseur: pf.fournisseur || 'Inconnu',
+      url: pf.url || null,
+      prix: pf.prix,
+      quantite: next,
+      ingredientNom: ing.nom,
+      ingredientId: ing.id,
+      addedAt: new Date().toISOString(),
+    }, { merge: true });
+  };
+
+  const retirerDuPanier = async (pfId: string) => {
+    const current = panier.get(pfId) || 0;
+    if (current <= 1) {
+      setPanier(prev => { const m = new Map(prev); m.delete(pfId); return m; });
+      await deleteDoc(doc(db, 'panier', pfId));
+    } else {
+      const next = current - 1;
+      setPanier(prev => new Map(prev).set(pfId, next));
+      await setDoc(doc(db, 'panier', pfId), { quantite: next }, { merge: true });
+    }
+  };
 
   const lignes = useMemo<LigneComparatif[]>(() => {
     return ingredients
@@ -414,8 +452,8 @@ export default function ComparatifFournisseurs() {
                     if (!entry) return <td key={f} className="px-2 py-3 text-right text-gray-200">—</td>;
                     const isCheapest = f === l.moinsCher && l.pfs.length > 1;
                     const isMostExpensive = f === l.plusCher && l.pfs.length > 1;
-                    const isActuel = f === l.fournisseurActuel;
                     const prixProduit = entry.pf.prix;
+                    const qteEnPanier = panier.get(entry.pf.id) || 0;
                     return (
                       <td key={f} className="px-2 py-3">
                         {entry.pf.url ? (
@@ -428,6 +466,29 @@ export default function ComparatifFournisseurs() {
                         <div className="font-mono text-sm text-gray-800">{prixProduit.toFixed(2)} €</div>
                         <div className={`font-mono text-xs ${isCheapest ? 'text-green-600 font-bold' : isMostExpensive ? 'text-red-400' : 'text-gray-400'}`}>
                           {entry.prixNormalise.toFixed(2)} {unite}
+                        </div>
+                        <div className="flex items-center gap-1 mt-1">
+                          {qteEnPanier > 0 ? (
+                            <>
+                              <button
+                                onClick={() => retirerDuPanier(entry.pf.id)}
+                                className="bg-gray-100 hover:bg-gray-200 text-gray-700 w-5 h-5 rounded text-xs font-bold leading-none"
+                                aria-label="Retirer"
+                              >−</button>
+                              <span className="text-xs font-semibold text-yellow-600 min-w-[1rem] text-center">{qteEnPanier}</span>
+                              <button
+                                onClick={() => ajouterAuPanier(entry.pf, l.ingredient)}
+                                className="bg-yellow-100 hover:bg-yellow-200 text-yellow-700 w-5 h-5 rounded text-xs font-bold leading-none"
+                                aria-label="Ajouter"
+                              >+</button>
+                            </>
+                          ) : (
+                            <button
+                              onClick={() => ajouterAuPanier(entry.pf, l.ingredient)}
+                              className="bg-yellow-50 hover:bg-yellow-100 text-yellow-600 hover:text-yellow-700 rounded px-1.5 py-0.5 text-xs border border-yellow-200"
+                              aria-label="Ajouter au panier"
+                            >+ panier</button>
+                          )}
                         </div>
                       </td>
                     );

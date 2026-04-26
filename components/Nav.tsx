@@ -14,6 +14,7 @@ const LINKS = [
   { href: '/ecarts', label: 'Écarts' },
   { href: '/employes', label: 'Employés' },
   { href: '/comparatif-fournisseurs', label: 'Comparatif' },
+  { href: '/panier', label: 'Panier' },
 ];
 
 export default function Nav() {
