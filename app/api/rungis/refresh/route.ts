@@ -43,25 +43,46 @@ async function fetchRungisProduct(slug: string, cookie: string) {
   const res = await fetch(url, { headers: { 'cookie': cookie } });
   if (!res.ok) return null;
   const html = await res.text();
-  // Extraire prix par kg/L/pièce. Pattern: "X,XX € / kg" ou "X,XX € / pièce" ou "X,XX € / litre"
-  const kgMatch = html.match(/(\d+[,.]\d+)\s*€\s*\/\s*kg/i);
-  const lMatch = html.match(/(\d+[,.]\d+)\s*€\s*\/\s*(?:l|litre)/i);
-  const pceMatch = html.match(/(\d+[,.]\d+)\s*€\s*\/\s*(?:pi[eè]ce|unit[eé])/i);
-  const nameMatch = html.match(/<h1[^>]*>([^<]+)<\/h1>/);
+  const ogTitleMatch = html.match(/<meta\s+property="og:title"\s+content="([^"]+)"/);
+  const titleMatch = html.match(/<title>([^<|]+?)(?:\s*\|[^<]*)?<\/title>/);
+  const nameMatch = ogTitleMatch || titleMatch;
 
+  // Extract MAIN product price: locate the block with data-product-id="{slug}"
+  // and pick the closest preceding product-main-price.
+  const mainBtnIdx = html.search(new RegExp(`data-product-id="${slug}"[\\s\\S]{0,600}data-click-weight`));
   let prix = 0;
   let unite = 'kg';
-  if (kgMatch) { prix = parseFloat(kgMatch[1].replace(',', '.')); unite = 'kg'; }
-  else if (lMatch) { prix = parseFloat(lMatch[1].replace(',', '.')); unite = 'L'; }
-  else if (pceMatch) { prix = parseFloat(pceMatch[1].replace(',', '.')); unite = 'pièce'; }
-
+  let quantite = 1;
+  if (mainBtnIdx !== -1) {
+    const before = html.slice(Math.max(0, mainBtnIdx - 1500), mainBtnIdx + 800);
+    const priceMatches = [...before.matchAll(/product-main-price">\s*(\d+[,.]\d+)\s*€\s*\/\s*(kg|l|litre|pi[eè]ce|unit[eé])/gi)];
+    const last = priceMatches[priceMatches.length - 1];
+    if (last) {
+      prix = parseFloat(last[1].replace(',', '.'));
+      const u = last[2].toLowerCase();
+      if (u.startsWith('kg')) unite = 'kg';
+      else if (u.startsWith('l')) unite = 'L';
+      else unite = 'pièce';
+    }
+    const weightMatch = before.match(/data-click-weight="([\d.]+)"/);
+    if (weightMatch) quantite = parseFloat(weightMatch[1]);
+  }
+  // Fallback: first price on the page (legacy behaviour)
+  if (!prix) {
+    const kg = html.match(/(\d+[,.]\d+)\s*€\s*\/\s*kg/i);
+    const l = html.match(/(\d+[,.]\d+)\s*€\s*\/\s*(?:l|litre)/i);
+    const p = html.match(/(\d+[,.]\d+)\s*€\s*\/\s*(?:pi[eè]ce|unit[eé])/i);
+    if (kg) { prix = parseFloat(kg[1].replace(',', '.')); unite = 'kg'; }
+    else if (l) { prix = parseFloat(l[1].replace(',', '.')); unite = 'L'; }
+    else if (p) { prix = parseFloat(p[1].replace(',', '.')); unite = 'pièce'; }
+  }
   if (!prix) return null;
 
   return {
     nom: nameMatch?.[1]?.trim() || slug,
     prix,
     unite,
-    quantite: 1,
+    quantite,
     url,
   };
 }
