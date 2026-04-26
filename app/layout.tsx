@@ -12,7 +12,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="fr">
       <body className="bg-gray-50 min-h-screen">
         <Nav />
-        <main className="p-6">{children}</main>
+        <main className="p-3 sm:p-6">{children}</main>
       </body>
     </html>
   );

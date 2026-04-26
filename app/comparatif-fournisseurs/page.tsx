@@ -5,7 +5,7 @@ import { collection, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Ingredient, ProduitFournisseur, Categorie } from '@/lib/types';
 
-type PFWithFournisseur = ProduitFournisseur & { fournisseur?: string; quantite?: number; ingredient?: string };
+type PFWithFournisseur = ProduitFournisseur & { fournisseur?: string; quantite?: number; ingredient?: string; url?: string };
 
 interface LigneComparatif {
   ingredient: Ingredient;
@@ -145,11 +145,19 @@ export default function ComparatifFournisseurs() {
         );
 
         const parFournisseur = new Map<string, { pf: PFWithFournisseur; prixNormalise: number }>();
+        const pfRefId = ing.fournisseurRefId;
         for (const pf of pfsIng) {
           const f = pf.fournisseur || 'Inconnu';
           const prix = normalisePrix(pf, ing.unite);
           if (prix <= 0 || !isFinite(prix)) continue;
+          // Le PF de réf prime toujours pour son fournisseur
+          if (pf.id === pfRefId) {
+            parFournisseur.set(f, { pf, prixNormalise: prix });
+            continue;
+          }
           const existing = parFournisseur.get(f);
+          // Ne pas écraser le PF de réf une fois qu'il a été placé
+          if (existing && existing.pf.id === pfRefId) continue;
           if (!existing || new Date(pf.updatedAt) > new Date(existing.pf.updatedAt)) {
             parFournisseur.set(f, { pf, prixNormalise: prix });
           }
@@ -167,9 +175,14 @@ export default function ComparatifFournisseurs() {
         const plusCher = entries.length > 1 ? entries[entries.length - 1].fournisseur : null;
         const prixMoinsCher = entries.length > 0 ? entries[0].prixNormalise : null;
 
-        const pfActuel = pfs.find(p => p.id === ing.fournisseurRefId);
-        const fournisseurActuel = pfActuel?.fournisseur || null;
-        const prixActuel = pfActuel ? normalisePrix(pfActuel as PFWithFournisseur, ing.unite) : null;
+        const pfActuelRef = pfs.find(p => p.id === ing.fournisseurRefId);
+        const fournisseurActuel = pfActuelRef?.fournisseur || null;
+        const entryActuel = fournisseurActuel ? parFournisseur.get(fournisseurActuel) : null;
+        const prixActuel = entryActuel
+          ? entryActuel.prixNormalise
+          : pfActuelRef
+          ? normalisePrix(pfActuelRef as PFWithFournisseur, ing.unite)
+          : null;
 
         const economiePotentielle =
           prixActuel && prixMoinsCher && fournisseurActuel !== moinsCher
@@ -278,24 +291,24 @@ export default function ComparatifFournisseurs() {
   return (
     <div>
       {/* Header + Stats */}
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-gray-800">Comparatif Fournisseurs</h1>
-        <div className="flex gap-2 text-sm items-center">
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-4 sm:mb-6">
+        <h1 className="text-xl sm:text-2xl font-bold text-gray-800">Comparatif Fournisseurs</h1>
+        <div className="flex flex-wrap gap-2 text-xs sm:text-sm items-center">
           <button
             onClick={refreshFoodomarket}
             disabled={refreshingFM}
-            className="bg-teal-100 hover:bg-teal-200 text-teal-800 rounded-lg px-4 py-2 border border-teal-200 font-semibold disabled:opacity-50"
+            className="bg-teal-100 hover:bg-teal-200 text-teal-800 rounded-lg px-3 sm:px-4 py-2 border border-teal-200 font-semibold disabled:opacity-50"
           >
             {refreshingFM ? 'Actualisation...' : 'Actualiser tout'}
           </button>
-          <div className="bg-white rounded-lg px-4 py-2 border border-gray-200">
+          <div className="bg-white rounded-lg px-3 sm:px-4 py-2 border border-gray-200">
             <span className="text-gray-500">{stats.total} ingrédients</span>
           </div>
-          <div className="bg-yellow-50 rounded-lg px-4 py-2 border border-yellow-200">
+          <div className="bg-yellow-50 rounded-lg px-3 sm:px-4 py-2 border border-yellow-200">
             <span className="font-semibold text-yellow-700">{stats.multi} comparables</span>
           </div>
           {stats.switchables > 0 && (
-            <div className="bg-red-50 rounded-lg px-4 py-2 border border-red-200">
+            <div className="bg-red-50 rounded-lg px-3 sm:px-4 py-2 border border-red-200">
               <span className="font-semibold text-red-600">{stats.switchables} switch possibles</span>
               <span className="text-red-400 ml-1 text-xs">(~{Math.round(stats.totalEconomie).toLocaleString('fr-FR')} €/an)</span>
             </div>
@@ -304,15 +317,15 @@ export default function ComparatifFournisseurs() {
       </div>
 
       {/* Filtres */}
-      <div className="flex gap-3 mb-6">
+      <div className="flex flex-wrap gap-2 sm:gap-3 mb-4 sm:mb-6">
         <input
-          className="border border-yellow-200 focus:border-yellow-400 focus:outline-none rounded-lg px-3 py-2 text-sm flex-1"
+          className="border border-yellow-200 focus:border-yellow-400 focus:outline-none rounded-lg px-3 py-2 text-sm w-full sm:w-auto sm:flex-1 min-w-0"
           placeholder="Rechercher un ingrédient..."
           value={search}
           onChange={e => setSearch(e.target.value)}
         />
         <select
-          className="border border-yellow-200 focus:border-yellow-400 focus:outline-none rounded-lg px-3 py-2 text-sm"
+          className="border border-yellow-200 focus:border-yellow-400 focus:outline-none rounded-lg px-3 py-2 text-sm flex-1 sm:flex-initial min-w-0"
           value={filterCategorie}
           onChange={e => setFilterCategorie(e.target.value)}
         >
@@ -320,7 +333,7 @@ export default function ComparatifFournisseurs() {
           {categories.map(c => <option key={c} value={c}>{c}</option>)}
         </select>
         <select
-          className="border border-yellow-200 focus:border-yellow-400 focus:outline-none rounded-lg px-3 py-2 text-sm"
+          className="border border-yellow-200 focus:border-yellow-400 focus:outline-none rounded-lg px-3 py-2 text-sm flex-1 sm:flex-initial min-w-0"
           value={filterMode}
           onChange={e => setFilterMode(e.target.value as typeof filterMode)}
         >
@@ -330,7 +343,7 @@ export default function ComparatifFournisseurs() {
           <option value="switch">Switch possibles ({stats.switchables})</option>
         </select>
         <select
-          className="border border-yellow-200 focus:border-yellow-400 focus:outline-none rounded-lg px-3 py-2 text-sm"
+          className="border border-yellow-200 focus:border-yellow-400 focus:outline-none rounded-lg px-3 py-2 text-sm flex-1 sm:flex-initial min-w-0"
           value={`${sortKey}-${sortDir}`}
           onChange={e => { const [k, d] = e.target.value.split('-'); setSortKey(k as SortKey); setSortDir(d as SortDir); }}
         >
@@ -342,8 +355,8 @@ export default function ComparatifFournisseurs() {
       </div>
 
       {/* Tableau */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100">
-        <table className="w-full text-sm table-fixed">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-x-auto">
+        <table className="w-full text-sm table-fixed min-w-[1100px]">
           <thead>
             <tr>
               <th className="sticky top-0 z-10 bg-gray-50 border-b border-gray-200 px-3 py-3 text-left font-semibold text-gray-600 cursor-pointer hover:text-yellow-500 w-[12%]" onClick={() => handleSort('nom')}>
@@ -374,17 +387,25 @@ export default function ComparatifFournisseurs() {
                     <div className="font-medium">{l.ingredient.nom}</div>
                   </td>
                   <td className="px-4 py-3">
-                    {l.fournisseurActuel ? (
-                      <div>
-                        <div className="text-xs text-gray-600 truncate max-w-[160px]" title={l.pfs.find(p => p.fournisseur === l.fournisseurActuel)?.pf.nom}>
-                          {l.pfs.find(p => p.fournisseur === l.fournisseurActuel)?.pf.nom || '—'}
+                    {l.fournisseurActuel ? (() => {
+                      const pfRef = l.pfs.find(p => p.fournisseur === l.fournisseurActuel)?.pf;
+                      const nom = pfRef?.nom || '—';
+                      return (
+                        <div>
+                          {pfRef?.url ? (
+                            <a href={pfRef.url} target="_blank" rel="noopener noreferrer" className="block text-xs text-gray-600 truncate max-w-[160px] hover:text-yellow-600 hover:underline" title={nom}>
+                              {nom}
+                            </a>
+                          ) : (
+                            <div className="text-xs text-gray-600 truncate max-w-[160px]" title={nom}>{nom}</div>
+                          )}
+                          <span className={`text-xs px-2 py-0.5 rounded-full ${FOURNISSEURS_COULEURS[l.fournisseurActuel] || 'bg-gray-100 text-gray-600'}`}>
+                            {l.fournisseurActuel}
+                          </span>
+                          {l.prixActuel && <span className="text-xs text-gray-500 ml-1">{l.prixActuel.toFixed(2)} {unite}</span>}
                         </div>
-                        <span className={`text-xs px-2 py-0.5 rounded-full ${FOURNISSEURS_COULEURS[l.fournisseurActuel] || 'bg-gray-100 text-gray-600'}`}>
-                          {l.fournisseurActuel}
-                        </span>
-                        {l.prixActuel && <span className="text-xs text-gray-500 ml-1">{l.prixActuel.toFixed(2)} {unite}</span>}
-                      </div>
-                    ) : (
+                      );
+                    })() : (
                       <span className="text-gray-300 text-xs">—</span>
                     )}
                   </td>
@@ -397,7 +418,13 @@ export default function ComparatifFournisseurs() {
                     const prixProduit = entry.pf.prix;
                     return (
                       <td key={f} className="px-2 py-3">
-                        <div className="text-xs text-gray-600 break-words leading-tight">{entry.pf.nom}</div>
+                        {entry.pf.url ? (
+                          <a href={entry.pf.url} target="_blank" rel="noopener noreferrer" className="block text-xs text-gray-600 break-words leading-tight hover:text-yellow-600 hover:underline">
+                            {entry.pf.nom}
+                          </a>
+                        ) : (
+                          <div className="text-xs text-gray-600 break-words leading-tight">{entry.pf.nom}</div>
+                        )}
                         <div className="font-mono text-sm text-gray-800">{prixProduit.toFixed(2)} €</div>
                         <div className={`font-mono text-xs ${isCheapest ? 'text-green-600 font-bold' : isMostExpensive ? 'text-red-400' : 'text-gray-400'}`}>
                           {entry.prixNormalise.toFixed(2)} {unite}
