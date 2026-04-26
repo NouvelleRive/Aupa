@@ -25,6 +25,12 @@ const FOURNISSEURS_COULEURS: Record<string, { bg: string; border: string; text: 
 
 const FOURNISSEURS_ORDRE = ['Foodflow', 'Rungis', 'Foodomarket'];
 
+const FOURNISSEURS_HOMES: Record<string, string> = {
+  Foodflow: 'https://foodflow.com/shop',
+  Foodomarket: 'https://www.foodomarket.com',
+  Rungis: 'https://rungismarket.com/app',
+};
+
 export default function PanierPage() {
   const [items, setItems] = useState<PanierItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -60,13 +66,26 @@ export default function PanierPage() {
     setItems(prev => prev.filter(i => i.fournisseur !== f));
   };
 
-  const ouvrirTout = (f: string) => {
-    const urls = items.filter(i => i.fournisseur === f && i.url).map(i => i.url!);
-    if (urls.length === 0) {
-      alert(`Aucune URL produit pour ${f}`);
-      return;
+  const [missingByFournisseur, setMissingByFournisseur] = useState<Record<string, string[]>>({});
+
+  const ouvrirTout = async (f: string) => {
+    const itemsF = items.filter(i => i.fournisseur === f);
+    const avecUrl = itemsF.filter(i => i.url);
+    const sansUrl = itemsF.filter(i => !i.url);
+
+    avecUrl.forEach(i => window.open(i.url!, '_blank', 'noopener,noreferrer'));
+
+    if (sansUrl.length > 0) {
+      const home = FOURNISSEURS_HOMES[f];
+      if (home) window.open(home, '_blank', 'noopener,noreferrer');
+      const noms = sansUrl.map(i => i.pfNom);
+      setMissingByFournisseur(prev => ({ ...prev, [f]: noms }));
+      try {
+        await navigator.clipboard.writeText(noms.join('\n'));
+      } catch { /* clipboard might fail silently */ }
+    } else {
+      setMissingByFournisseur(prev => { const { [f]: _, ...rest } = prev; return rest; });
     }
-    urls.forEach(url => window.open(url, '_blank', 'noopener,noreferrer'));
   };
 
   if (loading) return <div className="text-center py-12 text-gray-400">Chargement...</div>;
@@ -176,6 +195,17 @@ export default function PanierPage() {
                     aria-label="Vider"
                   >Vider</button>
                 </div>
+
+                {missingByFournisseur[g.fournisseur]?.length > 0 && (
+                  <div className="mt-3 p-2 bg-white rounded-lg border border-yellow-300 text-xs">
+                    <div className="font-semibold text-yellow-700 mb-1">⚠ {missingByFournisseur[g.fournisseur].length} produit(s) sans URL — à chercher manuellement (noms copiés dans le presse-papier) :</div>
+                    <ul className="text-gray-600 space-y-0.5">
+                      {missingByFournisseur[g.fournisseur].map((nom, i) => (
+                        <li key={i} className="truncate">• {nom}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
               </div>
             );
           })}
