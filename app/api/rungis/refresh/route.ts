@@ -52,7 +52,6 @@ async function fetchRungisProduct(slug: string, cookie: string) {
   const mainBtnIdx = html.search(new RegExp(`data-product-id="${slug}"[\\s\\S]{0,600}data-click-weight`));
   let prix = 0;
   let unite = 'kg';
-  let quantite = 1;
   if (mainBtnIdx !== -1) {
     const before = html.slice(Math.max(0, mainBtnIdx - 1500), mainBtnIdx + 800);
     const priceMatches = [...before.matchAll(/product-main-price">\s*(\d+[,.]\d+)\s*€\s*\/\s*(kg|l|litre|pi[eè]ce|unit[eé])/gi)];
@@ -64,8 +63,6 @@ async function fetchRungisProduct(slug: string, cookie: string) {
       else if (u.startsWith('l')) unite = 'L';
       else unite = 'pièce';
     }
-    const weightMatch = before.match(/data-click-weight="([\d.]+)"/);
-    if (weightMatch) quantite = parseFloat(weightMatch[1]);
   }
   // Fallback: first price on the page (legacy behaviour)
   if (!prix) {
@@ -82,7 +79,7 @@ async function fetchRungisProduct(slug: string, cookie: string) {
     nom: nameMatch?.[1]?.trim() || slug,
     prix,
     unite,
-    quantite,
+    quantite: 1,
     url,
   };
 }
