@@ -92,11 +92,11 @@
 
     const fileRef = useRef<HTMLInputElement>(null);
 
+    // Petites collections : menus + recettes + caisseMapCustom (load une seule fois)
     const fetchAll = async () => {
-        const [mSnap, rSnap, vSnap, cmSnap] = await Promise.all([
+        const [mSnap, rSnap, cmSnap] = await Promise.all([
         getDocs(collection(db, 'menus')),
         getDocs(collection(db, 'recettes')),
-        getDocs(collection(db, 'ventes')),
         getDocs(collection(db, 'caisseMapCustom')),
         ]);
         for (const d of cmSnap.docs) {
@@ -122,12 +122,24 @@
             });
         setMenus(ms);
         setRecettes(rSnap.docs.map(d => ({ id: d.id, ...d.data() } as Recette)));
-        setVentes(vSnap.docs.map(d => d.data() as VenteLine));
         if (ms.length > 0 && !menuActif) setMenuActif(ms[0].id);
         setLoading(false);
     };
 
     useEffect(() => { fetchAll(); }, []);
+
+    // Ventes : refetch quand on change de menu actif
+    // (au lieu de charger 85k ventes au mount, on charge ~1-5k pour le menu courant)
+    const fetchVentesMenu = async (menuNom: string) => {
+        if (!menuNom) { setVentes([]); return; }
+        const snap = await getDocs(query(collection(db, 'ventes'), where('menuNom', '==', menuNom)));
+        setVentes(snap.docs.map(d => d.data() as VenteLine));
+    };
+
+    useEffect(() => {
+        const m = menus.find(x => x.id === menuActif);
+        if (m?.nom) fetchVentesMenu(m.nom);
+    }, [menuActif, menus]);
 
     const handleCreerMenu = async () => {
         if (!nouveauNom.trim()) return;
@@ -215,8 +227,8 @@
 
         setImporting(false);
         alert(`✅ ${count} lignes importées → ${menuTrouve.nom} / ${mois}`);
-        const vSnap = await getDocs(collection(db, 'ventes'));
-        setVentes(vSnap.docs.map(d => d.data() as VenteLine));
+        const m = menus.find(x => x.id === menuActif);
+        if (m?.nom) await fetchVentesMenu(m.nom);
         e.target.value = '';
         setShowImport(false);
     };
@@ -301,8 +313,8 @@
 
         setImporting(false);
         alert(`✅ ${articles.length} articles importés pour le ${date} → ${menuTrouve.nom}`);
-        const vSnap = await getDocs(collection(db, 'ventes'));
-        setVentes(vSnap.docs.map(d => d.data() as VenteLine));
+        const m = menus.find(x => x.id === menuActif);
+        if (m?.nom) await fetchVentesMenu(m.nom);
         setRecapText('');
         setShowImportRecap(false);
     };
@@ -390,8 +402,8 @@
                 const data = await r.json();
                 if (data.ok) {
                     alert(`✅ ${data.imported} mails traités, ${data.totalArticles} articles importés`);
-                    const vSnap = await getDocs(collection(db, 'ventes'));
-                    setVentes(vSnap.docs.map(d => d.data() as VenteLine));
+                    const m = menus.find(x => x.id === menuActif);
+                    if (m?.nom) await fetchVentesMenu(m.nom);
                 } else {
                     alert(`❌ ${data.error}`);
                     if (data.error?.includes('not connected')) window.location.href = '/api/gmail/auth';
