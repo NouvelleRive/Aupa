@@ -69,20 +69,24 @@ export default function PanierPage() {
   const [missingByFournisseur, setMissingByFournisseur] = useState<Record<string, string[]>>({});
   const [pushingFournisseur, setPushingFournisseur] = useState<string | null>(null);
 
+  const [pushResult, setPushResult] = useState<Record<string, { ok: boolean; msg: string }>>({});
+
   const ouvrirFoodflow = async () => {
     setPushingFournisseur('Foodflow');
+    // Ouvre l'onglet d'abord pour éviter le blocage popup, puis push en arrière-plan
+    const tab = window.open('https://foodflow.com/shop', '_blank', 'noopener,noreferrer');
     try {
       const res = await fetch('/api/foodflow/push-cart', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ replace: false }) });
       const j = await res.json();
       if (!j.ok) {
-        alert(`Erreur Foodflow : ${j.error}\n${j.missing?.length ? 'Produits non trouvés :\n' + j.missing.join('\n') : ''}`);
+        setPushResult(prev => ({ ...prev, Foodflow: { ok: false, msg: `${j.error}${j.missing?.length ? ' — non trouvés : ' + j.missing.join(', ') : ''}` } }));
+        if (tab) tab.close();
         return;
       }
-      const msg = `${j.pushed}/${j.total} produit(s) poussés dans Foodflow${j.deliveryDate ? ` (livraison ${j.deliveryDate})` : ''}${j.missing?.length ? `\n\nNon trouvés :\n${j.missing.join('\n')}` : ''}`;
-      alert(msg);
-      window.open('https://foodflow.com/shop', '_blank', 'noopener,noreferrer');
+      const msg = `${j.pushed}/${j.total} produit(s) poussés${j.deliveryDate ? ` — livraison ${j.deliveryDate}` : ''}${j.missing?.length ? ` — non trouvés : ${j.missing.join(', ')}` : ''}`;
+      setPushResult(prev => ({ ...prev, Foodflow: { ok: true, msg } }));
     } catch (e) {
-      alert(`Erreur : ${e instanceof Error ? e.message : String(e)}`);
+      setPushResult(prev => ({ ...prev, Foodflow: { ok: false, msg: e instanceof Error ? e.message : String(e) } }));
     } finally {
       setPushingFournisseur(null);
     }
@@ -228,6 +232,12 @@ export default function PanierPage() {
                         <li key={i} className="truncate">• {nom}</li>
                       ))}
                     </ul>
+                  </div>
+                )}
+
+                {pushResult[g.fournisseur] && (
+                  <div className={`mt-3 p-2 rounded-lg border text-xs ${pushResult[g.fournisseur].ok ? 'bg-white border-green-300 text-green-700' : 'bg-white border-red-300 text-red-700'}`}>
+                    {pushResult[g.fournisseur].ok ? '✓' : '⚠'} {pushResult[g.fournisseur].msg}
                   </div>
                 )}
               </div>
