@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { collection, getDocs } from 'firebase/firestore';
+import { collection, getDocs, query, where } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import TimePeriodFilter, { isInPeriod, type TimePeriod } from '@/components/TimePeriodFilter';
 
@@ -17,7 +17,7 @@ const convertQte = (qte: number, unite: string): number => {
   return qte;
 };
 
-const normalizeCaisse = (s: string) => s.toLowerCase().replace(/œ/g, 'oe').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^\w\s]/g, '').trim();
+const normalizeCaisse = (s: string) => s.toLowerCase().replace(/œ/g, 'oe').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^\w\s]/g, '').trim();
 
 export default function Page() {
   const [achats, setAchats] = useState<Achat[]>([]);
@@ -26,44 +26,75 @@ export default function Page() {
   const [pfs, setPfs] = useState<PF[]>([]);
   const [ingredients, setIngredients] = useState<Ingredient[]>([]);
   const [loading, setLoading] = useState(true);
-  const [timePeriod, setTimePeriod] = useState<TimePeriod | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
 
-  useEffect(() => { (async () => {
-    const [a, v, r, p, i] = await Promise.all([
-      getDocs(collection(db, 'achats')),
-      getDocs(collection(db, 'ventes')),
-      getDocs(collection(db, 'recettes')),
-      getDocs(collection(db, 'produitsFournisseurs')),
-      getDocs(collection(db, 'ingredients')),
-    ]);
-    setAchats(a.docs.map(d => ({ id: d.id, ...d.data() } as Achat)));
-    setVentes(v.docs.map(d => d.data() as Vente));
-    setRecettes(r.docs.map(d => ({ id: d.id, ...d.data() } as Recette)));
-    setPfs(p.docs.map(d => ({ id: d.id, ...d.data() } as PF)));
-    setIngredients(i.docs.map(d => ({ id: d.id, ...d.data() } as Ingredient)));
-    setLoading(false);
-  })(); }, []);
+  // Default = Hier
+  const hier = new Date();
+  hier.setDate(hier.getDate() - 1);
+  const hierStr = hier.toISOString().slice(0, 10);
+  const [timePeriod, setTimePeriod] = useState<TimePeriod | null>({ label: 'Hier', dateDebut: hierStr, dateFin: hierStr });
 
-  if (loading) return <p className="text-gray-400 p-6">Chargement...</p>;
+  // 1) Petites collections : load une seule fois (recettes 286 + PFs 842 + ingredients 203)
+  useEffect(() => {
+    (async () => {
+      const [r, p, i] = await Promise.all([
+        getDocs(collection(db, 'recettes')),
+        getDocs(collection(db, 'produitsFournisseurs')),
+        getDocs(collection(db, 'ingredients')),
+      ]);
+      setRecettes(r.docs.map(d => ({ id: d.id, ...d.data() } as Recette)));
+      setPfs(p.docs.map(d => ({ id: d.id, ...d.data() } as PF)));
+      setIngredients(i.docs.map(d => ({ id: d.id, ...d.data() } as Ingredient)));
+    })();
+  }, []);
 
-  // Dates disponibles pour le filtre
-  const availableDates = useMemo(() => {
-    const dates = new Set<string>();
-    for (const a of achats) if (a.date) dates.add(a.date.slice(0, 10));
-    for (const v of ventes) if (v.jour) dates.add(v.jour);
-    return Array.from(dates);
-  }, [achats, ventes]);
+  // 2) Achats + ventes filtrés Firestore-side par période
+  useEffect(() => {
+    (async () => {
+      setRefreshing(true);
+      if (timePeriod) {
+        const [a, v] = await Promise.all([
+          getDocs(query(
+            collection(db, 'achats'),
+            where('date', '>=', timePeriod.dateDebut),
+            where('date', '<=', timePeriod.dateFin + 'T23:59:59.999Z'),
+          )),
+          getDocs(query(
+            collection(db, 'ventes'),
+            where('jour', '>=', timePeriod.dateDebut),
+            where('jour', '<=', timePeriod.dateFin),
+          )),
+        ]);
+        setAchats(a.docs.map(d => ({ id: d.id, ...d.data() } as Achat)));
+        setVentes(v.docs.map(d => d.data() as Vente));
+      } else {
+        const [a, v] = await Promise.all([
+          getDocs(collection(db, 'achats')),
+          getDocs(collection(db, 'ventes')),
+        ]);
+        setAchats(a.docs.map(d => ({ id: d.id, ...d.data() } as Achat)));
+        setVentes(v.docs.map(d => d.data() as Vente));
+      }
+      setLoading(false);
+      setRefreshing(false);
+    })();
+  }, [timePeriod]);
 
-  // Filtrer par période
-  const achatsP = achats.filter(a => isInPeriod(a.date, timePeriod));
-  const ventesP = ventes.filter(v => {
-    const d = v.jour || v.mois;
-    return isInPeriod(d, timePeriod);
-  });
+  // Années dispos pour le filtre (3 dernières)
+  const availableDatesUI = useMemo(() => {
+    const y = new Date().getFullYear();
+    return [`${y}-01-01`, `${y - 1}-01-01`, `${y - 2}-01-01`];
+  }, []);
 
-  // Calcul théorique : pour chaque vente, parcourir la recette et accumuler les ingrédients
-  // Map: ingredientId/nom → { qteTheorique (en kg/L base), coutTheorique }
-  const theoriqueParIng = new Map<string, { nom: string; qte: number; cout: number; categorie: string }>();
+  // achats/ventes déjà filtrés Firestore-side ; client-side filter pour multi-ranges
+  const achatsP = useMemo(() => {
+    if (!timePeriod?.ranges || timePeriod.ranges.length === 0) return achats;
+    return achats.filter(a => isInPeriod(a.date, timePeriod));
+  }, [achats, timePeriod]);
+  const ventesP = useMemo(() => {
+    if (!timePeriod?.ranges || timePeriod.ranges.length === 0) return ventes;
+    return ventes.filter(v => isInPeriod(v.jour || v.mois, timePeriod));
+  }, [ventes, timePeriod]);
 
   // Trouver la recette correspondant à une vente (matching simple par nom normalisé)
   const findRecetteByNomCaisse = (nomVente: string): Recette | null => {
@@ -72,15 +103,18 @@ export default function Page() {
   };
 
   // Récupérer le PF d'un ingrédient (le plus récent)
-  const pfByIngredientId = new Map<string, PF>();
-  for (const pf of pfs) {
-    if (pf.ingredientId) {
-      const existing = pfByIngredientId.get(pf.ingredientId);
-      if (!existing || new Date(pf.updatedAt) > new Date(existing.updatedAt)) {
-        pfByIngredientId.set(pf.ingredientId, pf);
+  const pfByIngredientId = useMemo(() => {
+    const m = new Map<string, PF>();
+    for (const pf of pfs) {
+      if (pf.ingredientId) {
+        const existing = m.get(pf.ingredientId);
+        if (!existing || new Date(pf.updatedAt) > new Date(existing.updatedAt)) {
+          m.set(pf.ingredientId, pf);
+        }
       }
     }
-  }
+    return m;
+  }, [pfs]);
 
   const prixUnitPF = (pf: PF): number => {
     const qte = convertQte(pf.quantite || 1, pf.unite || 'kg');
@@ -106,59 +140,69 @@ export default function Page() {
     return result;
   };
 
-  for (const v of ventesP) {
-    const r = findRecetteByNomCaisse(v.nom);
-    if (!r) continue;
-    const expanded = expandIngredients(r, v.quantity);
-    for (const e of expanded) {
-      const pf = pfByIngredientId.get(e.ingredientId);
-      const prixU = pf ? prixUnitPF(pf) : 0;
-      const existing = theoriqueParIng.get(e.ingredientId) || { nom: e.nom, qte: 0, cout: 0, categorie: e.categorie };
-      existing.qte += e.grammage;
-      existing.cout += e.grammage * prixU;
-      theoriqueParIng.set(e.ingredientId, existing);
+  const { rows, totalTh, totalR } = useMemo(() => {
+    // Théorique : pour chaque vente, expand en ingrédients
+    const theoriqueParIng = new Map<string, { nom: string; qte: number; cout: number; categorie: string }>();
+    for (const v of ventesP) {
+      const r = findRecetteByNomCaisse(v.nom);
+      if (!r) continue;
+      const expanded = expandIngredients(r, v.quantity);
+      for (const e of expanded) {
+        const pf = pfByIngredientId.get(e.ingredientId);
+        const prixU = pf ? prixUnitPF(pf) : 0;
+        const existing = theoriqueParIng.get(e.ingredientId) || { nom: e.nom, qte: 0, cout: 0, categorie: e.categorie };
+        existing.qte += e.grammage;
+        existing.cout += e.grammage * prixU;
+        theoriqueParIng.set(e.ingredientId, existing);
+      }
     }
-  }
 
-  // Réel : agrégation des achats par ingrédient
-  const reelParIng = new Map<string, { nom: string; qte: number; cout: number; categorie: string }>();
-  for (const a of achatsP) {
-    const pf = pfs.find(p => p.id === a.pfId);
-    if (!pf) continue;
-    const ingId = pf.ingredientId || pf.id;
-    const canon = ingredients.find(x => x.id === ingId);
-    const nom = canon?.nom || pf.nom;
-    const cat = canon?.categorie || pf.categorie || 'autre';
-    const qteBase = convertQte(a.qte, pf.unite || 'kg');
-    const existing = reelParIng.get(ingId) || { nom, qte: 0, cout: 0, categorie: cat };
-    existing.qte += qteBase;
-    existing.cout += a.total;
-    reelParIng.set(ingId, existing);
-  }
+    // Réel : agrégation des achats par ingrédient
+    const reelParIng = new Map<string, { nom: string; qte: number; cout: number; categorie: string }>();
+    for (const a of achatsP) {
+      const pf = pfs.find(p => p.id === a.pfId);
+      if (!pf) continue;
+      const ingId = pf.ingredientId || pf.id;
+      const canon = ingredients.find(x => x.id === ingId);
+      const nom = canon?.nom || pf.nom;
+      const cat = canon?.categorie || pf.categorie || 'autre';
+      const qteBase = convertQte(a.qte, pf.unite || 'kg');
+      const existing = reelParIng.get(ingId) || { nom, qte: 0, cout: 0, categorie: cat };
+      existing.qte += qteBase;
+      existing.cout += a.total;
+      reelParIng.set(ingId, existing);
+    }
 
-  // Fusionner les deux maps
-  const allIds = new Set([...theoriqueParIng.keys(), ...reelParIng.keys()]);
-  const rows = [...allIds].map(id => {
-    const t = theoriqueParIng.get(id) || { nom: '', qte: 0, cout: 0, categorie: '' };
-    const r = reelParIng.get(id) || { nom: '', qte: 0, cout: 0, categorie: '' };
-    return {
-      id, nom: t.nom || r.nom, categorie: t.categorie || r.categorie,
-      qteTh: t.qte, coutTh: t.cout, qteR: r.qte, coutR: r.cout,
-      ecart: r.cout - t.cout,
-      ecartPct: t.cout > 0 ? ((r.cout - t.cout) / t.cout) * 100 : 0,
-    };
-  }).sort((a, b) => Math.max(b.coutTh, b.coutR) - Math.max(a.coutTh, a.coutR));
+    const allIds = new Set([...theoriqueParIng.keys(), ...reelParIng.keys()]);
+    const rows = [...allIds].map(id => {
+      const t = theoriqueParIng.get(id) || { nom: '', qte: 0, cout: 0, categorie: '' };
+      const r = reelParIng.get(id) || { nom: '', qte: 0, cout: 0, categorie: '' };
+      return {
+        id, nom: t.nom || r.nom, categorie: t.categorie || r.categorie,
+        qteTh: t.qte, coutTh: t.cout, qteR: r.qte, coutR: r.cout,
+        ecart: r.cout - t.cout,
+        ecartPct: t.cout > 0 ? ((r.cout - t.cout) / t.cout) * 100 : 0,
+      };
+    }).sort((a, b) => Math.max(b.coutTh, b.coutR) - Math.max(a.coutTh, a.coutR));
 
-  const totalTh = rows.reduce((s, r) => s + r.coutTh, 0);
-  const totalR = rows.reduce((s, r) => s + r.coutR, 0);
+    const totalTh = rows.reduce((s, r) => s + r.coutTh, 0);
+    const totalR = rows.reduce((s, r) => s + r.coutR, 0);
+    return { rows, totalTh, totalR };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ventesP, achatsP, recettes, pfs, ingredients, pfByIngredientId]);
+
+  if (loading) return <p className="text-gray-400 p-6">Chargement...</p>;
 
   return (
     <div className="max-w-6xl mx-auto">
-      <h1 className="text-2xl font-bold mb-6">Écarts achats / théorique</h1>
+      <div className="flex items-center gap-3 mb-6">
+        <h1 className="text-2xl font-bold">Écarts achats / théorique</h1>
+        {refreshing && <span className="text-xs text-gray-400">Actualisation…</span>}
+      </div>
 
-      <TimePeriodFilter availableDates={availableDates} value={timePeriod} onChange={setTimePeriod} />
+      <TimePeriodFilter availableDates={availableDatesUI} value={timePeriod} onChange={setTimePeriod} />
 
-      <div className="grid grid-cols-3 gap-4 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 my-6">
         <div className="bg-white rounded-xl border border-yellow-100 p-4">
           <p className="text-xs text-gray-500 mb-1">Théorique (devrait)</p>
           <p className="text-2xl font-bold">{totalTh.toFixed(0)} €</p>
@@ -173,8 +217,8 @@ export default function Page() {
         </div>
       </div>
 
-      <div className="bg-white rounded-xl border border-yellow-100 overflow-hidden">
-        <table className="w-full text-sm">
+      <div className="bg-white rounded-xl border border-yellow-100 overflow-x-auto">
+        <table className="w-full text-sm min-w-[700px]">
           <thead className="bg-yellow-50 text-gray-500 text-xs uppercase">
             <tr>
               <th className="px-4 py-3 text-left">Ingrédient</th>

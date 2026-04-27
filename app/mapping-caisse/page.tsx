@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { collection, getDocs, addDoc, deleteDoc, doc, getDoc } from 'firebase/firestore';
+import { collection, getDocs, addDoc, deleteDoc, doc, getDoc, query, where } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Recette } from '@/lib/types';
 import { CAISSE_MAP, normalizeCaisse } from '@/lib/caisseMap';
@@ -12,30 +12,43 @@ export default function MappingCaissePage() {
   const [mappings, setMappings] = useState<{ id: string; caisse: string; recette: string; original: string; recetteNom: string }[]>([]);
   const [caisseCategories, setCaisseCategories] = useState<Record<string, { nom: string; parent: string; cat: string }>>({});
   const [loading, setLoading] = useState(true);
+  const [loadingAll, setLoadingAll] = useState(false);
+  const [chargedAll, setChargedAll] = useState(false);
   const [search, setSearch] = useState('');
   const [filterNonMappé, setFilterNonMappé] = useState(true);
   const [filterCat, setFilterCat] = useState('all');
   const [saving, setSaving] = useState<string | null>(null);
 
-  const fetchAll = async () => {
-    const [vSnap, rSnap, mSnap, catDoc] = await Promise.all([
-      getDocs(collection(db, 'ventes')),
-      getDocs(collection(db, 'recettes')),
-      getDocs(collection(db, 'caisseMapCustom')),
-      getDoc(doc(db, 'config', 'caisseCategories')),
-    ]);
+  // Date 12 mois en arrière (YYYY-MM-DD)
+  const dateDebut12m = useMemo(() => {
+    const d = new Date();
+    d.setMonth(d.getMonth() - 12);
+    return d.toISOString().slice(0, 10);
+  }, []);
 
-    // Noms caisse uniques + dernier menuNom vu + prix unitaire
+  // Dédupe les ventes en (nom, menuNom, prixUnit), garde le menuNom le plus récent
+  const dedupeVentes = (docs: any[]) => {
     const nomsMap = new Map<string, { nom: string; menuNom: string; prixUnit: number }>();
-    for (const d of vSnap.docs) {
-      const data = d.data();
+    for (const data of docs) {
       const nom = data.nom;
       if (nom && !nomsMap.has(nom)) {
         const pu = data.quantity > 0 ? data.ttc / data.quantity : data.ttc || 0;
         nomsMap.set(nom, { nom, menuNom: data.menuNom || '', prixUnit: Math.round(pu * 100) / 100 });
       }
     }
-    setVentesData(Array.from(nomsMap.values()));
+    return Array.from(nomsMap.values());
+  };
+
+  // Load initial : ventes des 12 derniers mois uniquement
+  const fetchAll = async () => {
+    const [vSnap, rSnap, mSnap, catDoc] = await Promise.all([
+      getDocs(query(collection(db, 'ventes'), where('jour', '>=', dateDebut12m))),
+      getDocs(collection(db, 'recettes')),
+      getDocs(collection(db, 'caisseMapCustom')),
+      getDoc(doc(db, 'config', 'caisseCategories')),
+    ]);
+
+    setVentesData(dedupeVentes(vSnap.docs.map(d => d.data())));
     setRecettes(rSnap.docs.map(d => ({ id: d.id, ...d.data() } as Recette)));
 
     const maps = mSnap.docs.map(d => ({ id: d.id, ...d.data() } as any));
@@ -46,6 +59,15 @@ export default function MappingCaissePage() {
 
     if (catDoc.exists()) setCaisseCategories(catDoc.data() as any);
     setLoading(false);
+  };
+
+  // Load full : ventes de tous les temps (au clic du bouton)
+  const handleLoadAll = async () => {
+    setLoadingAll(true);
+    const vSnap = await getDocs(collection(db, 'ventes'));
+    setVentesData(dedupeVentes(vSnap.docs.map(d => d.data())));
+    setChargedAll(true);
+    setLoadingAll(false);
   };
 
   useEffect(() => { fetchAll(); }, []);
@@ -116,6 +138,13 @@ export default function MappingCaissePage() {
 
   const nbMappés = touches.filter(t => t.mappedTo).length;
 
+  // Refetch uniquement les mappings (pas les ventes — pas besoin)
+  const refetchMappings = async () => {
+    const mSnap = await getDocs(collection(db, 'caisseMapCustom'));
+    const maps = mSnap.docs.map(d => ({ id: d.id, ...d.data() } as any));
+    setMappings(maps);
+  };
+
   const handleMap = async (venteNom: string, recetteNom: string) => {
     if (!recetteNom) return;
     setSaving(venteNom);
@@ -130,13 +159,13 @@ export default function MappingCaissePage() {
     });
     CAISSE_MAP[caisseKey] = recetteKey;
     setSaving(null);
-    fetchAll();
+    refetchMappings();
   };
 
   const handleUnmap = async (mappingId: string, caisseKey: string) => {
     await deleteDoc(doc(db, 'caisseMapCustom', mappingId));
     delete CAISSE_MAP[caisseKey];
-    fetchAll();
+    refetchMappings();
   };
 
   if (loading) return <div className="max-w-6xl mx-auto p-6"><p className="text-gray-400">Chargement...</p></div>;
@@ -146,8 +175,17 @@ export default function MappingCaissePage() {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold">Mapping caisse</h1>
-          <p className="text-sm text-gray-400 mt-1">{nbMappés}/{touches.length} touches attribuées</p>
+          <p className="text-sm text-gray-400 mt-1">
+            {nbMappés}/{touches.length} touches attribuées
+            {!chargedAll && <span className="ml-2 text-gray-300">· 12 derniers mois</span>}
+          </p>
         </div>
+        {!chargedAll && (
+          <button onClick={handleLoadAll} disabled={loadingAll}
+            className="border border-gray-200 text-gray-600 hover:bg-gray-50 font-semibold rounded-lg px-4 py-2 text-sm">
+            {loadingAll ? 'Chargement…' : 'Voir tout l\'historique'}
+          </button>
+        )}
       </div>
 
       <div className="flex items-center gap-3 mb-4 flex-wrap">

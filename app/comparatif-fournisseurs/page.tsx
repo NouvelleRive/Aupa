@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { collection, getDocs, doc, setDoc, deleteDoc } from 'firebase/firestore';
+import { collection, getDocs, doc, setDoc, deleteDoc, query, where } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Ingredient, ProduitFournisseur, Categorie } from '@/lib/types';
 
@@ -97,10 +97,14 @@ export default function ComparatifFournisseurs() {
 
   useEffect(() => {
     (async () => {
+      // Achats des 12 derniers mois uniquement (au lieu de 20k au mount)
+      const cutoff = new Date();
+      cutoff.setFullYear(cutoff.getFullYear() - 1);
+      const cutoffStr = cutoff.toISOString().slice(0, 10);
       const [ingSnap, pfSnap, achatsSnap, panierSnap] = await Promise.all([
         getDocs(collection(db, 'ingredients')),
         getDocs(collection(db, 'produitsFournisseurs')),
-        getDocs(collection(db, 'achats')),
+        getDocs(query(collection(db, 'achats'), where('date', '>=', cutoffStr))),
         getDocs(collection(db, 'panier')),
       ]);
       const ings = ingSnap.docs.map(d => ({ id: d.id, ...d.data() } as Ingredient));
@@ -116,17 +120,12 @@ export default function ComparatifFournisseurs() {
         if ((pf as any).ingredientId) pfToIngId.set(pf.id, (pf as any).ingredientId);
       }
 
-      // Total dépensé par ingrédient sur les 12 derniers mois
-      const cutoff = new Date();
-      cutoff.setFullYear(cutoff.getFullYear() - 1);
-      const cutoffStr = cutoff.toISOString().slice(0, 10);
+      // Total dépensé par ingrédient (achats déjà filtrés Firestore-side aux 12 derniers mois)
       const depMap = new Map<string, number>();
       for (const d of achatsSnap.docs) {
-        const a = d.data() as { pfId?: string; total?: number; date?: string | { toDate: () => Date } };
+        const a = d.data() as { pfId?: string; total?: number };
         const total = a.total || 0;
         if (total <= 0 || !a.pfId) continue;
-        const dateStr = typeof a.date === 'string' ? a.date : (a.date as { toDate: () => Date })?.toDate?.()?.toISOString?.() || '';
-        if (dateStr < cutoffStr) continue;
         const ingId = pfToIngId.get(a.pfId);
         if (!ingId) continue;
         depMap.set(ingId, (depMap.get(ingId) || 0) + total);
