@@ -67,8 +67,31 @@ export default function PanierPage() {
   };
 
   const [missingByFournisseur, setMissingByFournisseur] = useState<Record<string, string[]>>({});
+  const [pushingFournisseur, setPushingFournisseur] = useState<string | null>(null);
+
+  const ouvrirFoodflow = async () => {
+    setPushingFournisseur('Foodflow');
+    try {
+      const res = await fetch('/api/foodflow/push-cart', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ replace: false }) });
+      const j = await res.json();
+      if (!j.ok) {
+        alert(`Erreur Foodflow : ${j.error}\n${j.missing?.length ? 'Produits non trouvés :\n' + j.missing.join('\n') : ''}`);
+        return;
+      }
+      const msg = `${j.pushed}/${j.total} produit(s) poussés dans Foodflow${j.deliveryDate ? ` (livraison ${j.deliveryDate})` : ''}${j.missing?.length ? `\n\nNon trouvés :\n${j.missing.join('\n')}` : ''}`;
+      alert(msg);
+      window.open('https://foodflow.com/shop', '_blank', 'noopener,noreferrer');
+    } catch (e) {
+      alert(`Erreur : ${e instanceof Error ? e.message : String(e)}`);
+    } finally {
+      setPushingFournisseur(null);
+    }
+  };
 
   const ouvrirTout = async (f: string) => {
+    if (f === 'Foodflow') return ouvrirFoodflow();
+
+    // Fallback pour Rungis / Foodomarket / autres : ouverture multi-onglets
     const itemsF = items.filter(i => i.fournisseur === f);
     const avecUrl = itemsF.filter(i => i.url);
     const sansUrl = itemsF.filter(i => !i.url);
@@ -185,9 +208,10 @@ export default function PanierPage() {
                 <div className="flex gap-2">
                   <button
                     onClick={() => ouvrirTout(g.fournisseur)}
-                    className={`flex-1 ${couleur.btn} text-white rounded-lg px-3 py-2 text-sm font-semibold`}
+                    disabled={pushingFournisseur === g.fournisseur}
+                    className={`flex-1 ${couleur.btn} text-white rounded-lg px-3 py-2 text-sm font-semibold disabled:opacity-50`}
                   >
-                    Ouvrir dans {g.fournisseur}
+                    {pushingFournisseur === g.fournisseur ? 'Envoi...' : `Ouvrir dans ${g.fournisseur}`}
                   </button>
                   <button
                     onClick={() => viderFournisseur(g.fournisseur)}
