@@ -92,8 +92,29 @@ export default function PanierPage() {
     }
   };
 
+  const ouvrirFoodomarket = async () => {
+    setPushingFournisseur('Foodomarket');
+    const tab = window.open('https://shop.foodomarket.com/marketplace-v2/new-catalog', '_blank', 'noopener,noreferrer');
+    try {
+      const res = await fetch('/api/foodomarket/push-cart', { method: 'POST' });
+      const j = await res.json();
+      if (!j.ok) {
+        setPushResult(prev => ({ ...prev, Foodomarket: { ok: false, msg: `${j.error}${j.missing?.length ? ' — ' + j.missing.join(', ') : ''}` } }));
+        if (tab) tab.close();
+        return;
+      }
+      const msg = `${j.pushed}/${j.total} produit(s) poussés${j.missing?.length ? ` — non poussés : ${j.missing.join(', ')}` : ''}`;
+      setPushResult(prev => ({ ...prev, Foodomarket: { ok: true, msg } }));
+    } catch (e) {
+      setPushResult(prev => ({ ...prev, Foodomarket: { ok: false, msg: e instanceof Error ? e.message : String(e) } }));
+    } finally {
+      setPushingFournisseur(null);
+    }
+  };
+
   const ouvrirTout = async (f: string) => {
     if (f === 'Foodflow') return ouvrirFoodflow();
+    if (f === 'Foodomarket') return ouvrirFoodomarket();
 
     // Fallback pour Rungis / Foodomarket / autres : ouverture multi-onglets
     const itemsF = items.filter(i => i.fournisseur === f);
