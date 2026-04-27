@@ -224,6 +224,12 @@ function findPlainPart(part: any): any {
   return null;
 }
 
+function findHtmlPart(part: any): any {
+  if (part.mimeType === 'text/html') return part;
+  if (part.parts) for (const sub of part.parts) { const r = findHtmlPart(sub); if (r) return r; }
+  return null;
+}
+
 function decodeBase64Url(data: string): Buffer {
   return Buffer.from(data.replace(/-/g, '+').replace(/_/g, '/'), 'base64');
 }
@@ -232,6 +238,43 @@ function extractBodyText(part: any): string {
   if (part.body?.data) return decodeBase64Url(part.body.data).toString('utf-8');
   if (part.parts) for (const sub of part.parts) { const t = extractBodyText(sub); if (t) return t; }
   return '';
+}
+
+function decodeHtmlEntities(s: string): string {
+  return s
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&apos;/g, "'")
+    .replace(/&#0?39;/g, "'")
+    .replace(/&#(\d+);/g, (_, n) => String.fromCodePoint(parseInt(n, 10)))
+    .replace(/&#x([0-9a-f]+);/gi, (_, n) => String.fromCodePoint(parseInt(n, 16)));
+}
+
+// Popina envoie désormais le rapport en HTML uniquement (plus de text/plain).
+// On reconstruit un texte tabulé compatible avec parseRecapPopina à partir des
+// <tr><td>...</td></tr> du HTML.
+function htmlToTabbedRows(html: string): string {
+  const out: string[] = [];
+  const h1 = html.match(/<h1[^>]*>([\s\S]*?)<\/h1>/i);
+  if (h1) out.push(decodeHtmlEntities(h1[1].replace(/<[^>]+>/g, '')).trim());
+  const trRegex = /<tr[^>]*>([\s\S]*?)<\/tr>/gi;
+  let m;
+  while ((m = trRegex.exec(html)) !== null) {
+    const cells: string[] = [];
+    const cellRegex = /<t[hd][^>]*>([\s\S]*?)<\/t[hd]>/gi;
+    let c;
+    while ((c = cellRegex.exec(m[1])) !== null) {
+      const text = decodeHtmlEntities(
+        c[1].replace(/<[^>]+>/g, '').replace(/\s+/g, ' '),
+      ).trim();
+      cells.push(text);
+    }
+    if (cells.some((x) => x.length > 0)) out.push(cells.join('\t'));
+  }
+  return out.join('\n');
 }
 
 function findPdfAttachments(part: any, acc: { filename: string; attachmentId: string }[] = []): { filename: string; attachmentId: string }[] {
@@ -303,7 +346,14 @@ export async function GET() {
 
         if (source === 'popina') {
           const plain = findPlainPart(full.data.payload);
-          const body = plain ? extractBodyText(plain) : extractBodyText(full.data.payload);
+          let body = '';
+          if (plain) {
+            body = extractBodyText(plain);
+          } else {
+            const htmlPart = findHtmlPart(full.data.payload);
+            if (htmlPart) body = htmlToTabbedRows(extractBodyText(htmlPart));
+            else body = extractBodyText(full.data.payload);
+          }
           if (!body) continue;
           const rapport = parseRecapPopina(body);
           const { articles, date } = rapport;
