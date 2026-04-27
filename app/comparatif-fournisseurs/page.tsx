@@ -433,11 +433,11 @@ export default function ComparatifFournisseurs() {
                       return (
                         <div>
                           {pfRef?.url ? (
-                            <a href={pfRef.url} target="_blank" rel="noopener noreferrer" className="block text-xs text-gray-600 truncate max-w-[160px] hover:text-yellow-600 hover:underline" title={nom}>
+                            <a href={pfRef.url} target="_blank" rel="noopener noreferrer" className="block text-xs text-gray-600 hover:text-yellow-600 hover:underline" title={nom}>
                               {nom}
                             </a>
                           ) : (
-                            <div className="text-xs text-gray-600 truncate max-w-[160px]" title={nom}>{nom}</div>
+                            <div className="text-xs text-gray-600" title={nom}>{nom}</div>
                           )}
                           <span className={`text-xs px-2 py-0.5 rounded-full ${FOURNISSEURS_COULEURS[l.fournisseurActuel] || 'bg-gray-100 text-gray-600'}`}>
                             {l.fournisseurActuel}
