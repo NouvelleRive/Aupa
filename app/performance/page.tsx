@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useCallback, useRef, useState } from 'react';
-import { collection, getDocs, addDoc } from 'firebase/firestore';
+import { collection, getDocs, addDoc, query, where } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { CAISSE_MAP, normalizeCaisse } from '@/lib/caisseMap';
 import { MenuDoc } from '@/lib/menuTypes';
@@ -57,21 +57,41 @@ export default function PerformancePage() {
   const [timePeriod, setTimePeriod] = useState<TimePeriod | null>({ label: 'Hier', dateDebut: hierStr, dateFin: hierStr });
   const [loading, setLoading] = useState(true);
 
+  // 1) Petites collections : chargées une seule fois au mount
   useEffect(() => {
     (async () => {
-      const [rSnap, vSnap, recSnap, mSnap] = await Promise.all([
+      const [rSnap, recSnap, mSnap] = await Promise.all([
         getDocs(collection(db, 'rapportsJournaliers')),
-        getDocs(collection(db, 'ventes')),
         getDocs(collection(db, 'recettes')),
         getDocs(collection(db, 'menus')),
       ]);
       setRapports(rSnap.docs.map(d => d.data() as Rapport));
-      setVentes(vSnap.docs.map(d => d.data() as Vente));
       setRecettes(recSnap.docs.map(d => ({ id: d.id, ...d.data() } as Recette)));
       setMenus(mSnap.docs.map(d => ({ id: d.id, ...d.data() } as MenuDoc)));
-      setLoading(false);
     })();
   }, []);
+
+  // 2) Ventes : refetch à chaque changement de période (lecture filtrée Firestore)
+  const [refreshing, setRefreshing] = useState(false);
+  useEffect(() => {
+    (async () => {
+      setRefreshing(true);
+      let snap;
+      if (timePeriod) {
+        snap = await getDocs(query(
+          collection(db, 'ventes'),
+          where('jour', '>=', timePeriod.dateDebut),
+          where('jour', '<=', timePeriod.dateFin),
+        ));
+      } else {
+        // "Tout" sélectionné explicitement → on accepte la lecture complète
+        snap = await getDocs(collection(db, 'ventes'));
+      }
+      setVentes(snap.docs.map(d => d.data() as Vente));
+      setLoading(false);
+      setRefreshing(false);
+    })();
+  }, [timePeriod]);
 
   // Map nom → coût unitaire (food cost) pour les calculs de marge
   const coutParNom = useMemo(() => {
@@ -82,22 +102,23 @@ export default function PerformancePage() {
     return m;
   }, [recettes]);
 
-  // Dates disponibles pour le filtre (rapports + ventes)
+  // Dates disponibles pour le filtre (3 dernières années + dates des rapports déjà chargés)
   const availableDates = useMemo(() => {
-    const dates = new Set(rapports.map(r => r.date));
-    for (const v of ventes) {
-      if (v.jour) dates.add(v.jour);
-    }
+    const y = new Date().getFullYear();
+    const dates = new Set<string>([`${y}-01-01`, `${y - 1}-01-01`, `${y - 2}-01-01`]);
+    for (const r of rapports) if (r.date) dates.add(r.date);
     return Array.from(dates);
-  }, [rapports, ventes]);
+  }, [rapports]);
 
   const rapportsFiltrés = useMemo(() => {
     if (!timePeriod) return rapports;
     return rapports.filter(r => isInPeriod(r.date, timePeriod));
   }, [rapports, timePeriod]);
 
+  // Ventes déjà filtrées Firestore-side, on garde un client-side filter
+  // uniquement pour le cas multi-ranges (mois non contigus)
   const ventesFiltrées = useMemo(() => {
-    if (!timePeriod) return ventes;
+    if (!timePeriod || !timePeriod.ranges || timePeriod.ranges.length === 0) return ventes;
     return ventes.filter(v => isInPeriod(v.jour || v.mois, timePeriod));
   }, [ventes, timePeriod]);
 
@@ -111,10 +132,19 @@ export default function PerformancePage() {
     return { label: 'N-1', dateDebut: shift(timePeriod.dateDebut), dateFin: shift(timePeriod.dateFin) };
   }, [timePeriod]);
 
-  const ventesN1 = useMemo(() => {
-    if (!periodN1) return [];
-    return ventes.filter(v => isInPeriod(v.jour || v.mois, periodN1));
-  }, [ventes, periodN1]);
+  // N-1 : query Firestore séparée
+  const [ventesN1, setVentesN1] = useState<Vente[]>([]);
+  useEffect(() => {
+    (async () => {
+      if (!periodN1) { setVentesN1([]); return; }
+      const snap = await getDocs(query(
+        collection(db, 'ventes'),
+        where('jour', '>=', periodN1.dateDebut),
+        where('jour', '<=', periodN1.dateFin),
+      ));
+      setVentesN1(snap.docs.map(d => d.data() as Vente));
+    })();
+  }, [periodN1]);
 
   const caNMoins1 = useMemo((): number | null => {
     if (ventesN1.length === 0) return null;
@@ -268,7 +298,10 @@ export default function PerformancePage() {
   return (
     <div className="max-w-6xl mx-auto p-6 space-y-6">
 
-      <h1 className="text-2xl font-bold">Performance</h1>
+      <div className="flex items-center gap-3">
+        <h1 className="text-2xl font-bold">Performance</h1>
+        {refreshing && <span className="text-xs text-gray-400">Actualisation…</span>}
+      </div>
 
       <TimePeriodFilter
         availableDates={availableDates}

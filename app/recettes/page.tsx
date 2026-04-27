@@ -350,10 +350,6 @@ export default function RecettesPage() {
     if (unite === 'cL') return val / 100;
     return val;
   };
-  // Unité par défaut = celle définie sur l'ingrédient
-  const defaultUnite = (ingUnite: string): string => {
-    return ingUnite || 'kg';
-  };
   // Unités compatibles : on ne peut choisir que les sous-unités de l'unité définie sur le PF
   const unitesCompatibles = (baseUnite: string): string[] => {
     const u = baseUnite || 'kg';
@@ -487,8 +483,7 @@ export default function RecettesPage() {
         continue;
       }
       if (i.ingredientId && ingredients.find(x => x.id === i.ingredientId)) {
-        const ing = ingredients.find(x => x.id === i.ingredientId)!;
-        const u = defaultUnite(ing.unite);
+        const u = getPrixProduitFournisseur(i.ingredientId).unite;
         resolvedLignes.push({ type: 'ingredient', id: i.ingredientId, grammage: String(toDisplay(i.grammage, u)), unite: u });
         continue;
       }
@@ -500,7 +495,7 @@ export default function RecettesPage() {
         }
         const canonique = ingredients.find(x => x.nom === i.nomIngredient);
         if (canonique) {
-          const u = defaultUnite(canonique.unite);
+          const u = getPrixProduitFournisseur(canonique.id).unite;
           resolvedLignes.push({ type: 'ingredient', id: canonique.id, grammage: String(toDisplay(i.grammage, u)), unite: u });
           continue;
         }
@@ -639,13 +634,13 @@ export default function RecettesPage() {
 
   return (
     <div className="max-w-6xl mx-auto">
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold">Recettes</h1>
-        <div className="flex gap-3">
-          <button disabled={updating} onClick={async () => { setUpdating(true); await recalculerTousLesCouts(); await fetchAll(); setUpdating(false); }} className="border border-gray-200 text-gray-600 hover:bg-gray-50 font-semibold rounded-lg px-4 py-2 text-sm">
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-4 sm:mb-6">
+        <h1 className="text-xl sm:text-2xl font-bold">Recettes</h1>
+        <div className="flex flex-wrap gap-2 sm:gap-3">
+          <button disabled={updating} onClick={async () => { setUpdating(true); await recalculerTousLesCouts(); await fetchAll(); setUpdating(false); }} className="border border-gray-200 text-gray-600 hover:bg-gray-50 font-semibold rounded-lg px-3 sm:px-4 py-2 text-xs sm:text-sm">
             {updating ? 'Mise à jour...' : 'Mettre à jour'}
           </button>
-<button onClick={() => { if (!showForm) window.history.pushState({ editing: true }, ''); setShowForm(!showForm); setEditId(null); setForm(emptyForm); setLignes([]); }} className="bg-yellow-400 hover:bg-yellow-500 text-black font-semibold rounded-lg px-4 py-2 text-sm">
+<button onClick={() => { if (!showForm) window.history.pushState({ editing: true }, ''); setShowForm(!showForm); setEditId(null); setForm(emptyForm); setLignes([]); }} className="bg-yellow-400 hover:bg-yellow-500 text-black font-semibold rounded-lg px-3 sm:px-4 py-2 text-xs sm:text-sm">
             + Nouvelle recette
           </button>
         </div>
@@ -703,7 +698,7 @@ export default function RecettesPage() {
             <div className="flex items-center justify-between mb-2">
               <span className="text-sm font-medium text-gray-700">Ingrédients & Préparations</span>
               <div className="flex gap-2">
-                <button onClick={() => { const ing = ingredients[0]; const u = ing ? defaultUnite(ing.unite) : 'kg'; setLignes([...lignes, { type: 'ingredient', id: ing?.id || '', grammage: '', unite: u }]); }} className="text-xs border border-yellow-200 hover:bg-yellow-50 rounded px-2 py-1">+ Ingrédient</button>
+                <button onClick={() => { const ing = ingredients[0]; const u = ing ? getPrixProduitFournisseur(ing.id).unite : 'kg'; setLignes([...lignes, { type: 'ingredient', id: ing?.id || '', grammage: '', unite: u }]); }} className="text-xs border border-yellow-200 hover:bg-yellow-50 rounded px-2 py-1">+ Ingrédient</button>
                 <button onClick={() => {
                   const preps = recettes.filter(r => r.categorie === 'Préparations');
                   setLignes([...lignes, { type: 'preparation', id: preps[0]?.id || '', grammage: '' }]);
@@ -728,7 +723,7 @@ export default function RecettesPage() {
                   : null;
                 return (
                   <div key={i} className="flex gap-2 items-center">
-                    <select className="border border-yellow-200 rounded-lg px-3 py-2 text-sm flex-1" value={ligne.id} onChange={e => { const n = [...lignes]; n[i].id = e.target.value; const isPrep = !!recettes.find(r => r.id === e.target.value); n[i].type = isPrep ? 'preparation' : 'ingredient'; if (!isPrep) { const newIng = ingredients.find(x => x.id === e.target.value); n[i].unite = newIng ? defaultUnite(newIng.unite) : 'kg'; } else { n[i].unite = 'kg'; } setLignes(n); }}>
+                    <select className="border border-yellow-200 rounded-lg px-3 py-2 text-sm flex-1" value={ligne.id} onChange={e => { const n = [...lignes]; n[i].id = e.target.value; const isPrep = !!recettes.find(r => r.id === e.target.value); n[i].type = isPrep ? 'preparation' : 'ingredient'; if (!isPrep) { n[i].unite = getPrixProduitFournisseur(e.target.value).unite; } else { n[i].unite = 'kg'; } setLignes(n); }}>
                       <optgroup label="Ingrédients">
                         {ingredients.slice().sort((a, b) => a.nom.localeCompare(b.nom, 'fr', { sensitivity: 'base' })).map(ing => <option key={ing.id} value={ing.id}>{ing.nom}</option>)}
                       </optgroup>
@@ -738,7 +733,7 @@ export default function RecettesPage() {
                     </select>
                     <input className="border border-yellow-200 rounded-lg px-3 py-2 text-sm w-24" placeholder="Qté" type="number" value={ligne.grammage} onChange={e => { const n = [...lignes]; n[i].grammage = e.target.value; setLignes(n); }} />
                     <select className="text-xs text-gray-500 w-10 border-none bg-transparent cursor-pointer" value={ligne.unite || 'kg'} onChange={e => { const n = [...lignes]; n[i].unite = e.target.value; setLignes(n); }}>
-                      {unitesCompatibles(ligne.type === 'ingredient' ? (ingredients.find(x => x.id === ligne.id)?.unite || 'kg') : 'kg').map((u: string) => <option key={u} value={u}>{u}</option>)}
+                      {unitesCompatibles(ligne.type === 'ingredient' ? getPrixProduitFournisseur(ligne.id).unite : 'kg').map((u: string) => <option key={u} value={u}>{u}</option>)}
                     </select>
                     <span className="text-xs text-gray-400 w-20 text-right">{prixLabel || ''}</span>
                     <span className="text-xs font-semibold text-yellow-600 w-16 text-right">{coutLigne > 0 ? coutLigne.toFixed(3) + ' €' : ''}</span>
@@ -774,18 +769,18 @@ export default function RecettesPage() {
     
       )}
 
-      <div className="flex gap-3 mb-4 flex-wrap items-center">
-        <input className="border border-yellow-200 focus:border-yellow-400 focus:outline-none rounded-lg px-3 py-2 text-sm w-64" placeholder="Rechercher..." value={search} onChange={e => setSearch(e.target.value)} />
-        <select className="border border-yellow-200 focus:border-yellow-400 focus:outline-none rounded-lg px-3 py-2 text-sm" value={filterCat} onChange={e => setFilterCat(e.target.value)}>
+      <div className="flex gap-2 sm:gap-3 mb-4 flex-wrap items-center">
+        <input className="border border-yellow-200 focus:border-yellow-400 focus:outline-none rounded-lg px-3 py-2 text-sm w-full sm:w-64 min-w-0" placeholder="Rechercher..." value={search} onChange={e => setSearch(e.target.value)} />
+        <select className="border border-yellow-200 focus:border-yellow-400 focus:outline-none rounded-lg px-3 py-2 text-sm flex-1 sm:flex-initial min-w-0" value={filterCat} onChange={e => setFilterCat(e.target.value)}>
           <option value="all">Toutes catégories</option>
           {CATEGORIES.map(c => <option key={c}>{c}</option>)}
         </select>
-        <select className="border border-yellow-200 focus:border-yellow-400 focus:outline-none rounded-lg px-3 py-2 text-sm" value={filterType} onChange={e => setFilterType(e.target.value)}>
+        <select className="border border-yellow-200 focus:border-yellow-400 focus:outline-none rounded-lg px-3 py-2 text-sm flex-1 sm:flex-initial min-w-0" value={filterType} onChange={e => setFilterType(e.target.value)}>
           <option value="all">Food & Boisson</option>
           <option value="food">Food</option>
           <option value="boisson">Boisson</option>
         </select>
-        <select className="border border-yellow-200 focus:border-yellow-400 focus:outline-none rounded-lg px-3 py-2 text-sm" value={filterMenu} onChange={e => setFilterMenu(e.target.value)}>
+        <select className="border border-yellow-200 focus:border-yellow-400 focus:outline-none rounded-lg px-3 py-2 text-sm flex-1 sm:flex-initial min-w-0" value={filterMenu} onChange={e => setFilterMenu(e.target.value)}>
           <option value="all">Toutes les cartes</option>
           {[...menus].sort((a, b) => (b.dateDebut || '9999-99-99').localeCompare(a.dateDebut || '9999-99-99')).map(m => <option key={m.id} value={m.id}>{m.nom}</option>)}
         </select>
@@ -842,15 +837,15 @@ export default function RecettesPage() {
         const food = calcFC('food');
         const boisson = calcFC('boisson');
         return (
-          <div className="grid grid-cols-2 gap-4 mb-4">
-            <div className="bg-white rounded-xl border border-yellow-100 p-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 mb-4">
+            <div className="bg-white rounded-xl border border-yellow-100 p-3 sm:p-4">
               <div className="text-xs text-gray-500 uppercase mb-1">Food cost Food</div>
-              <div className={`text-2xl font-bold ${food.fc > 32 ? 'text-red-500' : 'text-gray-900'}`}>{food.fc > 0 ? food.fc.toFixed(1) + '%' : '—'}</div>
+              <div className={`text-xl sm:text-2xl font-bold ${food.fc > 32 ? 'text-red-500' : 'text-gray-900'}`}>{food.fc > 0 ? food.fc.toFixed(1) + '%' : '—'}</div>
               <div className="text-xs text-gray-400 mt-1">{food.count} recettes avec coût | Marge : {food.totalHT > 0 ? (food.totalHT - food.totalCout).toFixed(0) + ' €' : '—'}</div>
             </div>
-            <div className="bg-white rounded-xl border border-blue-100 p-4">
+            <div className="bg-white rounded-xl border border-blue-100 p-3 sm:p-4">
               <div className="text-xs text-gray-500 uppercase mb-1">Food cost Boisson</div>
-              <div className={`text-2xl font-bold ${boisson.fc > 20 ? 'text-red-500' : 'text-gray-900'}`}>{boisson.fc > 0 ? boisson.fc.toFixed(1) + '%' : '—'}</div>
+              <div className={`text-xl sm:text-2xl font-bold ${boisson.fc > 20 ? 'text-red-500' : 'text-gray-900'}`}>{boisson.fc > 0 ? boisson.fc.toFixed(1) + '%' : '—'}</div>
               <div className="text-xs text-gray-400 mt-1">{boisson.count} boissons avec coût | Marge : {boisson.totalHT > 0 ? (boisson.totalHT - boisson.totalCout).toFixed(0) + ' €' : '—'}</div>
             </div>
           </div>
@@ -858,8 +853,8 @@ export default function RecettesPage() {
       })()}
 
       {loading ? <p className="text-gray-400">Chargement...</p> : (
-        <div className="bg-white rounded-xl border border-yellow-100 overflow-hidden">
-          <table className="w-full text-sm">
+        <div className="bg-white rounded-xl border border-yellow-100 overflow-x-auto">
+          <table className="w-full text-sm min-w-[900px]">
             <thead className="bg-yellow-50 text-gray-500 text-xs uppercase">
               <tr>
                 <th className="px-4 py-3 text-center w-8">
@@ -978,7 +973,7 @@ export default function RecettesPage() {
                         <div className="flex items-center justify-between mb-2">
                           <span className="text-sm font-medium text-gray-700">Ingrédients & Préparations</span>
                           <div className="flex gap-2">
-                            <button onClick={() => { const ing = ingredients[0]; const u = ing ? defaultUnite(ing.unite) : 'kg'; setLignes([...lignes, { type: 'ingredient', id: ing?.id || '', grammage: '', unite: u }]); }} className="text-xs border border-yellow-200 hover:bg-yellow-50 rounded px-2 py-1">+ Ingrédient</button>
+                            <button onClick={() => { const ing = ingredients[0]; const u = ing ? getPrixProduitFournisseur(ing.id).unite : 'kg'; setLignes([...lignes, { type: 'ingredient', id: ing?.id || '', grammage: '', unite: u }]); }} className="text-xs border border-yellow-200 hover:bg-yellow-50 rounded px-2 py-1">+ Ingrédient</button>
                             <button onClick={() => { const preps = recettes.filter(r2 => r2.categorie === 'Préparations'); setLignes([...lignes, { type: 'preparation', id: preps[0]?.id || '', grammage: '' }]); }} className="text-xs border border-yellow-200 hover:bg-yellow-50 rounded px-2 py-1">+ Préparation</button>
                           </div>
                         </div>
@@ -992,7 +987,7 @@ export default function RecettesPage() {
                             const prixLabel = ligne.type === 'ingredient' && pfData.prix > 0 ? `${pfData.prix.toFixed(2)} €/${pfData.unite}` : ligne.type === 'preparation' && prep?.coutAuKg ? `${prep.coutAuKg.toFixed(2)} €/kg` : null;
                             return (
                               <div key={i} className="flex gap-2 items-center">
-                                <select className="border border-yellow-200 rounded-lg px-3 py-2 text-sm flex-1" value={ligne.id} onChange={e => { const n = [...lignes]; n[i].id = e.target.value; const isPrep = !!recettes.find(r2 => r2.id === e.target.value); n[i].type = isPrep ? 'preparation' : 'ingredient'; if (!isPrep) { const newIng = ingredients.find(x => x.id === e.target.value); n[i].unite = newIng ? defaultUnite(newIng.unite) : 'kg'; } else { n[i].unite = 'kg'; } setLignes(n); }}>
+                                <select className="border border-yellow-200 rounded-lg px-3 py-2 text-sm flex-1" value={ligne.id} onChange={e => { const n = [...lignes]; n[i].id = e.target.value; const isPrep = !!recettes.find(r2 => r2.id === e.target.value); n[i].type = isPrep ? 'preparation' : 'ingredient'; if (!isPrep) { n[i].unite = getPrixProduitFournisseur(e.target.value).unite; } else { n[i].unite = 'kg'; } setLignes(n); }}>
                                   <optgroup label="Ingrédients">
                                     {ingredients.slice().sort((a, b) => a.nom.localeCompare(b.nom, 'fr', { sensitivity: 'base' })).map(ing => <option key={ing.id} value={ing.id}>{ing.nom}</option>)}
                                   </optgroup>
@@ -1002,7 +997,7 @@ export default function RecettesPage() {
                                 </select>
                                 <input className="border border-yellow-200 rounded-lg px-3 py-2 text-sm w-24" placeholder="Qté" type="number" value={ligne.grammage} onChange={e => { const n = [...lignes]; n[i].grammage = e.target.value; setLignes(n); }} />
                                 <select className="text-xs text-gray-500 w-10 border-none bg-transparent cursor-pointer" value={ligne.unite || 'kg'} onChange={e => { const n = [...lignes]; n[i].unite = e.target.value; setLignes(n); }}>
-                                  {unitesCompatibles(ligne.type === 'ingredient' ? (ingredients.find(x => x.id === ligne.id)?.unite || 'kg') : 'kg').map((u: string) => <option key={u} value={u}>{u}</option>)}
+                                  {unitesCompatibles(ligne.type === 'ingredient' ? getPrixProduitFournisseur(ligne.id).unite : 'kg').map((u: string) => <option key={u} value={u}>{u}</option>)}
                                 </select>
                                 <span className="text-xs text-gray-400 w-20 text-right">{prixLabel || ''}</span>
                                 <span className="text-xs font-semibold text-yellow-600 w-16 text-right">{coutLigne > 0 ? coutLigne.toFixed(3) + ' €' : ''}</span>

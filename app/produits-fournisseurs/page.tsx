@@ -1070,19 +1070,19 @@
 
     return (
         <div className="max-w-7xl mx-auto">
-        <div className="flex items-center justify-between mb-6">
-            <h1 className="text-2xl font-bold">Produits fournisseur</h1>
-            <div className="flex gap-3">
-            <button disabled={importing} onClick={async () => { setImporting(true); setImportProgress('Mise à jour...'); await recalculerTousLesCouts(); await fetchIngredients(); setImporting(false); setImportProgress(''); }} className="border border-gray-200 text-gray-600 hover:bg-gray-50 font-semibold rounded-lg px-4 py-2 text-sm">
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-4 sm:mb-6">
+            <h1 className="text-xl sm:text-2xl font-bold">Produits fournisseur</h1>
+            <div className="flex flex-wrap gap-2 sm:gap-3">
+            <button disabled={importing} onClick={async () => { setImporting(true); setImportProgress('Mise à jour...'); await recalculerTousLesCouts(); await fetchIngredients(); setImporting(false); setImportProgress(''); }} className="border border-gray-200 text-gray-600 hover:bg-gray-50 font-semibold rounded-lg px-3 sm:px-4 py-2 text-xs sm:text-sm">
                 Mettre à jour
             </button>
-            <button onClick={() => { setShowForm(!showForm); setForm(emptyForm); }} className="border border-gray-200 text-gray-600 hover:bg-gray-50 font-semibold rounded-lg px-4 py-2 text-sm">
+            <button onClick={() => { setShowForm(!showForm); setForm(emptyForm); }} className="border border-gray-200 text-gray-600 hover:bg-gray-50 font-semibold rounded-lg px-3 sm:px-4 py-2 text-xs sm:text-sm">
                 + Ajouter manuellement
             </button>
             <div className="relative">
               <select
                 disabled={importing}
-                className="border border-yellow-400 text-yellow-600 hover:bg-yellow-50 font-semibold rounded-lg px-4 py-2 text-sm appearance-none cursor-pointer pr-8"
+                className="border border-yellow-400 text-yellow-600 hover:bg-yellow-50 font-semibold rounded-lg px-3 sm:px-4 py-2 text-xs sm:text-sm appearance-none cursor-pointer pr-8"
                 value=""
                 onChange={e => {
                   const v = e.target.value;
@@ -1156,26 +1156,28 @@
             </div>
         )}
 
-        <input className="border border-yellow-200 focus:border-yellow-400 focus:outline-none rounded-lg px-3 py-2 text-sm mb-4 w-64" placeholder="Rechercher..." value={search} onChange={e => setSearch(e.target.value)} />
+        <div className="flex flex-wrap items-center gap-2 mb-4">
+        <input className="border border-yellow-200 focus:border-yellow-400 focus:outline-none rounded-lg px-3 py-2 text-sm w-full sm:w-64 min-w-0" placeholder="Rechercher..." value={search} onChange={e => setSearch(e.target.value)} />
 
-        <select className="border border-yellow-200 focus:border-yellow-400 focus:outline-none rounded-lg px-3 py-2 text-sm mb-4" value={filterCategorie} onChange={e => setFilterCategorie(e.target.value)}>
+        <select className="border border-yellow-200 focus:border-yellow-400 focus:outline-none rounded-lg px-3 py-2 text-sm flex-1 sm:flex-initial min-w-0" value={filterCategorie} onChange={e => setFilterCategorie(e.target.value)}>
             <option value="all">Toutes catégories</option>
             {CATEGORIES.map(c => <option key={c}>{c}</option>)}
             </select>
 
-            <select className="border border-yellow-200 focus:border-yellow-400 focus:outline-none rounded-lg px-3 py-2 text-sm mb-4" value={filterFournisseur} onChange={e => setFilterFournisseur(e.target.value)}>
+            <select className="border border-yellow-200 focus:border-yellow-400 focus:outline-none rounded-lg px-3 py-2 text-sm flex-1 sm:flex-initial min-w-0" value={filterFournisseur} onChange={e => setFilterFournisseur(e.target.value)}>
             <option value="all">Tous fournisseurs</option>
             {FOURNISSEURS.map(f => <option key={f} value={f}>{f}</option>)}
             </select>
 
-            <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer ml-2">
+            <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
             <input type="checkbox" checked={filterNonLie} onChange={e => setFilterNonLie(e.target.checked)} className="accent-yellow-400" />
             Non liés seulement
             </label>
+        </div>
 
         {loading ? <p className="text-gray-400">Chargement...</p> : (
-            <div className="bg-white rounded-xl border border-yellow-100 overflow-hidden">
-            <table className="w-full text-sm">
+            <div className="bg-white rounded-xl border border-yellow-100 overflow-x-auto">
+            <table className="w-full text-sm min-w-[1100px]">
                 <thead className="bg-yellow-50 text-gray-500 text-xs uppercase">
                 <tr>
                     <th className="px-3 py-3 text-left w-[30%]">Nom</th>

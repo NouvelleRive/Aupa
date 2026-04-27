@@ -298,18 +298,18 @@ export default function IngredientsPage() {
 
   return (
     <div className="max-w-7xl mx-auto">
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold">Ingrédients</h1>
-        <div className="flex gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-4 sm:mb-6">
+        <h1 className="text-xl sm:text-2xl font-bold">Ingrédients</h1>
+        <div className="flex flex-wrap gap-2 sm:gap-3">
           {tab === 'bruts' && (
             <>
               <button disabled={updating} onClick={async () => { setUpdating(true); await recalculerTousLesCouts(); await fetchAll(); setUpdating(false); }}
-                className="border border-gray-200 text-gray-600 hover:bg-gray-50 font-semibold rounded-lg px-4 py-2 text-sm">
+                className="border border-gray-200 text-gray-600 hover:bg-gray-50 font-semibold rounded-lg px-3 sm:px-4 py-2 text-xs sm:text-sm">
                 {updating ? 'Mise à jour...' : 'Mettre à jour'}
               </button>
               <button
                 onClick={() => { setShowAddRow(true); setAddForm({ nom: '', categorie: 'épicerie salée' }); }}
-                className="bg-yellow-400 hover:bg-yellow-500 text-black font-semibold rounded-lg px-4 py-2 text-sm"
+                className="bg-yellow-400 hover:bg-yellow-500 text-black font-semibold rounded-lg px-3 sm:px-4 py-2 text-xs sm:text-sm"
               >
                 + Ajouter
               </button>
@@ -338,28 +338,28 @@ export default function IngredientsPage() {
         </button>
       </div>
 
-      <div className="flex items-center gap-2 mb-4">
+      <div className="flex flex-wrap items-center gap-2 mb-4">
         <input
-          className="border border-yellow-200 focus:border-yellow-400 focus:outline-none rounded-lg px-3 py-2 text-sm w-64"
+          className="border border-yellow-200 focus:border-yellow-400 focus:outline-none rounded-lg px-3 py-2 text-sm w-full sm:w-64 min-w-0"
           placeholder="Rechercher..."
           value={search}
           onChange={e => setSearch(e.target.value)}
         />
         {tab === 'bruts' && (
           <>
-            <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer ml-2">
+            <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
               <input type="checkbox" checked={filterSansPrix} onChange={e => setFilterSansPrix(e.target.checked)} className="accent-yellow-400" />
               Sans prix
             </label>
-            <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer ml-2">
+            <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
               <input type="checkbox" checked={filterSansRecette} onChange={e => setFilterSansRecette(e.target.checked)} className="accent-yellow-400" />
               Sans recette
             </label>
-            <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer ml-2">
+            <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
               <input type="checkbox" checked={filterSansRef} onChange={e => setFilterSansRef(e.target.checked)} className="accent-yellow-400" />
               Sans PF de réf
             </label>
-            <select className="border border-yellow-200 focus:border-yellow-400 focus:outline-none rounded-lg px-3 py-2 text-sm ml-2" value={tri} onChange={e => setTri(e.target.value as any)}>
+            <select className="border border-yellow-200 focus:border-yellow-400 focus:outline-none rounded-lg px-3 py-2 text-sm flex-1 sm:flex-initial min-w-0" value={tri} onChange={e => setTri(e.target.value as any)}>
               <option value="defaut">Tri : catégorie</option>
               <option value="prix">Tri : plus chers</option>
               <option value="recettes">Tri : plus utilisés</option>
@@ -367,7 +367,7 @@ export default function IngredientsPage() {
           </>
         )}
         {tab === 'preparations' && (
-          <select className="border border-yellow-200 focus:border-yellow-400 focus:outline-none rounded-lg px-3 py-2 text-sm ml-2" value={triPrep} onChange={e => setTriPrep(e.target.value as any)}>
+          <select className="border border-yellow-200 focus:border-yellow-400 focus:outline-none rounded-lg px-3 py-2 text-sm flex-1 sm:flex-initial min-w-0" value={triPrep} onChange={e => setTriPrep(e.target.value as any)}>
             <option value="defaut">Tri : nom</option>
             <option value="cout">Tri : plus cher au kg</option>
           </select>
@@ -378,8 +378,8 @@ export default function IngredientsPage() {
         <p className="text-gray-400">Chargement...</p>
       ) : tab === 'bruts' ? (
         /* ── Tableau Ingrédients bruts ── */
-        <div className="bg-white rounded-xl border border-yellow-100 overflow-hidden">
-          <table className="w-full text-sm">
+        <div className="bg-white rounded-xl border border-yellow-100 overflow-x-auto">
+          <table className="w-full text-sm min-w-[1000px]">
             <thead className="bg-yellow-50 text-gray-500 text-xs uppercase">
               <tr>
                 <th className="px-3 py-3 text-left w-[18%]">Nom</th>
@@ -498,8 +498,8 @@ export default function IngredientsPage() {
         </div>
       ) : (
         /* ── Tableau Préparations ── */
-        <div className="bg-white rounded-xl border border-yellow-100 overflow-hidden">
-          <table className="w-full text-sm">
+        <div className="bg-white rounded-xl border border-yellow-100 overflow-x-auto">
+          <table className="w-full text-sm min-w-[800px]">
             <thead className="bg-yellow-50 text-gray-500 text-xs uppercase">
               <tr>
                 <th className="px-3 py-3 text-left w-[20%]">Nom</th>
