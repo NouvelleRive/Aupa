@@ -1,9 +1,10 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { collection, getDocs } from 'firebase/firestore';
+import { collection, getDocs, query, where } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend, CartesianGrid, Treemap } from 'recharts';
+import TimePeriodFilter, { isInPeriod, type TimePeriod } from '@/components/TimePeriodFilter';
 
 interface Rapport {
   date: string;
@@ -35,26 +36,94 @@ const fmtPct = (n: number) => `${n.toFixed(1)}%`;
 export default function RentabilitePage() {
   const [rapports, setRapports] = useState<Rapport[]>([]);
   const [ventes, setVentes] = useState<Vente[]>([]);
+  const [ventesN1, setVentesN1] = useState<Vente[]>([]);
   const [recettes, setRecettes] = useState<Recette[]>([]);
   const [achats, setAchats] = useState<Achat[]>([]);
+  const [achatsAll, setAchatsAll] = useState<Achat[]>([]); // pour le graph mensuel
   const [chartPeriod, setChartPeriod] = useState<string>('all');
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+
+  // Default = Hier
+  const hier = new Date();
+  hier.setDate(hier.getDate() - 1);
+  const hierStr = hier.toISOString().slice(0, 10);
+  const [timePeriod, setTimePeriod] = useState<TimePeriod | null>({ label: 'Hier', dateDebut: hierStr, dateFin: hierStr });
+
+  // 1) Petites collections : load une seule fois (rapports 34 + recettes 286)
+  useEffect(() => {
+    (async () => {
+      const [rSnap, recSnap] = await Promise.all([
+        getDocs(collection(db, 'rapportsJournaliers')),
+        getDocs(collection(db, 'recettes')),
+      ]);
+      setRapports(rSnap.docs.map(d => d.data() as Rapport));
+      setRecettes(recSnap.docs.map(d => ({ id: d.id, ...d.data() } as Recette)));
+    })();
+  }, []);
+
+  // 2) Achats globaux : 1 fetch léger pour le graphique mensuel uniquement
+  // (juste les champs utilisés : date, total, fournisseur)
+  useEffect(() => {
+    (async () => {
+      const aSnap = await getDocs(collection(db, 'achats'));
+      setAchatsAll(aSnap.docs.map(d => d.data() as Achat));
+    })();
+  }, []);
+
+  // 3) Ventes + achats filtrés par période
+  useEffect(() => {
+    (async () => {
+      setRefreshing(true);
+      if (timePeriod) {
+        const [vSnap, aSnap] = await Promise.all([
+          getDocs(query(
+            collection(db, 'ventes'),
+            where('jour', '>=', timePeriod.dateDebut),
+            where('jour', '<=', timePeriod.dateFin),
+          )),
+          getDocs(query(
+            collection(db, 'achats'),
+            where('date', '>=', timePeriod.dateDebut),
+            where('date', '<=', timePeriod.dateFin + 'T23:59:59.999Z'),
+          )),
+        ]);
+        setVentes(vSnap.docs.map(d => d.data() as Vente));
+        setAchats(aSnap.docs.map(d => d.data() as Achat));
+      } else {
+        const [vSnap, aSnap] = await Promise.all([
+          getDocs(collection(db, 'ventes')),
+          getDocs(collection(db, 'achats')),
+        ]);
+        setVentes(vSnap.docs.map(d => d.data() as Vente));
+        setAchats(aSnap.docs.map(d => d.data() as Achat));
+      }
+      setLoading(false);
+      setRefreshing(false);
+    })();
+  }, [timePeriod]);
+
+  // 4) N-1 : ventes l'an passé sur la même période
+  const periodN1 = useMemo((): TimePeriod | null => {
+    if (!timePeriod) return null;
+    const shift = (d: string) => {
+      const m = d.match(/^(\d{4})-(.*)$/);
+      return m ? `${parseInt(m[1]) - 1}-${m[2]}` : d;
+    };
+    return { label: 'N-1', dateDebut: shift(timePeriod.dateDebut), dateFin: shift(timePeriod.dateFin) };
+  }, [timePeriod]);
 
   useEffect(() => {
     (async () => {
-      const [rSnap, vSnap, recSnap, aSnap] = await Promise.all([
-        getDocs(collection(db, 'rapportsJournaliers')),
-        getDocs(collection(db, 'ventes')),
-        getDocs(collection(db, 'recettes')),
-        getDocs(collection(db, 'achats')),
-      ]);
-      setRapports(rSnap.docs.map(d => d.data() as Rapport));
-      setVentes(vSnap.docs.map(d => d.data() as Vente));
-      setRecettes(recSnap.docs.map(d => ({ id: d.id, ...d.data() } as Recette)));
-      setAchats(aSnap.docs.map(d => d.data() as Achat));
-      setLoading(false);
+      if (!periodN1) { setVentesN1([]); return; }
+      const snap = await getDocs(query(
+        collection(db, 'ventes'),
+        where('jour', '>=', periodN1.dateDebut),
+        where('jour', '<=', periodN1.dateFin),
+      ));
+      setVentesN1(snap.docs.map(d => d.data() as Vente));
     })();
-  }, []);
+  }, [periodN1]);
 
   // Map nom → coût unitaire
   const coutParNom = useMemo(() => {
@@ -78,15 +147,14 @@ export default function RentabilitePage() {
     return m;
   }, [recettes]);
 
-  // KPIs globaux
+  // KPIs (période courante)
   const kpi = useMemo(() => {
-    let caTTC = 0, caHT = 0;
-    for (const r of rapports) {
-      caTTC += r.caTTC || 0;
-      caHT += r.caHT || 0;
-    }
+    // CA = somme des TTC des ventes filtrées (source de vérité)
+    let caTTC = 0;
+    for (const v of ventes) caTTC += v.ttc || 0;
+    const caHT = caTTC / 1.10;
 
-    // Food cost via recettes × ventes
+    // Food cost
     let foodCost = 0;
     for (const v of ventes) {
       const c = coutParNom.get(v.nom.toLowerCase());
@@ -99,7 +167,10 @@ export default function RentabilitePage() {
     for (const a of achats) totalAchats += a.total || 0;
 
     return { caTTC, caHT, foodCost, margeBrute, totalAchats };
-  }, [rapports, ventes, achats, coutParNom]);
+  }, [ventes, achats, coutParNom]);
+
+  // CA N-1
+  const caN1 = useMemo(() => ventesN1.reduce((s, v) => s + (v.ttc || 0), 0), [ventesN1]);
 
   // Graphique Ventes vs Achats par mois
   const chartYears = useMemo(() => {
@@ -111,6 +182,7 @@ export default function RentabilitePage() {
     return ['all', ...Array.from(years).sort()];
   }, [rapports]);
 
+  // Le graphique mensuel utilise TOUTE l'historique (pas le filtre période global)
   const chartData = useMemo(() => {
     const ventesParMois = new Map<string, number>();
     for (const r of rapports) {
@@ -121,7 +193,7 @@ export default function RentabilitePage() {
     }
 
     const achatsParMois = new Map<string, number>();
-    for (const a of achats) {
+    for (const a of achatsAll) {
       const d = a.date?.slice(0, 7);
       if (!d) continue;
       if (chartPeriod !== 'all' && !d.startsWith(chartPeriod)) continue;
@@ -134,7 +206,7 @@ export default function RentabilitePage() {
       ventes: Math.round(ventesParMois.get(m) || 0),
       achats: Math.round(achatsParMois.get(m) || 0),
     }));
-  }, [rapports, achats, chartPeriod]);
+  }, [rapports, achatsAll, chartPeriod]);
 
   // Achats par fournisseur
   const achatsParFournisseur = useMemo(() => {
@@ -163,16 +235,34 @@ export default function RentabilitePage() {
   const pctFoodCost = kpi.caHT > 0 ? (kpi.foodCost / kpi.caHT) * 100 : 0;
   const pctMarge = kpi.caHT > 0 ? (kpi.margeBrute / kpi.caHT) * 100 : 0;
   const ratioAchatsCA = kpi.caTTC > 0 ? (kpi.totalAchats / kpi.caTTC) * 100 : 0;
+  const deltaN1 = caN1 > 0 ? ((kpi.caTTC - caN1) / caN1) * 100 : null;
+
+  // Années dispos pour le filtre (3 dernières)
+  const availableDatesUI = useMemo(() => {
+    const y = new Date().getFullYear();
+    return [`${y}-01-01`, `${y - 1}-01-01`, `${y - 2}-01-01`];
+  }, []);
 
   if (loading) return <div className="max-w-6xl mx-auto p-6"><p className="text-gray-400">Chargement...</p></div>;
 
   return (
     <div className="max-w-6xl mx-auto space-y-6">
-      <h1 className="text-2xl font-bold">Rentabilité</h1>
+      <div className="flex items-center gap-3">
+        <h1 className="text-2xl font-bold">Rentabilité</h1>
+        {refreshing && <span className="text-xs text-gray-400">Actualisation…</span>}
+      </div>
+
+      <TimePeriodFilter
+        availableDates={availableDatesUI}
+        value={timePeriod}
+        onChange={setTimePeriod}
+      />
 
       {/* KPIs */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Kpi label="CA HT" value={fmtEur(kpi.caHT)} />
+        <Kpi label="CA TTC" value={fmtEur(kpi.caTTC)}
+          sub={deltaN1 !== null ? `${deltaN1 >= 0 ? '+' : ''}${deltaN1.toFixed(1)}% vs N-1 (${fmtEur(caN1)})` : caN1 === 0 && timePeriod ? 'Pas de données N-1' : undefined}
+          color={deltaN1 !== null ? (deltaN1 >= 0 ? 'text-green-600' : 'text-orange-500') : undefined} />
         <Kpi label="Food cost" value={fmtPct(pctFoodCost)} sub={fmtEur(kpi.foodCost)} color={pctFoodCost > 32 ? 'text-red-500' : 'text-gray-800'} />
         <Kpi label="Marge brute" value={fmtEur(kpi.margeBrute)} sub={fmtPct(pctMarge)} color={pctMarge < 60 ? 'text-orange-500' : 'text-green-600'} />
         <Kpi label="Total achats" value={fmtEur(kpi.totalAchats)} sub={`${fmtPct(ratioAchatsCA)} du CA TTC`} />
