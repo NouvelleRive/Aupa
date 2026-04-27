@@ -59,8 +59,20 @@ export type LigneAssembleurs = {
 })();
 
 // Pdfjs Node-compat. On l'importe dynamiquement pour éviter le bundling client.
+// Le worker n'est pas auto-bundlé par Next en serverless : on le force via
+// outputFileTracingIncludes (next.config.ts) puis on pointe workerSrc vers
+// le fichier copié dans node_modules du bundle.
 async function loadPdfjs() {
   const pdfjs = await import('pdfjs-dist/legacy/build/pdf.mjs');
+  if (!pdfjs.GlobalWorkerOptions.workerSrc) {
+    const path = await import('node:path');
+    const url = await import('node:url');
+    const workerPath = path.join(
+      process.cwd(),
+      'node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs',
+    );
+    pdfjs.GlobalWorkerOptions.workerSrc = url.pathToFileURL(workerPath).href;
+  }
   return pdfjs;
 }
 
