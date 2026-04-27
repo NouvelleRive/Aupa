@@ -364,16 +364,29 @@ export async function GET() {
           const menuMatch = menus.find((m) => m.dateDebut && m.dateFin && date >= m.dateDebut && date <= m.dateFin);
           const menuNom = menuMatch ? menuMatch.nom : 'HIVER25';
 
-          // Remplacer les ventes existantes pour cette date
-          const existingSnap = await getDocs(query(collection(db, 'ventes'), where('jour', '==', date)));
-          for (const d of existingSnap.docs) await deleteDoc(d.ref);
-
+          // Idempotence : doc ID déterministe ${date}__${nom-encodé}. Si 2 syncs
+          // concurrents traitent le même mail, ils écrivent dans les mêmes docs
+          // (overwrite) au lieu de dupliquer comme le faisait addDoc.
           const moisStr = date.slice(0, 7);
+          const writtenIds = new Set<string>();
+          const slugify = (s: string) =>
+            s.normalize('NFD').replace(/[̀-ͯ]/g, '')
+              .replace(/[\/.#$\[\]]/g, '_')
+              .replace(/\s+/g, '_')
+              .slice(0, 200);
           for (const a of articles) {
-            await addDoc(collection(db, 'ventes'), {
+            const id = `${date}__${slugify(a.nom)}`;
+            await setDoc(doc(db, 'ventes', id), {
               nom: a.nom, quantity: a.quantity, ttc: a.ttc,
               menuNom, mois: moisStr, jour: date,
             });
+            writtenIds.add(id);
+          }
+          // Nettoyer les ventes orphelines pour cette date (anciens docs aléatoires
+          // ou items disparus d'une éventuelle correction Popina).
+          const existingSnap = await getDocs(query(collection(db, 'ventes'), where('jour', '==', date)));
+          for (const d of existingSnap.docs) {
+            if (!writtenIds.has(d.id)) await deleteDoc(d.ref);
           }
 
           // Écrire le rapport journalier enrichi (1 doc par jour, keyé par date)
