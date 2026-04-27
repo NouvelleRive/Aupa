@@ -97,7 +97,7 @@ export async function POST() {
 
     for (const item of items) {
       const pfDoc = await getDoc(doc(db, 'produitsFournisseurs', item.pfId));
-      const pf = pfDoc.data() as { foodomarketSlug?: string; foodomarketProductVariantId?: number; foodomarketSupplierId?: number; nom?: string } | undefined;
+      const pf = pfDoc.data() as { foodomarketSlug?: string; foodomarketProductVariantId?: number; foodomarketSupplierId?: number; nom?: string; url?: string } | undefined;
       if (!pf) { missing.push(`${item.pfNom} (PF introuvable)`); continue; }
 
       let pvId = pf.foodomarketProductVariantId;
@@ -105,8 +105,10 @@ export async function POST() {
 
       // Lookup SKU depuis la page publique si pas en cache
       if (!pvId) {
-        const slug = pf.foodomarketSlug;
-        if (!slug) { missing.push(`${item.pfNom} (pas de slug)`); continue; }
+        // Slug : depuis foodomarketSlug, sinon parse depuis url, sinon panier.url
+        const url = pf.url || (item as { url?: string }).url;
+        const slug = pf.foodomarketSlug || (url?.match(/\/produits\/(.+?)\/?$/)?.[1]);
+        if (!slug) { missing.push(`${item.pfNom} (pas de slug ni d'url)`); continue; }
         pvId = await getSkuFromSlug(slug) || undefined;
         if (!pvId) { missing.push(`${item.pfNom} (SKU introuvable sur ${slug})`); continue; }
       }
