@@ -112,9 +112,30 @@ export default function PanierPage() {
     }
   };
 
+  const ouvrirRungis = async () => {
+    setPushingFournisseur('Rungis');
+    const tab = window.open('https://rungismarket.com/app', '_blank', 'noopener,noreferrer');
+    try {
+      const res = await fetch('/api/rungis/push-cart', { method: 'POST' });
+      const j = await res.json();
+      if (!j.ok) {
+        setPushResult(prev => ({ ...prev, Rungis: { ok: false, msg: `${j.error}${j.missing?.length ? ' — ' + j.missing.join(', ') : ''}` } }));
+        if (tab) tab.close();
+        return;
+      }
+      const msg = `${j.pushed}/${j.total} produit(s) poussés${j.missing?.length ? ` — non poussés : ${j.missing.join(', ')}` : ''}`;
+      setPushResult(prev => ({ ...prev, Rungis: { ok: true, msg } }));
+    } catch (e) {
+      setPushResult(prev => ({ ...prev, Rungis: { ok: false, msg: e instanceof Error ? e.message : String(e) } }));
+    } finally {
+      setPushingFournisseur(null);
+    }
+  };
+
   const ouvrirTout = async (f: string) => {
     if (f === 'Foodflow') return ouvrirFoodflow();
     if (f === 'Foodomarket') return ouvrirFoodomarket();
+    if (f === 'Rungis') return ouvrirRungis();
 
     // Fallback pour Rungis / Foodomarket / autres : ouverture multi-onglets
     const itemsF = items.filter(i => i.fournisseur === f);
