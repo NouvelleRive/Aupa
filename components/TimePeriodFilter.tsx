@@ -30,10 +30,10 @@ function yesterday(): string {
   return d.toISOString().slice(0, 10);
 }
 
-function startOfWeek(): string {
+// 7 derniers jours (aujourd'hui inclus) : J-6 → J
+function last7DaysStart(): string {
   const d = new Date();
-  const day = d.getDay() || 7;
-  d.setDate(d.getDate() - day + 1);
+  d.setDate(d.getDate() - 6);
   return d.toISOString().slice(0, 10);
 }
 
@@ -67,6 +67,10 @@ export default function TimePeriodFilter({ availableDates, value, onChange }: Ti
   const [expandedYear, setExpandedYear] = useState<number | null>(null);
   // Mois sélectionnés pour le mode multi : "2025-01", "2025-03", etc.
   const [selectedMonths, setSelectedMonths] = useState<Set<string>>(new Set());
+  // Mode date personnalisée
+  const [customMode, setCustomMode] = useState(false);
+  const [customDebut, setCustomDebut] = useState<string>(value?.label === 'Personnalisé' ? value.dateDebut : '');
+  const [customFin, setCustomFin] = useState<string>(value?.label === 'Personnalisé' ? value.dateFin : '');
 
   const availableYears = useMemo(() => {
     const years = new Set<number>();
@@ -93,6 +97,7 @@ export default function TimePeriodFilter({ availableDates, value, onChange }: Ti
 
   const quickSelect = (label: string, dateDebut: string, dateFin: string) => {
     setSelectedMonths(new Set());
+    setCustomMode(false);
     if (value?.label === label) {
       onChange(null);
     } else {
@@ -100,8 +105,15 @@ export default function TimePeriodFilter({ availableDates, value, onChange }: Ti
     }
   };
 
+  const applyCustom = (debut: string, fin: string) => {
+    if (!debut || !fin) return;
+    const [d1, d2] = debut <= fin ? [debut, fin] : [fin, debut];
+    onChange({ label: 'Personnalisé', dateDebut: d1, dateFin: d2 });
+  };
+
   const selectYear = (year: number) => {
     setSelectedMonths(new Set());
+    setCustomMode(false);
     if (expandedYear === year) {
       setExpandedYear(null);
     } else {
@@ -153,8 +165,8 @@ export default function TimePeriodFilter({ availableDates, value, onChange }: Ti
         <PillButton active={isActive('Hier')} onClick={() => quickSelect('Hier', hier, hier)}>
           Hier
         </PillButton>
-        <PillButton active={isActive('Cette semaine')} onClick={() => quickSelect('Cette semaine', startOfWeek(), today())}>
-          Cette semaine
+        <PillButton active={isActive('7 derniers jours')} onClick={() => quickSelect('7 derniers jours', last7DaysStart(), today())}>
+          7 derniers jours
         </PillButton>
         <PillButton active={isActive('Ce mois')} onClick={() => quickSelect('Ce mois', startOfMonth(), today())}>
           Ce mois
@@ -166,16 +178,49 @@ export default function TimePeriodFilter({ availableDates, value, onChange }: Ti
           </PillButton>
         ))}
 
+        <PillButton active={isActive('Personnalisé') || customMode}
+          onClick={() => {
+            setExpandedYear(null);
+            setSelectedMonths(new Set());
+            setCustomMode(prev => !prev);
+            if (isActive('Personnalisé')) onChange(null);
+          }}>
+          Personnalisé
+        </PillButton>
+
         {value && (
           <>
             <span className="w-px bg-gray-200 mx-1" />
-            <button onClick={() => { onChange(null); setExpandedYear(null); setSelectedMonths(new Set()); }}
+            <button onClick={() => { onChange(null); setExpandedYear(null); setSelectedMonths(new Set()); setCustomMode(false); }}
               className="px-3 py-1 rounded-full text-xs font-medium border border-gray-200 text-gray-400 hover:text-gray-600">
               Tout
             </button>
           </>
         )}
       </div>
+
+      {customMode && (
+        <div className="flex items-center gap-2 pl-1 text-xs text-gray-500">
+          <label className="flex items-center gap-1">
+            Du
+            <input type="date" value={customDebut}
+              onChange={e => { setCustomDebut(e.target.value); applyCustom(e.target.value, customFin || e.target.value); }}
+              className="border border-yellow-200 rounded px-2 py-1 text-xs focus:outline-none focus:border-yellow-400" />
+          </label>
+          <label className="flex items-center gap-1">
+            au
+            <input type="date" value={customFin}
+              onChange={e => { setCustomFin(e.target.value); applyCustom(customDebut || e.target.value, e.target.value); }}
+              className="border border-yellow-200 rounded px-2 py-1 text-xs focus:outline-none focus:border-yellow-400" />
+          </label>
+          {customDebut && !customFin && (
+            <button onClick={() => applyCustom(customDebut, customDebut)}
+              className="text-yellow-600 hover:text-yellow-700 underline">
+              ce jour seulement
+            </button>
+          )}
+        </div>
+      )}
 
       {expandedYear && (
         <div className="flex gap-1.5 flex-wrap pl-1">
