@@ -181,13 +181,13 @@ export default function CoutsPage() {
     return sortDir === 'asc' ? ' ▲' : ' ▼';
   };
 
-  if (loading) return <div className="max-w-6xl mx-auto p-6"><p className="text-gray-400">Chargement…</p></div>;
-
   // Années disponibles pour le filtre : 3 dernières (au lieu de dériver des achats chargés)
   const availableDatesUI = useMemo(() => {
     const y = new Date().getFullYear();
     return [`${y}-01-01`, `${y - 1}-01-01`, `${y - 2}-01-01`];
   }, []);
+
+  if (loading) return <div className="max-w-6xl mx-auto p-6"><p className="text-gray-400">Chargement…</p></div>;
 
   return (
     <div className="max-w-6xl mx-auto p-6 space-y-4">
