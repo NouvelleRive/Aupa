@@ -102,6 +102,43 @@ export default function PerformancePage() {
     return m;
   }, [recettes]);
 
+  // Charger les matchings manuels caisse → recette (CAISSE_MAP est mutée)
+  const [caisseMapLoaded, setCaisseMapLoaded] = useState(false);
+  useEffect(() => {
+    (async () => {
+      const snap = await getDocs(collection(db, 'caisseMapCustom'));
+      for (const d of snap.docs) {
+        const data = d.data();
+        if (data.caisse && data.recette) CAISSE_MAP[data.caisse] = data.recette;
+      }
+      setCaisseMapLoaded(true);
+    })();
+  }, []);
+
+  // Map vente.nom (Popina) → recette.nom via CAISSE_MAP (matchings manuels +
+  // détection auto). Utilisée pour matcher coût et catégorie sur chaque vente.
+  const venteNomToRecette = useMemo(() => {
+    const m = new Map<string, string>();
+    if (!caisseMapLoaded) return m;
+    const recetteByCaisse = new Map<string, string>();
+    for (const r of recettes) {
+      const k = normalizeCaisse(r.nom).replace(/\s+(ete|hiver)$/, '');
+      if (!recetteByCaisse.has(k)) recetteByCaisse.set(k, r.nom);
+    }
+    const seen = new Set<string>();
+    for (const v of ventes) {
+      if (seen.has(v.nom)) continue;
+      seen.add(v.nom);
+      const caisse = normalizeCaisse(v.nom);
+      const mapped = CAISSE_MAP[caisse];
+      if (mapped && recetteByCaisse.has(mapped)) {
+        m.set(v.nom, recetteByCaisse.get(mapped)!);
+      }
+    }
+    return m;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [recettes, ventes, caisseMapLoaded]);
+
   // Dates disponibles pour le filtre (3 dernières années + dates des rapports déjà chargés)
   const availableDates = useMemo(() => {
     const y = new Date().getFullYear();
@@ -185,28 +222,21 @@ export default function PerformancePage() {
         if (n === 'plats' || n === 'aupa croissant burger eat') agg.nbPlats += stat.qty;
       }
     }
-    // Food cost via recettes
+    // Food cost : pour chaque vente, on map le nom Popina → nom recette via
+    // CAISSE_MAP, puis on récupère le coutCalcule de la recette.
     let foodCost = 0;
+    let foodCostMatchedCA = 0;  // CA HT des ventes effectivement matchées (pour debug)
     for (const v of ventesFiltrées) {
-      const c = coutParNom.get(v.nom.toLowerCase());
-      if (typeof c === 'number') foodCost += c * v.quantity;
+      const recetteNom = venteNomToRecette.get(v.nom);
+      const c = recetteNom ? coutParNom.get(recetteNom.toLowerCase()) : undefined;
+      if (typeof c === 'number') {
+        foodCost += c * v.quantity;
+        foodCostMatchedCA += (v.ttc || 0) / 1.10;
+      }
     }
     const margeBrute = caHT - foodCost;
-    return { caTTC, caHT, ...agg, foodCost, margeBrute };
-  }, [rapportsFiltrés, ventesFiltrées, coutParNom]);
-
-  // Charger les matchings manuels caisse → recette
-  const [caisseMapLoaded, setCaisseMapLoaded] = useState(false);
-  useEffect(() => {
-    (async () => {
-      const snap = await getDocs(collection(db, 'caisseMapCustom'));
-      for (const d of snap.docs) {
-        const data = d.data();
-        if (data.caisse && data.recette) CAISSE_MAP[data.caisse] = data.recette;
-      }
-      setCaisseMapLoaded(true);
-    })();
-  }, []);
+    return { caTTC, caHT, ...agg, foodCost, margeBrute, foodCostMatchedCA };
+  }, [rapportsFiltrés, ventesFiltrées, coutParNom, venteNomToRecette]);
 
   // Map ventes Popina → nom recette via CAISSE_MAP (matchings manuels)
   const recetteNoms = useMemo(() => recettes.map(r => r.nom), [recettes]);
