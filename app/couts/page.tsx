@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { collection, getDocs } from 'firebase/firestore';
+import { collection, getDocs, query, where } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Treemap, ResponsiveContainer } from 'recharts';
 import TimePeriodFilter, { isInPeriod, type TimePeriod } from '@/components/TimePeriodFilter';
@@ -41,23 +41,47 @@ export default function CoutsPage() {
 
   const [filterFournisseur, setFilterFournisseur] = useState<string>('all');
   const [filterCategorie, setFilterCategorie] = useState<string>('all');
-  const [timePeriod, setTimePeriod] = useState<TimePeriod | null>(null);
+  // Default = Hier (au lieu de "tout" qui chargeait 20k achats)
+  const hier = new Date();
+  hier.setDate(hier.getDate() - 1);
+  const hierStr = hier.toISOString().slice(0, 10);
+  const [timePeriod, setTimePeriod] = useState<TimePeriod | null>({ label: 'Hier', dateDebut: hierStr, dateFin: hierStr });
   const [sortKey, setSortKey] = useState<SortKey>('total');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
+  const [refreshing, setRefreshing] = useState(false);
 
+  // 1) PFs : chargés une seule fois (842 docs, petit)
   useEffect(() => {
     (async () => {
-      const [aSnap, pfSnap] = await Promise.all([
-        getDocs(collection(db, 'achats')),
-        getDocs(collection(db, 'produitsFournisseurs')),
-      ]);
-      setAchats(aSnap.docs.map(d => ({ id: d.id, ...d.data() } as Achat)));
+      const pfSnap = await getDocs(collection(db, 'produitsFournisseurs'));
       const m = new Map<string, PF>();
       for (const d of pfSnap.docs) m.set(d.id, { id: d.id, ...d.data() } as PF);
       setPfMap(m);
-      setLoading(false);
     })();
   }, []);
+
+  // 2) Achats : refetch sur changement de période (lecture filtrée Firestore)
+  useEffect(() => {
+    (async () => {
+      setRefreshing(true);
+      let snap;
+      if (timePeriod) {
+        // achats.date est en ISO complet (YYYY-MM-DDTHH:mm:ss.sssZ)
+        // borne haute = fin de journée pour inclure toute la date de fin
+        snap = await getDocs(query(
+          collection(db, 'achats'),
+          where('date', '>=', timePeriod.dateDebut),
+          where('date', '<=', timePeriod.dateFin + 'T23:59:59.999Z'),
+        ));
+      } else {
+        // "Tout" sélectionné explicitement → on accepte la lecture complète
+        snap = await getDocs(collection(db, 'achats'));
+      }
+      setAchats(snap.docs.map(d => ({ id: d.id, ...d.data() } as Achat)));
+      setLoading(false);
+      setRefreshing(false);
+    })();
+  }, [timePeriod]);
 
   const fournisseurs = useMemo(() => {
     const s = new Set(achats.map(a => a.fournisseur).filter(Boolean));
@@ -80,7 +104,9 @@ export default function CoutsPage() {
     return achats.filter(a => {
       if (filterFournisseur !== 'all' && a.fournisseur !== filterFournisseur) return false;
       if (filterCategorie !== 'all' && getCategorie(a) !== filterCategorie) return false;
-      if (!isInPeriod(a.date, timePeriod)) return false;
+      // achats déjà filtrés Firestore-side ; client-side filter utile uniquement
+      // pour le cas multi-ranges (mois non contigus)
+      if (timePeriod?.ranges && timePeriod.ranges.length > 0 && !isInPeriod(a.date, timePeriod)) return false;
       return true;
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -157,13 +183,22 @@ export default function CoutsPage() {
 
   if (loading) return <div className="max-w-6xl mx-auto p-6"><p className="text-gray-400">Chargement…</p></div>;
 
+  // Années disponibles pour le filtre : 3 dernières (au lieu de dériver des achats chargés)
+  const availableDatesUI = useMemo(() => {
+    const y = new Date().getFullYear();
+    return [`${y}-01-01`, `${y - 1}-01-01`, `${y - 2}-01-01`];
+  }, []);
+
   return (
     <div className="max-w-6xl mx-auto p-6 space-y-4">
-      <h1 className="text-2xl font-bold">Coûts</h1>
+      <div className="flex items-center gap-3">
+        <h1 className="text-2xl font-bold">Coûts</h1>
+        {refreshing && <span className="text-xs text-gray-400">Actualisation…</span>}
+      </div>
 
       {/* Filtre période */}
       <TimePeriodFilter
-        availableDates={achats.map(a => a.date?.slice(0, 10)).filter(Boolean)}
+        availableDates={availableDatesUI}
         value={timePeriod}
         onChange={setTimePeriod}
       />
