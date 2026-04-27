@@ -256,8 +256,9 @@ export default function ComparatifFournisseurs() {
   const filteredLignes = useMemo(() => {
     return sortedLignes.filter(l => {
       if (search) {
-        const s = search.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-        const nom = l.ingredient.nom.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+        const norm = (str: string) => str.toLowerCase().replace(/\u0153/g, 'oe').replace(/\u00e6/g, 'ae').normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+        const s = norm(search);
+        const nom = norm(l.ingredient.nom);
         if (!nom.includes(s)) return false;
       }
       if (filterCategorie !== 'all' && l.ingredient.categorie !== filterCategorie) return false;
