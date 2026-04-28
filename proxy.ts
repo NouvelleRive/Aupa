@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { canAccessPath, directeurHomePath } from '@/lib/roles';
 
 const PUBLIC_PATHS = new Set([
   '/login',
@@ -29,7 +30,15 @@ export function proxy(req: NextRequest) {
   const users = parseUsers(process.env.APP_USERS);
   const name = req.cookies.get('aupa_user')?.value?.toLowerCase();
   const token = req.cookies.get('aupa_token')?.value;
-  if (name && token && users.get(name) === token) return NextResponse.next();
+  if (name && token && users.get(name) === token) {
+    if (!canAccessPath(name, pathname)) {
+      const url = req.nextUrl.clone();
+      url.pathname = directeurHomePath();
+      url.search = '';
+      return NextResponse.redirect(url);
+    }
+    return NextResponse.next();
+  }
 
   const url = req.nextUrl.clone();
   url.pathname = '/login';
