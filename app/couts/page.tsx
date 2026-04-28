@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { collection, getDocs, query, where } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
+import { cachedGetDocs } from '@/lib/firestoreCache';
 import { Treemap, ResponsiveContainer } from 'recharts';
 import TimePeriodFilter, { isInPeriod, type TimePeriod } from '@/components/TimePeriodFilter';
 
@@ -53,7 +54,7 @@ export default function CoutsPage() {
   // 1) PFs : chargés une seule fois (842 docs, petit)
   useEffect(() => {
     (async () => {
-      const pfSnap = await getDocs(collection(db, 'produitsFournisseurs'));
+      const pfSnap = await cachedGetDocs('produitsFournisseurs');
       const m = new Map<string, PF>();
       for (const d of pfSnap.docs) m.set(d.id, { id: d.id, ...d.data() } as PF);
       setPfMap(m);

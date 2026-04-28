@@ -4,7 +4,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { collection, onSnapshot } from 'firebase/firestore';
+import { collection, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 
 const LINKS = [
@@ -25,11 +25,12 @@ export default function Nav() {
   const [panierCount, setPanierCount] = useState(0);
 
   useEffect(() => {
-    const unsub = onSnapshot(collection(db, 'panier'), snap => {
-      setPanierCount(snap.size);
+    let cancelled = false;
+    getDocs(collection(db, 'panier')).then(snap => {
+      if (!cancelled) setPanierCount(snap.size);
     });
-    return () => unsub();
-  }, []);
+    return () => { cancelled = true; };
+  }, [pathname]);
 
   return (
     <nav className="bg-white border-b border-gray-100 px-3 sm:px-6 py-3 flex items-center gap-4 sm:gap-8 overflow-x-auto whitespace-nowrap">

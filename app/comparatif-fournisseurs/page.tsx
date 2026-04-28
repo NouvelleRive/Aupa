@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { collection, getDocs, doc, setDoc, deleteDoc, query, where } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
+import { cachedGetDocs } from '@/lib/firestoreCache';
 import { Ingredient, ProduitFournisseur, Categorie } from '@/lib/types';
 
 type PFWithFournisseur = ProduitFournisseur & { fournisseur?: string; quantite?: number; ingredient?: string; url?: string };
@@ -102,8 +103,8 @@ export default function ComparatifFournisseurs() {
       cutoff.setFullYear(cutoff.getFullYear() - 1);
       const cutoffStr = cutoff.toISOString().slice(0, 10);
       const [ingSnap, pfSnap, achatsSnap, panierSnap] = await Promise.all([
-        getDocs(collection(db, 'ingredients')),
-        getDocs(collection(db, 'produitsFournisseurs')),
+        cachedGetDocs('ingredients'),
+        cachedGetDocs('produitsFournisseurs'),
         getDocs(query(collection(db, 'achats'), where('date', '>=', cutoffStr))),
         getDocs(collection(db, 'panier')),
       ]);

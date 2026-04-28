@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { collection, getDocs, addDoc, deleteDoc, doc, getDoc, query, where } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
+import { cachedGetDocs, invalidateCache } from '@/lib/firestoreCache';
 import { Recette } from '@/lib/types';
 import { CAISSE_MAP, normalizeCaisse } from '@/lib/caisseMap';
 
@@ -40,11 +41,12 @@ export default function MappingCaissePage() {
   };
 
   // Load initial : ventes des 12 derniers mois uniquement
-  const fetchAll = async () => {
+  const fetchAll = async (fresh = false) => {
+    if (fresh) invalidateCache('recettes', 'caisseMapCustom');
     const [vSnap, rSnap, mSnap, catDoc] = await Promise.all([
       getDocs(query(collection(db, 'ventes'), where('jour', '>=', dateDebut12m))),
-      getDocs(collection(db, 'recettes')),
-      getDocs(collection(db, 'caisseMapCustom')),
+      cachedGetDocs('recettes'),
+      cachedGetDocs('caisseMapCustom'),
       getDoc(doc(db, 'config', 'caisseCategories')),
     ]);
 
@@ -140,7 +142,8 @@ export default function MappingCaissePage() {
 
   // Refetch uniquement les mappings (pas les ventes — pas besoin)
   const refetchMappings = async () => {
-    const mSnap = await getDocs(collection(db, 'caisseMapCustom'));
+    invalidateCache('caisseMapCustom');
+    const mSnap = await cachedGetDocs('caisseMapCustom');
     const maps = mSnap.docs.map(d => ({ id: d.id, ...d.data() } as any));
     setMappings(maps);
   };

@@ -3,6 +3,7 @@
     import { useState, useEffect, useRef } from 'react';
     import { collection, getDocs, addDoc, updateDoc, doc, query, where, deleteDoc } from 'firebase/firestore';
     import { db } from '@/lib/firebase';
+    import { cachedGetDocs, invalidateCache } from '@/lib/firestoreCache';
     import { Recette } from '@/lib/types';
     import { MenuDoc, MenuCategorie, MenuRecette } from '@/lib/menuTypes';
 
@@ -95,9 +96,9 @@
     // Petites collections : menus + recettes + caisseMapCustom (load une seule fois)
     const fetchAll = async () => {
         const [mSnap, rSnap, cmSnap] = await Promise.all([
-        getDocs(collection(db, 'menus')),
-        getDocs(collection(db, 'recettes')),
-        getDocs(collection(db, 'caisseMapCustom')),
+        cachedGetDocs('menus'),
+        cachedGetDocs('recettes'),
+        cachedGetDocs('caisseMapCustom'),
         ]);
         for (const d of cmSnap.docs) {
             const data = d.data();
@@ -155,6 +156,7 @@
         categories, actif: true,
         createdAt: new Date().toISOString(),
         });
+        invalidateCache('menus');
         setShowCreerMenu(false);
         setNouveauNom('');
         setNouveauDateDebut('');
@@ -178,6 +180,7 @@
         newCats.push(newCat);
         }
         await updateDoc(doc(db, 'menus', menuEdit), { categories: newCats });
+        invalidateCache('menus');
         setMenuEdit('');
         setCatRecettes(new Map());
         setEditingCatIdx(null);
@@ -189,6 +192,7 @@
         if (!menu) return;
         const newCats = menu.categories.filter((_, i) => i !== idx);
         await updateDoc(doc(db, 'menus', menuId), { categories: newCats });
+        invalidateCache('menus');
         await fetchAll();
     };
 
@@ -493,6 +497,7 @@
                   <input className="border border-yellow-200 focus:border-yellow-400 focus:outline-none rounded-lg px-3 py-1 text-sm w-36" type="date" value={editDateFin} onChange={e => setEditDateFin(e.target.value)} />
                   <button onClick={async () => {
                     await updateDoc(doc(db, 'menus', menuCourant.id), { dateDebut: editDateDebut, dateFin: editDateFin });
+                    invalidateCache('menus');
                     setEditDates(false);
                     await fetchAll();
                   }} className="bg-yellow-400 hover:bg-yellow-500 text-black font-semibold rounded-lg px-3 py-1 text-sm">OK</button>
@@ -798,6 +803,7 @@
                                     const recetteKey = normalizeCaisse(recetteNom).replace(/\s+(ete|hiver)$/, '');
                                     CAISSE_MAP[caisseKey] = recetteKey;
                                     await addDoc(collection(db, 'caisseMapCustom'), { caisse: caisseKey, recette: recetteKey, original: nom, recetteNom });
+                                    invalidateCache('caisseMapCustom');
                                     setVentes([...ventes]);
                                 }}>
                                 <option value="">—</option>

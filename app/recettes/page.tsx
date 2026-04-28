@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { collection, getDocs, addDoc, deleteDoc, doc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
+import { cachedGetDocs, invalidateCache } from '@/lib/firestoreCache';
 import { Recette, Ingredient, ProduitFournisseur, Preparation, CategorieRecette, TypePlat } from '@/lib/types';
 import { MenuDoc } from '@/lib/menuTypes';
 import { CATEGORIES } from '@/lib/categories';
@@ -99,13 +100,14 @@ export default function RecettesPage() {
   const [showImportPreview, setShowImportPreview] = useState(false);
   const [searchIngredients, setSearchIngredients] = useState<Record<number, string>>({});
 
-  const fetchAll = async () => {
+  const fetchAll = async (fresh = false) => {
+    if (fresh) invalidateCache('recettes', 'ingredients', 'produitsFournisseurs', 'preparations', 'menus');
     const [rSnap, iSnap, pfSnap, pSnap, mSnap] = await Promise.all([
-      getDocs(collection(db, 'recettes')),
-      getDocs(collection(db, 'ingredients')),
-      getDocs(collection(db, 'produitsFournisseurs')),
-      getDocs(collection(db, 'preparations')),
-      getDocs(collection(db, 'menus')),
+      cachedGetDocs('recettes'),
+      cachedGetDocs('ingredients'),
+      cachedGetDocs('produitsFournisseurs'),
+      cachedGetDocs('preparations'),
+      cachedGetDocs('menus'),
     ]);
     setRecettes(rSnap.docs.map(d => {
       const data = d.data();
@@ -180,7 +182,7 @@ export default function RecettesPage() {
     setShowImportPreview(false);
     setImportPreview([]);
     alert(`✅ ${created} recettes créées, ${renamed} renommées !`);
-    fetchAll();
+    fetchAll(true);
   };
 
   const POPINA_CAT_MAP: Record<string, CategorieRecette> = {
@@ -232,7 +234,7 @@ export default function RecettesPage() {
         }
         setImporting(false);
         alert(`✅ ${created} boissons importées !`);
-        fetchAll();
+        fetchAll(true);
         e.target.value = '';
       } else {
         setImporting(false);
@@ -328,7 +330,7 @@ export default function RecettesPage() {
     }
     setImporting(false);
     alert(`✅ ${created} recettes importées !`);
-    fetchAll();
+    fetchAll(true);
     e.target.value = '';
   };
 
@@ -458,7 +460,7 @@ export default function RecettesPage() {
     if (editId) { await updateDoc(doc(db, 'recettes', editId), data); setEditId(null); }
     else { await addDoc(collection(db, 'recettes'), data); }
     await recalculerTousLesCouts();
-    setForm(emptyForm); setLignes([]); setShowForm(false); fetchAll();
+    setForm(emptyForm); setLignes([]); setShowForm(false); fetchAll(true);
   };
 
   // Fermer l'éditeur quand on appuie sur retour
@@ -510,7 +512,7 @@ export default function RecettesPage() {
   const handleDelete = async (id: string) => {
     if (!confirm('Supprimer cette recette ?')) return;
     await deleteDoc(doc(db, 'recettes', id));
-    fetchAll();
+    fetchAll(true);
   };
 
   const handleBulkType = async () => {
@@ -519,7 +521,7 @@ export default function RecettesPage() {
     }
     setSelected(new Set());
     setShowBulk(false);
-    fetchAll();
+    fetchAll(true);
   };
 
   // Construire le map recetteId → prixVente pour le menu sélectionné
@@ -612,6 +614,7 @@ export default function RecettesPage() {
                           } else {
                             await addDoc(collection(db, 'recettes'), { nom: item.nom, nomPopina: item.nomOriginal, categorie: item.categorie, type: 'food', actif: true, prixVente: item.prix, ingredients: [], options: [], coutCalcule: 0, updatedAt: new Date().toISOString() });
                           }
+                          invalidateCache('recettes');
                         }}
                           className={`w-7 h-7 rounded-full border-2 transition-colors flex items-center justify-center ${item.done ? 'bg-green-600 border-green-600 text-white' : item.selected ? 'bg-green-500 border-green-500 text-white' : 'border-gray-300 text-gray-300 hover:border-green-400 hover:text-green-400'}`}>
                           {item.done ? '✓✓' : '✓'}
@@ -637,7 +640,7 @@ export default function RecettesPage() {
       <div className="flex flex-wrap items-center justify-between gap-3 mb-4 sm:mb-6">
         <h1 className="text-xl sm:text-2xl font-bold">Recettes</h1>
         <div className="flex flex-wrap gap-2 sm:gap-3">
-          <button disabled={updating} onClick={async () => { setUpdating(true); await recalculerTousLesCouts(); await fetchAll(); setUpdating(false); }} className="border border-gray-200 text-gray-600 hover:bg-gray-50 font-semibold rounded-lg px-3 sm:px-4 py-2 text-xs sm:text-sm">
+          <button disabled={updating} onClick={async () => { setUpdating(true); await recalculerTousLesCouts(); await fetchAll(true); setUpdating(false); }} className="border border-gray-200 text-gray-600 hover:bg-gray-50 font-semibold rounded-lg px-3 sm:px-4 py-2 text-xs sm:text-sm">
             {updating ? 'Mise à jour...' : 'Mettre à jour'}
           </button>
 <button onClick={() => { if (!showForm) window.history.pushState({ editing: true }, ''); setShowForm(!showForm); setEditId(null); setForm(emptyForm); setLignes([]); }} className="bg-yellow-400 hover:bg-yellow-500 text-black font-semibold rounded-lg px-3 sm:px-4 py-2 text-xs sm:text-sm">
@@ -796,7 +799,7 @@ export default function RecettesPage() {
               <option value="boisson">Boisson</option>
             </select>
             <button onClick={handleBulkType} className="bg-yellow-400 hover:bg-yellow-500 text-black font-semibold rounded-lg px-3 py-2 text-sm">Appliquer type</button>
-            <button onClick={async () => { if (!confirm(`Supprimer ${selected.size} recettes ?`)) return; for (const id of selected) await deleteDoc(doc(db, 'recettes', id)); setSelected(new Set()); fetchAll(); }} className="bg-red-100 text-red-600 hover:bg-red-200 font-semibold rounded-lg px-3 py-2 text-sm">Supprimer</button>
+            <button onClick={async () => { if (!confirm(`Supprimer ${selected.size} recettes ?`)) return; for (const id of selected) await deleteDoc(doc(db, 'recettes', id)); setSelected(new Set()); fetchAll(true); }} className="bg-red-100 text-red-600 hover:bg-red-200 font-semibold rounded-lg px-3 py-2 text-sm">Supprimer</button>
             <button onClick={() => setSelected(new Set())} className="text-sm text-gray-400 hover:text-gray-600">Annuler</button>
           </div>
         )}

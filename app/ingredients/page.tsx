@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { collection, getDocs, addDoc, deleteDoc, doc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
+import { cachedGetDocs, invalidateCache } from '@/lib/firestoreCache';
 import { Ingredient, Categorie } from '@/lib/types';
 import { recalculerTousLesCouts } from '@/lib/recalculCouts';
 
@@ -49,11 +50,12 @@ export default function IngredientsPage() {
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const loaderRef = useRef<HTMLDivElement>(null);
 
-  const fetchAll = async () => {
+  const fetchAll = async (fresh = false) => {
+    if (fresh) invalidateCache('ingredients', 'produitsFournisseurs', 'recettes');
     const [ingSnap, pfSnap, recSnap] = await Promise.all([
-      getDocs(collection(db, 'ingredients')),
-      getDocs(collection(db, 'produitsFournisseurs')),
-      getDocs(collection(db, 'recettes')),
+      cachedGetDocs('ingredients'),
+      cachedGetDocs('produitsFournisseurs'),
+      cachedGetDocs('recettes'),
     ]);
 
     const ings = ingSnap.docs.map(d => ({ id: d.id, ...d.data() } as Ingredient));
@@ -203,7 +205,7 @@ export default function IngredientsPage() {
     setAddForm({ nom: '', categorie: 'épicerie salée' });
     setShowAddRow(false);
     await recalculerTousLesCouts();
-    fetchAll();
+    fetchAll(true);
   };
 
   const handleSaveInline = async () => {
@@ -239,7 +241,7 @@ export default function IngredientsPage() {
 
     setEditInlineId(null);
     await recalculerTousLesCouts();
-    fetchAll();
+    fetchAll(true);
   };
 
   const handleEdit = (ing: Ingredient) => {
@@ -255,13 +257,13 @@ export default function IngredientsPage() {
     }
     await updateDoc(doc(db, 'ingredients', ingId), updateData);
     await recalculerTousLesCouts();
-    fetchAll();
+    fetchAll(true);
   };
 
   const handleDelete = async (id: string) => {
     if (!confirm('Supprimer cet ingrédient canonique ?')) return;
     await deleteDoc(doc(db, 'ingredients', id));
-    fetchAll();
+    fetchAll(true);
   };
 
   const filtered = ingredients
@@ -303,7 +305,7 @@ export default function IngredientsPage() {
         <div className="flex flex-wrap gap-2 sm:gap-3">
           {tab === 'bruts' && (
             <>
-              <button disabled={updating} onClick={async () => { setUpdating(true); await recalculerTousLesCouts(); await fetchAll(); setUpdating(false); }}
+              <button disabled={updating} onClick={async () => { setUpdating(true); await recalculerTousLesCouts(); await fetchAll(true); setUpdating(false); }}
                 className="border border-gray-200 text-gray-600 hover:bg-gray-50 font-semibold rounded-lg px-3 sm:px-4 py-2 text-xs sm:text-sm">
                 {updating ? 'Mise à jour...' : 'Mettre à jour'}
               </button>

@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { collection, getDocs, query, where } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
+import { cachedGetDocs } from '@/lib/firestoreCache';
 import TimePeriodFilter, { isInPeriod, type TimePeriod } from '@/components/TimePeriodFilter';
 
 interface Achat { id: string; pfId: string; nom: string; qte: number; prixUnitaire: number; total: number; date: string; fournisseur: string; }
@@ -38,9 +39,9 @@ export default function Page() {
   useEffect(() => {
     (async () => {
       const [r, p, i] = await Promise.all([
-        getDocs(collection(db, 'recettes')),
-        getDocs(collection(db, 'produitsFournisseurs')),
-        getDocs(collection(db, 'ingredients')),
+        cachedGetDocs('recettes'),
+        cachedGetDocs('produitsFournisseurs'),
+        cachedGetDocs('ingredients'),
       ]);
       setRecettes(r.docs.map(d => ({ id: d.id, ...d.data() } as Recette)));
       setPfs(p.docs.map(d => ({ id: d.id, ...d.data() } as PF)));

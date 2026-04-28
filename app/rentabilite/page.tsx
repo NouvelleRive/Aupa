@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { collection, getDocs, query, where } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
+import { cachedGetDocs } from '@/lib/firestoreCache';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend, CartesianGrid, Treemap } from 'recharts';
 import TimePeriodFilter, { isInPeriod, type TimePeriod } from '@/components/TimePeriodFilter';
 
@@ -54,8 +55,8 @@ export default function RentabilitePage() {
   useEffect(() => {
     (async () => {
       const [rSnap, recSnap] = await Promise.all([
-        getDocs(collection(db, 'rapportsJournaliers')),
-        getDocs(collection(db, 'recettes')),
+        cachedGetDocs('rapportsJournaliers'),
+        cachedGetDocs('recettes'),
       ]);
       setRapports(rSnap.docs.map(d => d.data() as Rapport));
       setRecettes(recSnap.docs.map(d => ({ id: d.id, ...d.data() } as Recette)));

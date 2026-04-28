@@ -1,11 +1,12 @@
-import { collection, getDocs, updateDoc, doc } from 'firebase/firestore';
+import { updateDoc, doc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
+import { cachedGetDocs, invalidateCache } from '@/lib/firestoreCache';
 
 export async function recalculerTousLesCouts() {
   const [recSnap, pfSnap, ingSnap] = await Promise.all([
-    getDocs(collection(db, 'recettes')),
-    getDocs(collection(db, 'produitsFournisseurs')),
-    getDocs(collection(db, 'ingredients')),
+    cachedGetDocs('recettes'),
+    cachedGetDocs('produitsFournisseurs'),
+    cachedGetDocs('ingredients'),
   ]);
 
   const recettes = recSnap.docs.map(d => ({ id: d.id, ...d.data() } as any));
@@ -100,6 +101,7 @@ export async function recalculerTousLesCouts() {
           data.coutAuKg = cout / r.quantiteProduite;
         }
         await updateDoc(doc(db, 'recettes', r.id), data);
+        invalidateCache('recettes');
         // Mettre à jour la valeur locale pour les recettes qui dépendent de cette prépa
         r.coutCalcule = cout;
         if (data.coutAuKg) r.coutAuKg = data.coutAuKg;

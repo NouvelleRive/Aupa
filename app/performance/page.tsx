@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useCallback, useRef, useState } from 'react';
 import { collection, getDocs, addDoc, query, where } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
+import { cachedGetDocs } from '@/lib/firestoreCache';
 import { CAISSE_MAP, normalizeCaisse } from '@/lib/caisseMap';
 import { MenuDoc } from '@/lib/menuTypes';
 import { ResponsiveContainer, Treemap, PieChart, Pie, Cell, Tooltip } from 'recharts';
@@ -61,9 +62,9 @@ export default function PerformancePage() {
   useEffect(() => {
     (async () => {
       const [rSnap, recSnap, mSnap] = await Promise.all([
-        getDocs(collection(db, 'rapportsJournaliers')),
-        getDocs(collection(db, 'recettes')),
-        getDocs(collection(db, 'menus')),
+        cachedGetDocs('rapportsJournaliers'),
+        cachedGetDocs('recettes'),
+        cachedGetDocs('menus'),
       ]);
       setRapports(rSnap.docs.map(d => d.data() as Rapport));
       setRecettes(recSnap.docs.map(d => ({ id: d.id, ...d.data() } as Recette)));
@@ -106,7 +107,7 @@ export default function PerformancePage() {
   const [caisseMapLoaded, setCaisseMapLoaded] = useState(false);
   useEffect(() => {
     (async () => {
-      const snap = await getDocs(collection(db, 'caisseMapCustom'));
+      const snap = await cachedGetDocs('caisseMapCustom');
       for (const d of snap.docs) {
         const data = d.data();
         if (data.caisse && data.recette) CAISSE_MAP[data.caisse] = data.recette;

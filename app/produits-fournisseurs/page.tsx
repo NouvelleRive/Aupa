@@ -3,6 +3,7 @@
     import { useState, useEffect, useRef, useCallback } from 'react';
     import { collection, getDocs, deleteDoc, doc, addDoc, updateDoc } from 'firebase/firestore';
     import { db } from '@/lib/firebase';
+    import { cachedGetDocs, invalidateCache } from '@/lib/firestoreCache';
     import { ProduitFournisseur, Unite, Categorie } from '@/lib/types';
     import { recalculerTousLesCouts } from '@/lib/recalculCouts';
 
@@ -55,11 +56,12 @@
     const [ingredientParProduit, setNomsXLParIngredient] = useState<Record<string, string>>({});
     const [pfRefsSet, setPfRefsSet] = useState<Set<string>>(new Set());
 
-    const fetchIngredients = async () => {
+    const fetchIngredients = async (fresh = false) => {
+        if (fresh) invalidateCache('produitsFournisseurs', 'recettes', 'ingredients');
         const [snap, recSnap, ingSnap] = await Promise.all([
-        getDocs(collection(db, 'produitsFournisseurs')),
-        getDocs(collection(db, 'recettes')),
-        getDocs(collection(db, 'ingredients')),
+        cachedGetDocs('produitsFournisseurs'),
+        cachedGetDocs('recettes'),
+        cachedGetDocs('ingredients'),
         ]);
         setIngredients(snap.docs.map(d => ({ id: d.id, ...d.data() } as ProduitFournisseur)));
         const map: Record<string, string> = {};
@@ -267,7 +269,7 @@
         setImportProgress('');
         alert(`✅ Foodflow : ${created} créés, ${updated} mis à jour, ${achatsCreated} achats enregistrés !`);
         await recalculerTousLesCouts();
-        fetchIngredients();
+        fetchIngredients(true);
         e.target.value = '';
     };
 
@@ -452,7 +454,7 @@
         setImportProgress('');
         alert(`✅ Milliet : ${created} produits créés, ${updated} mis à jour, ${achatsCreated} achats enregistrés !`);
         await recalculerTousLesCouts();
-        fetchIngredients();
+        fetchIngredients(true);
         e.target.value = '';
     };
 
@@ -657,7 +659,7 @@
         setImportProgress('');
         alert(`✅ LBA : ${created} créés, ${updated} mis à jour, ${achatsCreated} achats enregistrés !`);
         await recalculerTousLesCouts();
-        fetchIngredients();
+        fetchIngredients(true);
         e.target.value = '';
     };
 
@@ -818,7 +820,7 @@
         setImportProgress('');
         alert(`✅ MPF : ${created} créés, ${updated} mis à jour, ${achatsCreated} achats enregistrés !`);
         await recalculerTousLesCouts();
-        fetchIngredients();
+        fetchIngredients(true);
         e.target.value = '';
     };
 
@@ -954,7 +956,7 @@
         setImportProgress('');
         alert(`✅ Les Assembleurs : ${created} produits créés, ${updated} mis à jour !`);
         await recalculerTousLesCouts();
-        fetchIngredients();
+        fetchIngredients(true);
         e.target.value = '';
     };
 
@@ -985,7 +987,7 @@
         count++;
         }
         alert(`${count} ingrédients importés !`);
-        fetchIngredients();
+        fetchIngredients(true);
         e.target.value = '';
     };
 
@@ -994,7 +996,7 @@
         const quantite = parseFloat(form.quantite) || 1;
         const data: any = { nom: form.nom, prix: parseFloat(form.prix), unite: form.unite, categorie: form.categorie, rendement: parseFloat(form.rendement) / 100, quantite, historiquesPrix: [{ date: new Date().toISOString(), prix: parseFloat(form.prix) }], updatedAt: new Date().toISOString(), ...(form.fournisseur ? { fournisseur: form.fournisseur } : {}) };
         await addDoc(collection(db, 'produitsFournisseurs'), data);
-        setForm(emptyForm); setShowForm(false); fetchIngredients();
+        setForm(emptyForm); setShowForm(false); fetchIngredients(true);
     };
 
     const handleEdit = (ing: ProduitFournisseur) => {
@@ -1023,7 +1025,7 @@
         }
         setEditInlineId(null);
         await recalculerTousLesCouts();
-        fetchIngredients();
+        fetchIngredients(true);
     };
 
     const [filterCategorie, setFilterCategorie] = useState<string>('all');
@@ -1036,7 +1038,7 @@
     const handleDelete = async (id: string) => {
         if (!confirm('Supprimer cet ingrédient ?')) return;
         await deleteDoc(doc(db, 'produitsFournisseurs', id));
-        fetchIngredients();
+        fetchIngredients(true);
     };
 
     const filtered = ingredients
@@ -1073,7 +1075,7 @@
         <div className="flex flex-wrap items-center justify-between gap-3 mb-4 sm:mb-6">
             <h1 className="text-xl sm:text-2xl font-bold">Produits fournisseur</h1>
             <div className="flex flex-wrap gap-2 sm:gap-3">
-            <button disabled={importing} onClick={async () => { setImporting(true); setImportProgress('Mise à jour...'); await recalculerTousLesCouts(); await fetchIngredients(); setImporting(false); setImportProgress(''); }} className="border border-gray-200 text-gray-600 hover:bg-gray-50 font-semibold rounded-lg px-3 sm:px-4 py-2 text-xs sm:text-sm">
+            <button disabled={importing} onClick={async () => { setImporting(true); setImportProgress('Mise à jour...'); await recalculerTousLesCouts(); await fetchIngredients(true); setImporting(false); setImportProgress(''); }} className="border border-gray-200 text-gray-600 hover:bg-gray-50 font-semibold rounded-lg px-3 sm:px-4 py-2 text-xs sm:text-sm">
                 Mettre à jour
             </button>
             <button onClick={() => { setShowForm(!showForm); setForm(emptyForm); }} className="border border-gray-200 text-gray-600 hover:bg-gray-50 font-semibold rounded-lg px-3 sm:px-4 py-2 text-xs sm:text-sm">
@@ -1205,7 +1207,7 @@
                         {((ing as any).fournisseur || ((ing as any).foodflowCode ? 'Foodflow' : (ing as any).millietCode ? 'Milliet' : (ing as any).lbaCode ? 'LBA' : '—')).replace('Les Assembleurs', 'Assembl.').replace('Foodflow', 'FF')}
                     </td>
                     <td className="px-2 py-3 text-gray-500">
-                        <select className="bg-transparent text-xs cursor-pointer hover:text-yellow-600 max-w-[90px]" value={ing.categorie} onChange={async e => { await updateDoc(doc(db, 'produitsFournisseurs', ing.id), { categorie: e.target.value }); fetchIngredients(); }}>{CATEGORIES.map(c => <option key={c}>{c}</option>)}</select>
+                        <select className="bg-transparent text-xs cursor-pointer hover:text-yellow-600 max-w-[90px]" value={ing.categorie} onChange={async e => { await updateDoc(doc(db, 'produitsFournisseurs', ing.id), { categorie: e.target.value }); fetchIngredients(true); }}>{CATEGORIES.map(c => <option key={c}>{c}</option>)}</select>
                     </td>
                     <td className="px-2 py-3 text-right">
                         {isEditing ? <div><span className="text-xs text-gray-400 block mb-1">Prix (€)</span><input className="border border-yellow-200 rounded px-2 py-1 text-sm w-20 text-right" type="number" value={editInlineForm.prix} onChange={e => setEditInlineForm({ ...editInlineForm, prix: e.target.value })} /></div> : <>{(ing.prix ?? 0).toFixed(2)} €</>}
@@ -1245,7 +1247,7 @@
                             await updateDoc(doc(db, 'ingredients', ingDoc.id), { unite: uniteNorm });
                           }
                           await recalculerTousLesCouts();
-                          fetchIngredients();
+                          fetchIngredients(true);
                         }}>
                         <option value="">— Non lié —</option>
                         {Array.from(ingredientsMap.keys()).sort((a, b) => a.localeCompare(b, 'fr', { sensitivity: 'base' })).map(nom => <option key={nom} value={nom}>{nom}</option>)}
