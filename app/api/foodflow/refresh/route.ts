@@ -7,10 +7,11 @@ export const maxDuration = 300;
 
 const GQL_URL = 'https://odoo.foodflow.com/graphql/vsf';
 
-const LOGIN = `mutation login($email:String!,$password:String!){login(email:$email,password:$password){partner{id}}}`;
+const LOGIN = `mutation login($email:String!,$password:String!){login(email:$email,password:$password){partner{id activeRole{id}}}}`;
 const SEARCH = `query GetProducts($search: String) { products(search: $search, currentPage: 1, pageSize: 10, filter: {}) { products { id name price clientPrice unit weight liter slug sku } } }`;
-// Le clientPrice (prix négocié) n'est renvoyé correctement que pour une requête filtrée par id.
-// Avec `search`, l'API renvoie le prix public dans clientPrice. Donc après match par SKU, on re-query par id.
+// Le clientPrice (prix négocié + promos du restaurant) n'est renvoyé que si la requête porte
+// l'en-tête `active-role` (id du rôle actif renvoyé par login), comme le fait le site.
+// Sans lui, clientPrice = prix public (ex. Cheddar 9.95 au lieu de 9.25).
 const GET_BY_ID = `query GetById($id: Int!) { products(filter: { ids: [$id] }, currentPage: 1, pageSize: 1) { products { id name price clientPrice unit weight liter slug sku } } }`;
 
 type FoodflowResult = {
@@ -25,7 +26,9 @@ type FoodflowResult = {
   sku: string;         // ex: 'FF-001094'
 };
 
-async function login(): Promise<string | null> {
+type Session = Record<string, string>;
+
+async function login(): Promise<Session | null> {
   const email = process.env.FOODFLOW_EMAIL;
   const password = process.env.FOODFLOW_PASSWORD;
   if (!email || !password) return null;
@@ -39,13 +42,15 @@ async function login(): Promise<string | null> {
   if (!session) return null;
   const json = await res.json();
   if (json.errors || !json.data?.login?.partner?.id) return null;
-  return session.split(';')[0];
+  const role = json.data.login.partner.activeRole?.id;
+  if (!role) return null;
+  return { cookie: session.split(';')[0], 'active-role': String(role) };
 }
 
-async function search(cookie: string, q: string): Promise<FoodflowResult[]> {
+async function search(session: Session, q: string): Promise<FoodflowResult[]> {
   const res = await fetch(`${GQL_URL}?op=GetProducts`, {
     method: 'POST',
-    headers: { 'content-type': 'application/json', cookie, origin: 'https://foodflow.com', referer: 'https://foodflow.com/' },
+    headers: { 'content-type': 'application/json', ...session, 'x-ff-app': 'shop', origin: 'https://foodflow.com', referer: 'https://foodflow.com/' },
     body: JSON.stringify({ query: SEARCH, variables: { search: q }, operationName: 'GetProducts' }),
   });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -54,10 +59,10 @@ async function search(cookie: string, q: string): Promise<FoodflowResult[]> {
   return j.data?.products?.products || [];
 }
 
-async function getById(cookie: string, id: number): Promise<FoodflowResult | null> {
+async function getById(session: Session, id: number): Promise<FoodflowResult | null> {
   const res = await fetch(`${GQL_URL}?op=GetById`, {
     method: 'POST',
-    headers: { 'content-type': 'application/json', cookie, origin: 'https://foodflow.com', referer: 'https://foodflow.com/' },
+    headers: { 'content-type': 'application/json', ...session, 'x-ff-app': 'shop', origin: 'https://foodflow.com', referer: 'https://foodflow.com/' },
     body: JSON.stringify({ query: GET_BY_ID, variables: { id }, operationName: 'GetById' }),
   });
   if (!res.ok) return null;
@@ -120,8 +125,8 @@ export async function POST(req: Request) {
     const onlyName = url.searchParams.get('nom') || '';
     const dryRun = url.searchParams.get('dryRun') === '1';
 
-    const cookie = await login();
-    if (!cookie) {
+    const session = await login();
+    if (!session) {
       return NextResponse.json({ ok: false, error: 'Login Foodflow échoué (creds manquantes ou invalides)' }, { status: 500 });
     }
 
@@ -152,7 +157,7 @@ export async function POST(req: Request) {
     for (const { ing, pf } of cibles) {
       const pfTyped = pf as { id: string; nom?: string; foodflowCode?: string; unite?: string; quantite?: number };
       try {
-        const results = await search(cookie, pfTyped.nom || ing.nom);
+        const results = await search(session, pfTyped.nom || ing.nom);
         // Match strict par SKU = foodflowCode (1:1, déterministe)
         const matchSearch = results.find(r => r.sku === pfTyped.foodflowCode);
         if (!matchSearch) {
@@ -161,7 +166,7 @@ export async function POST(req: Request) {
         }
 
         // Re-query par id pour récupérer le prix négocié (clientPrice n'est correct qu'avec filter.ids)
-        const match = (await getById(cookie, matchSearch.id)) || matchSearch;
+        const match = (await getById(session, matchSearch.id)) || matchSearch;
 
         // Le slug API contient déjà '/product/...', l'URL canonique est /shop + slug
         const slug = match.slug.startsWith('/product/') ? match.slug : `/product/${match.slug}`;

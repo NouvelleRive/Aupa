@@ -37,36 +37,6 @@ function detectCategorie(nom: string): string {
   return 'épicerie salée';
 }
 
-// Une ligne de facture est facturée au colis (prix de la poche/du carton).
-// Si le PF est stocké au poids/volume (kg, g, L, cL), il faut convertir via le
-// poids lu dans le libellé, sinon on écrit 108 €/kg pour une poche de 8,64 kg.
-// Retourne le prix au format du PF, `undefined` si le PF est à la pièce
-// (prix facture déjà bon), ou `null` quand on ne peut pas convertir de façon
-// fiable (poids approximatif "~4kg", "2-3KG", "env.", ou pas de poids du tout
-// sur un PF au kg) → on ne touche pas au prix, la lecture du site fait foi.
-const POIDS_RE = /(~\s*|±\s*|\d\s*-\s*)?(\d+(?:[.,]\d+)?)\s*(kg|g|cl|l)\b(\s*env)?/gi;
-const VERS_BASE: Record<string, number> = { kg: 1, g: 0.001, l: 1, cl: 0.01 };
-const PF_UNITE_BASE: Record<string, number> = { kg: 1, g: 0.001, l: 1, cl: 0.01 };
-
-export function prixLigneAuFormatPF(l: LigneFacture, pf: { unite?: string; quantite?: number }): number | null | undefined {
-  const pfBase = PF_UNITE_BASE[(pf.unite || '').toLowerCase()];
-  if (!pfBase) return undefined; // PF à la pièce : le prix facture est déjà le bon
-  const poids = [...l.nom.matchAll(POIDS_RE)].map(m => ({
-    approx: !!m[1] || !!m[4],
-    base: parseFloat(m[2].replace(',', '.')) * VERS_BASE[m[3].toLowerCase()],
-  })).filter(p => p.base > 0);
-  if (poids.length === 0) {
-    // Qté fractionnaire = facturé au poids (prix déjà au kg/L), sinon prix d'un colis inconnu
-    return Number.isInteger(l.qte) ? null : Math.round(l.prix * pfBase * (pf.quantite || 1) * 100) / 100;
-  }
-  const reel = poids.filter(p => !p.approx);
-  if (reel.length === 0) return null;
-  // Colis multiple : "6x1L", "6X75CL", "1L x6"
-  const mult = l.nom.match(/(\d+)\s*[x×]\s*(?=\d)/i) || l.nom.match(/[x×]\s*(\d+)\b(?!\s*(?:kg|g|cl|l)\b)/i);
-  const poidsBase = reel[reel.length - 1].base * (mult ? parseInt(mult[1]) : 1); // le poids réel est ajouté en fin de libellé
-  return Math.round((l.prix / poidsBase) * pfBase * (pf.quantite || 1) * 100) / 100;
-}
-
 export async function upsertLignesFournisseur(
   fournisseur: Exclude<FournisseurName, 'Les Assembleurs'>,
   lignes: LigneFacture[],
@@ -93,18 +63,18 @@ export async function upsertLignesFournisseur(
     const match = existing.find((ing: any) => ing[codeField] === code);
     if (match) {
       pfIdParCode.set(code, match.id);
+      // Foodflow : le prix vient TOUJOURS du site (cron /api/foodflow/refresh).
+      // La facture donne le prix du colis (poche de 8,64 kg, carton 6x1L…), pas
+      // comparable au prix du PF → on n'enregistre que l'achat (plus bas).
+      if (fournisseur === 'Foodflow') { updated++; continue; }
       const histExist = match.historiquesPrix || [];
       const datesExist = new Set(histExist.map((h: any) => h.date));
       const nouveaux = group
-        .filter((l) => !datesExist.has(l.date))
-        .map((l) => {
-          const p = fournisseur === 'Foodflow' ? prixLigneAuFormatPF(l, match) : undefined;
-          return p === null ? null : { date: l.date, prix: p ?? l.prix };
-        })
-        .filter((h): h is { date: string; prix: number } => h !== null);
+        .map((l) => ({ date: l.date, prix: l.prix }))
+        .filter((h) => !datesExist.has(h.date));
       if (nouveaux.length > 0) {
         await updateDoc(doc(db, 'produitsFournisseurs', match.id), {
-          prix: nouveaux[nouveaux.length - 1].prix,
+          prix: derniere.prix,
           historiquesPrix: [...histExist, ...nouveaux],
           updatedAt: nouveaux[nouveaux.length - 1].date,
         });
