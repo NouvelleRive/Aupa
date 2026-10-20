@@ -37,6 +37,32 @@ function detectCategorie(nom: string): string {
   return 'épicerie salée';
 }
 
+// Une ligne de facture est facturée au colis (prix de la poche/du carton).
+// Si le PF est stocké au poids/volume (kg, g, L, cL), il faut convertir via le
+// poids lu dans le libellé, sinon on écrit 108 €/kg pour une poche de 8,64 kg.
+// Retourne le prix au format du PF, `undefined` si la ligne n'a pas de poids
+// (comportement historique), ou `null` si le poids est seulement approximatif
+// ("~4kg") → on ne touche pas au prix (la lecture du site fait foi).
+const POIDS_RE = /(~\s*)?(\d+(?:[.,]\d+)?)\s*(kg|g|cl|l)\b/gi;
+const VERS_BASE: Record<string, number> = { kg: 1, g: 0.001, l: 1, cl: 0.01 };
+const PF_UNITE_BASE: Record<string, number> = { kg: 1, g: 0.001, l: 1, cl: 0.01 };
+
+export function prixLigneAuFormatPF(l: LigneFacture, pf: { unite?: string; quantite?: number }): number | null | undefined {
+  const pfBase = PF_UNITE_BASE[(pf.unite || '').toLowerCase()];
+  if (!pfBase) return undefined; // PF à la pièce : le prix facture est déjà le bon
+  const poids = [...l.nom.matchAll(POIDS_RE)].map(m => ({
+    approx: !!m[1],
+    base: parseFloat(m[2].replace(',', '.')) * VERS_BASE[m[3].toLowerCase()],
+  })).filter(p => p.base > 0);
+  if (poids.length === 0) return undefined;
+  const reel = poids.filter(p => !p.approx);
+  if (reel.length === 0) return null;
+  // Colis multiple : "6x1L", "6X75CL", "1L x6"
+  const mult = l.nom.match(/(\d+)\s*[x×]\s*(?=\d)/i) || l.nom.match(/[x×]\s*(\d+)\b(?!\s*(?:kg|g|cl|l)\b)/i);
+  const poidsBase = reel[reel.length - 1].base * (mult ? parseInt(mult[1]) : 1); // le poids réel est ajouté en fin de libellé
+  return Math.round((l.prix / poidsBase) * pfBase * (pf.quantite || 1) * 100) / 100;
+}
+
 export async function upsertLignesFournisseur(
   fournisseur: Exclude<FournisseurName, 'Les Assembleurs'>,
   lignes: LigneFacture[],
@@ -66,11 +92,15 @@ export async function upsertLignesFournisseur(
       const histExist = match.historiquesPrix || [];
       const datesExist = new Set(histExist.map((h: any) => h.date));
       const nouveaux = group
-        .map((l) => ({ date: l.date, prix: l.prix }))
-        .filter((h) => !datesExist.has(h.date));
+        .filter((l) => !datesExist.has(l.date))
+        .map((l) => {
+          const p = fournisseur === 'Foodflow' ? prixLigneAuFormatPF(l, match) : undefined;
+          return p === null ? null : { date: l.date, prix: p ?? l.prix };
+        })
+        .filter((h): h is { date: string; prix: number } => h !== null);
       if (nouveaux.length > 0) {
         await updateDoc(doc(db, 'produitsFournisseurs', match.id), {
-          prix: derniere.prix,
+          prix: nouveaux[nouveaux.length - 1].prix,
           historiquesPrix: [...histExist, ...nouveaux],
           updatedAt: nouveaux[nouveaux.length - 1].date,
         });
