@@ -71,45 +71,23 @@ async function getById(session: Session, id: number): Promise<FoodflowResult | n
   return j.data?.products?.products?.[0] || null;
 }
 
-// Recalcule le prix dans le format du PF existant pour ne pas casser unite/quantite.
-// Retourne null si on ne sait pas convertir → on skippe la maj prix mais on garde la maj URL.
-function recalcPrix(api: FoodflowResult, pf: { unite?: string; quantite?: number; nom?: string }): number | null {
+// Prix depuis le site, normalisé comme le site l'affiche : €/L pour les liquides, €/kg
+// pour le reste (unite 'L' ou 'kg', quantite 1). Seule exception : les lots de pièces
+// ("x90" œufs, "x50" gobelets, "x15" sachets) d'un ingrédient compté à la pièce dans
+// les recettes → € par pièce. Le format du PF est réécrit à chaque passage.
+function prixDepuisSite(api: FoodflowResult, nom: string, aLaPiece: boolean): { prix: number; unite: string; quantite: number } | null {
   const apiPrix = api.clientPrice && api.clientPrice > 0 ? api.clientPrice : api.price;
   if (apiPrix <= 0) return null;
-  const u = pf.unite;
-  const q = pf.quantite || 1;
-
-  // PF stocké en kg → on veut prix pour `q` kg
-  if (u === 'kg') {
-    if (api.unit === 'kg') return apiPrix * q;          // apiPrix est déjà €/kg
-    if (api.weight > 0) return (apiPrix / api.weight) * q;  // pack → €/kg × q
-    return null;
-  }
-  if (u === 'g') {
-    if (api.unit === 'kg') return apiPrix * (q / 1000);
-    if (api.weight > 0) return (apiPrix / api.weight) * (q / 1000);
-    return null;
-  }
-  if (u === 'L') {
-    if (api.unit === 'L') return apiPrix * q;
-    if (api.liter > 0) return (apiPrix / api.liter) * q;
-    return null;
-  }
-  if (u === 'cL') {
-    if (api.unit === 'L') return apiPrix * (q / 100);
-    if (api.liter > 0) return (apiPrix / api.liter) * (q / 100);
-    return null;
-  }
-  // PF en pièce → si l'API renvoie un pack, on cherche le multiplicateur xN dans le nom
-  // Format PF : prix par pièce × quantite (souvent 1)
-  if (u === 'pièce' || u === 'lot') {
-    const nom = (pf.nom || api.name || '').toLowerCase();
-    const mult = nom.match(/x\s*(\d+)/);
-    const N = mult ? parseInt(mult[1]) : 1;
-    if (api.unit === 'p' && N > 0) return (apiPrix / N) * q;
-    return apiPrix * q; // fallback : assume 1 pack = q pièces
-  }
-  return null;
+  const lot = nom.toLowerCase().match(/x\s*(\d+)/);
+  if (aLaPiece && api.unit === 'p' && lot) return { prix: apiPrix / parseInt(lot[1]), unite: 'pièce', quantite: 1 };
+  if (api.unit === 'L') return { prix: apiPrix, unite: 'L', quantite: 1 };
+  if (api.unit === 'kg') return { prix: apiPrix, unite: 'kg', quantite: 1 };
+  if (api.liter > 0) return { prix: apiPrix / api.liter, unite: 'L', quantite: 1 };
+  // Volume absent côté site mais présent dans le nom ("Vinaigre Framboise 50CL")
+  const vol = nom.match(/(\d+(?:[.,]\d+)?)\s*(cl|l)\b/i);
+  if (vol) { const l = parseFloat(vol[1].replace(',', '.')) / (vol[2].toLowerCase() === 'cl' ? 100 : 1); if (l > 0) return { prix: apiPrix / l, unite: 'L', quantite: 1 }; }
+  if (api.weight > 0) return { prix: apiPrix / api.weight, unite: 'kg', quantite: 1 };
+  return { prix: apiPrix, unite: 'pièce', quantite: 1 }; // ni poids ni volume sur le site
 }
 
 // Cron Vercel (GET, autorisé par CRON_SECRET dans proxy.ts) : relit chaque matin
@@ -132,8 +110,22 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: false, error: 'Login Foodflow échoué (creds manquantes ou invalides)' }, { status: 500 });
     }
 
-    const ingSnap = await getDocs(collection(db, 'ingredients'));
-    const pfSnap = await getDocs(collection(db, 'produitsFournisseurs'));
+    const [ingSnap, pfSnap, recSnap] = await Promise.all([
+      getDocs(collection(db, 'ingredients')),
+      getDocs(collection(db, 'produitsFournisseurs')),
+      getDocs(collection(db, 'recettes')),
+    ]);
+    // Ingrédient compté à la pièce = unité "pièce" ET jamais utilisé en fraction (< 1) dans une recette
+    const ingUnite = new Map(ingSnap.docs.map(d => [d.id, (d.data() as { unite?: string }).unite || '']));
+    const ingNomVersId = new Map(ingSnap.docs.map(d => [(d.data() as { nom: string }).nom, d.id]));
+    const utiliseEnFraction = new Set<string>();
+    for (const r of recSnap.docs) {
+      for (const l of ((r.data() as { ingredients?: { ingredientId?: string; nomIngredient?: string; grammage?: number }[] }).ingredients || [])) {
+        const id = l.ingredientId || (l.nomIngredient ? ingNomVersId.get(l.nomIngredient) : undefined);
+        if (id && (l.grammage || 0) > 0 && (l.grammage || 0) < 1) utiliseEnFraction.add(id);
+      }
+    }
+    const estALaPiece = (ingId?: string) => !!ingId && /^pi[eè]ce$/i.test(ingUnite.get(ingId) || '') && !utiliseEnFraction.has(ingId);
     const pfMap = new Map(pfSnap.docs.map(d => [d.id, { id: d.id, ...(d.data() as Record<string, unknown>) }]));
 
     // Cibles : ingrédients dont le PF de réf est Foodflow
@@ -166,7 +158,7 @@ export async function POST(req: Request) {
     const dryRunResults: Array<Record<string, unknown>> = [];
 
     for (const { ing, pf } of cibles) {
-      const pfTyped = pf as { id: string; nom?: string; foodflowCode?: string; unite?: string; quantite?: number };
+      const pfTyped = pf as { id: string; nom?: string; foodflowCode?: string; unite?: string; quantite?: number; ingredientId?: string };
       try {
         const results = await search(session, pfTyped.nom || ing.nom);
         // Match strict par SKU = foodflowCode (1:1, déterministe)
@@ -183,18 +175,20 @@ export async function POST(req: Request) {
         const slug = match.slug.startsWith('/product/') ? match.slug : `/product/${match.slug}`;
         const url = `https://foodflow.com/shop${slug}`;
 
-        const newPrix = recalcPrix(match, pfTyped);
+        const site = prixDepuisSite(match, pfTyped.nom || match.name, estALaPiece(ing.id || pfTyped.ingredientId));
 
-        // Update ULTRA-CONSERVATEUR : on ne touche que url, prix, slug, updatedAt
+        // On ne touche jamais nom / ingredientId : seulement url, slug, prix et son format
         const update: Record<string, unknown> = {
           url,
           foodflowSlug: slug,
           updatedAt: new Date().toISOString(),
         };
-        if (newPrix !== null && isFinite(newPrix) && newPrix > 0) {
-          update.prix = Math.round(newPrix * 10000) / 10000; // 4 décimales : prix unitaires < 1 cts (cure-dents x1000)
+        if (site && isFinite(site.prix) && site.prix > 0) {
+          update.prix = Math.round(site.prix * 10000) / 10000; // 4 décimales : prix unitaires < 1 cts
+          update.unite = site.unite;
+          update.quantite = site.quantite;
         } else {
-          errors.push(`${ing.nom}: URL maj OK mais prix non recalculable (api unit=${match.unit}, pf unite=${pfTyped.unite})`);
+          errors.push(`${ing.nom}: URL maj OK mais pas de prix sur le site`);
         }
 
         if (dryRun) {
