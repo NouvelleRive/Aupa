@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { collection, getDocs, updateDoc, doc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
+import { invalidateCache } from '@/lib/firestoreCache';
+import { recalculerTousLesCouts } from '@/lib/recalculCouts';
 
 export const runtime = 'nodejs';
 export const maxDuration = 300;
@@ -157,15 +159,17 @@ export async function POST(req: Request) {
     const errors: string[] = [];
     const dryRunResults: Array<Record<string, unknown>> = [];
 
-    for (const { ing, pf } of cibles) {
+    // 6 produits en parallèle : ~90 PF × 2 appels doivent tenir dans la durée max Vercel
+    const traiter = async ({ ing, pf }: (typeof cibles)[number]) => {
       const pfTyped = pf as { id: string; nom?: string; foodflowCode?: string; unite?: string; quantite?: number; ingredientId?: string };
       try {
         const results = await search(session, pfTyped.nom || ing.nom);
         // Match strict par SKU = foodflowCode (1:1, déterministe)
         const matchSearch = results.find(r => r.sku === pfTyped.foodflowCode);
         if (!matchSearch) {
+          // Produit introuvable sur le site : on garde l'ancien prix
           errors.push(`${ing.nom}: pas de match SKU ${pfTyped.foodflowCode || '—'} parmi ${results.length} résultats`);
-          continue;
+          return;
         }
 
         // Re-query par id pour récupérer le prix négocié (clientPrice n'est correct qu'avec filter.ids)
@@ -210,9 +214,21 @@ export async function POST(req: Request) {
       } catch (e: unknown) {
         errors.push(`${ing.nom}: ${e instanceof Error ? e.message : String(e)}`);
       }
+    };
+    const file = [...cibles];
+    await Promise.all(Array.from({ length: 6 }, async () => {
+      for (let c = file.shift(); c; c = file.shift()) await traiter(c);
+    }));
+
+    // Les food costs suivent les nouveaux prix sans attendre un clic sur "Mettre à jour"
+    let recalcul = false;
+    if (!dryRun && updated > 0) {
+      invalidateCache('produitsFournisseurs', 'recettes', 'ingredients');
+      await recalculerTousLesCouts();
+      recalcul = true;
     }
 
-    return NextResponse.json({ ok: true, total: cibles.length, updated, created: 0, errors, dryRun, dryRunResults });
+    return NextResponse.json({ ok: true, total: cibles.length, updated, created: 0, recalcul, errors, dryRun, dryRunResults });
   } catch (e: unknown) {
     return NextResponse.json({ ok: false, error: e instanceof Error ? e.message : String(e) }, { status: 500 });
   }

@@ -213,19 +213,9 @@
         const derniere = lignes[lignes.length - 1];
         const match = existing.find((ing: any) => ing.foodflowCode === code);
         if (match) {
+            // Le prix Foodflow vient TOUJOURS du site (/api/foodflow/refresh) : la facture
+            // donne le prix du colis, pas comparable → on n'enregistre que l'achat.
             pfIdParCode.set(code, match.id);
-            const historiqueExistant = match.historiquesPrix || [];
-            const datesExistantes = new Set(historiqueExistant.map((h: any) => h.date));
-            const nouveauxHistorique = lignes
-            .map(l => ({ date: l.date, prix: l.prix }))
-            .filter(h => !datesExistantes.has(h.date));
-            if (nouveauxHistorique.length > 0) {
-            await updateDoc(doc(db, 'produitsFournisseurs', match.id), {
-                prix: derniere.prix,
-                historiquesPrix: [...historiqueExistant, ...nouveauxHistorique],
-                updatedAt: nouveauxHistorique[nouveauxHistorique.length - 1].date,
-            });
-            }
             updated++;
         } else {
             const newPf = await addDoc(collection(db, 'produitsFournisseurs'), {
