@@ -9,6 +9,9 @@ const GQL_URL = 'https://odoo.foodflow.com/graphql/vsf';
 
 const LOGIN = `mutation login($email:String!,$password:String!){login(email:$email,password:$password){partner{id}}}`;
 const SEARCH = `query GetProducts($search: String) { products(search: $search, currentPage: 1, pageSize: 10, filter: {}) { products { id name price clientPrice unit weight liter slug sku } } }`;
+// Le clientPrice (prix négocié) n'est renvoyé correctement que pour une requête filtrée par id.
+// Avec `search`, l'API renvoie le prix public dans clientPrice. Donc après match par SKU, on re-query par id.
+const GET_BY_ID = `query GetById($id: Int!) { products(filter: { ids: [$id] }, currentPage: 1, pageSize: 1) { products { id name price clientPrice unit weight liter slug sku } } }`;
 
 type FoodflowResult = {
   id: number;
@@ -49,6 +52,18 @@ async function search(cookie: string, q: string): Promise<FoodflowResult[]> {
   const j = await res.json();
   if (j.errors) throw new Error(`GQL: ${JSON.stringify(j.errors).slice(0, 200)}`);
   return j.data?.products?.products || [];
+}
+
+async function getById(cookie: string, id: number): Promise<FoodflowResult | null> {
+  const res = await fetch(`${GQL_URL}?op=GetById`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', cookie, origin: 'https://foodflow.com', referer: 'https://foodflow.com/' },
+    body: JSON.stringify({ query: GET_BY_ID, variables: { id }, operationName: 'GetById' }),
+  });
+  if (!res.ok) return null;
+  const j = await res.json();
+  if (j.errors) return null;
+  return j.data?.products?.products?.[0] || null;
 }
 
 // Recalcule le prix dans le format du PF existant pour ne pas casser unite/quantite.
@@ -92,6 +107,12 @@ function recalcPrix(api: FoodflowResult, pf: { unite?: string; quantite?: number
   return null;
 }
 
+// Cron Vercel (GET, autorisé par CRON_SECRET dans proxy.ts) : relit chaque matin
+// le prix site des PF de réf Foodflow, après la sync des factures.
+export async function GET(req: Request) {
+  return POST(req);
+}
+
 export async function POST(req: Request) {
   try {
     const url = new URL(req.url);
@@ -133,11 +154,14 @@ export async function POST(req: Request) {
       try {
         const results = await search(cookie, pfTyped.nom || ing.nom);
         // Match strict par SKU = foodflowCode (1:1, déterministe)
-        const match = results.find(r => r.sku === pfTyped.foodflowCode);
-        if (!match) {
+        const matchSearch = results.find(r => r.sku === pfTyped.foodflowCode);
+        if (!matchSearch) {
           errors.push(`${ing.nom}: pas de match SKU ${pfTyped.foodflowCode || '—'} parmi ${results.length} résultats`);
           continue;
         }
+
+        // Re-query par id pour récupérer le prix négocié (clientPrice n'est correct qu'avec filter.ids)
+        const match = (await getById(cookie, matchSearch.id)) || matchSearch;
 
         // Le slug API contient déjà '/product/...', l'URL canonique est /shop + slug
         const slug = match.slug.startsWith('/product/') ? match.slug : `/product/${match.slug}`;

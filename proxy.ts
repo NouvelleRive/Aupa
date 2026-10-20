@@ -20,7 +20,7 @@ function parseUsers(raw: string | undefined): Map<string, string> {
 export function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
-  if (pathname === '/api/gmail/sync') {
+  if (pathname === '/api/gmail/sync' || pathname === '/api/foodflow/refresh') {
     const auth = req.headers.get('authorization');
     if (auth === `Bearer ${process.env.CRON_SECRET}`) return NextResponse.next();
   }

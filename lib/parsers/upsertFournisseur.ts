@@ -40,10 +40,11 @@ function detectCategorie(nom: string): string {
 // Une ligne de facture est facturée au colis (prix de la poche/du carton).
 // Si le PF est stocké au poids/volume (kg, g, L, cL), il faut convertir via le
 // poids lu dans le libellé, sinon on écrit 108 €/kg pour une poche de 8,64 kg.
-// Retourne le prix au format du PF, `undefined` si la ligne n'a pas de poids
-// (comportement historique), ou `null` si le poids est seulement approximatif
-// ("~4kg") → on ne touche pas au prix (la lecture du site fait foi).
-const POIDS_RE = /(~\s*)?(\d+(?:[.,]\d+)?)\s*(kg|g|cl|l)\b/gi;
+// Retourne le prix au format du PF, `undefined` si le PF est à la pièce
+// (prix facture déjà bon), ou `null` quand on ne peut pas convertir de façon
+// fiable (poids approximatif "~4kg", "2-3KG", "env.", ou pas de poids du tout
+// sur un PF au kg) → on ne touche pas au prix, la lecture du site fait foi.
+const POIDS_RE = /(~\s*|±\s*|\d\s*-\s*)?(\d+(?:[.,]\d+)?)\s*(kg|g|cl|l)\b(\s*env)?/gi;
 const VERS_BASE: Record<string, number> = { kg: 1, g: 0.001, l: 1, cl: 0.01 };
 const PF_UNITE_BASE: Record<string, number> = { kg: 1, g: 0.001, l: 1, cl: 0.01 };
 
@@ -51,10 +52,13 @@ export function prixLigneAuFormatPF(l: LigneFacture, pf: { unite?: string; quant
   const pfBase = PF_UNITE_BASE[(pf.unite || '').toLowerCase()];
   if (!pfBase) return undefined; // PF à la pièce : le prix facture est déjà le bon
   const poids = [...l.nom.matchAll(POIDS_RE)].map(m => ({
-    approx: !!m[1],
+    approx: !!m[1] || !!m[4],
     base: parseFloat(m[2].replace(',', '.')) * VERS_BASE[m[3].toLowerCase()],
   })).filter(p => p.base > 0);
-  if (poids.length === 0) return undefined;
+  if (poids.length === 0) {
+    // Qté fractionnaire = facturé au poids (prix déjà au kg/L), sinon prix d'un colis inconnu
+    return Number.isInteger(l.qte) ? null : Math.round(l.prix * pfBase * (pf.quantite || 1) * 100) / 100;
+  }
   const reel = poids.filter(p => !p.approx);
   if (reel.length === 0) return null;
   // Colis multiple : "6x1L", "6X75CL", "1L x6"
