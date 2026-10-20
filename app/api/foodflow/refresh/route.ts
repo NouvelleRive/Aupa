@@ -124,6 +124,8 @@ export async function POST(req: Request) {
     const limit = parseInt(url.searchParams.get('limit') || '0');
     const onlyName = url.searchParams.get('nom') || '';
     const dryRun = url.searchParams.get('dryRun') === '1';
+    // ?all=1 : tous les PF Foodflow avec un code (pas seulement les PF de réf)
+    const all = url.searchParams.get('all') === '1';
 
     const session = await login();
     if (!session) {
@@ -142,6 +144,15 @@ export async function POST(req: Request) {
         return { ing, pf };
       })
       .filter(({ pf }) => pf && (pf as { fournisseur?: string }).fournisseur === 'Foodflow');
+    if (all) {
+      const dejaCibles = new Set(cibles.map(({ pf }) => (pf as { id: string }).id));
+      for (const pf of pfMap.values()) {
+        const p = pf as { id: string; fournisseur?: string; foodflowCode?: string; nom?: string };
+        if (p.fournisseur === 'Foodflow' && p.foodflowCode && !dejaCibles.has(p.id)) {
+          cibles.push({ ing: { id: '', nom: p.nom || p.id }, pf });
+        }
+      }
+    }
 
     if (onlyName) cibles = cibles.filter(({ ing }) => ing.nom.toLowerCase() === onlyName.toLowerCase());
     if (limit > 0) cibles = cibles.slice(0, limit);
@@ -181,7 +192,7 @@ export async function POST(req: Request) {
           updatedAt: new Date().toISOString(),
         };
         if (newPrix !== null && isFinite(newPrix) && newPrix > 0) {
-          update.prix = Math.round(newPrix * 100) / 100;
+          update.prix = Math.round(newPrix * 10000) / 10000; // 4 décimales : prix unitaires < 1 cts (cure-dents x1000)
         } else {
           errors.push(`${ing.nom}: URL maj OK mais prix non recalculable (api unit=${match.unit}, pf unite=${pfTyped.unite})`);
         }
