@@ -664,7 +664,7 @@ export default function RecettesPage() {
               </select>
             </div>
             <div className="flex flex-col gap-1">
-              <label className="text-xs text-gray-500 font-medium">Prix TTC</label>
+              <label className="text-xs text-gray-500 font-medium">Prix TTC <span className="font-normal text-gray-400">(prix de travail, n'influence pas le prix dans le menu)</span></label>
               <div className="flex items-center gap-1">
                 <input className="border border-yellow-200 focus:border-yellow-400 focus:outline-none rounded-lg px-3 py-2 text-sm w-full" placeholder="Prix TTC" type="number" value={(form as any).prixVente || ''} onChange={e => setForm({ ...form, prixVente: e.target.value } as any)} />
                 {(form as any).prixVente && <span className="text-xs text-gray-400 whitespace-nowrap">{(parseFloat((form as any).prixVente) / 1.1).toFixed(2)} HT</span>}
@@ -942,7 +942,7 @@ export default function RecettesPage() {
                           </select>
                         </div>
                         <div className="flex flex-col gap-1">
-                          <label className="text-xs text-gray-500 font-medium">Prix TTC</label>
+                          <label className="text-xs text-gray-500 font-medium">Prix TTC <span className="font-normal text-gray-400">(prix de travail, n'influence pas le prix dans le menu)</span></label>
                           <div className="flex items-center gap-1">
                             <input className="border border-yellow-200 focus:border-yellow-400 focus:outline-none rounded-lg px-3 py-2 text-sm w-full" type="number" value={(form as any).prixVente || ''} onChange={e => setForm({ ...form, prixVente: e.target.value } as any)} />
                             {(form as any).prixVente && <span className="text-xs text-gray-400 whitespace-nowrap">{(parseFloat((form as any).prixVente) / 1.1).toFixed(2)} HT</span>}
