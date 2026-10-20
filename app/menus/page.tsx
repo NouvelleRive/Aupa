@@ -73,6 +73,8 @@
     const [nouveauDateDebut, setNouveauDateDebut] = useState('');
     const [nouveauDateFin, setNouveauDateFin] = useState('');
     const [dupliquerDepuis, setDupliquerDepuis] = useState<string>('');
+    const [creating, setCreating] = useState(false);
+    const creatingRef = useRef(false); // verrou synchrone anti double-clic
 
     const [menuEdit, setMenuEdit] = useState<string>('');
     const [catNom, setCatNom] = useState('Croger');
@@ -137,33 +139,50 @@
         setVentes(snap.docs.map(d => d.data() as VenteLine));
     };
 
+    // Dépend du nom du menu actif (pas du tableau menus) : sinon chaque
+    // modif de menu rechargeait ~14k ventes pour rien.
+    const menuActifNom = menus.find(x => x.id === menuActif)?.nom || '';
     useEffect(() => {
-        const m = menus.find(x => x.id === menuActif);
-        if (m?.nom) fetchVentesMenu(m.nom);
-    }, [menuActif, menus]);
+        if (menuActifNom) fetchVentesMenu(menuActifNom);
+    }, [menuActifNom]);
 
     const handleCreerMenu = async () => {
-        if (!nouveauNom.trim()) return;
+        if (!nouveauNom.trim() || creatingRef.current) return;
         const nom = nouveauNom.toUpperCase().trim();
-        const saison = nom.startsWith('ETE') ? 'été' : 'hiver';
-        const annee = parseInt('20' + nom.replace('ETE', '').replace('HIVER', ''));
-        const sourceMenu = dupliquerDepuis ? menus.find(m => m.id === dupliquerDepuis) : null;
-        const categories = sourceMenu ? sourceMenu.categories.map(c => ({ nom: c.nom, recettes: c.recettes.map(r => ({ ...r })) })) : [];
-        const newDoc = await addDoc(collection(db, 'menus'), {
-        nom, saison, annee,
-        dateDebut: nouveauDateDebut,
-        dateFin: nouveauDateFin,
-        categories, actif: true,
-        createdAt: new Date().toISOString(),
-        });
-        invalidateCache('menus');
-        setShowCreerMenu(false);
-        setNouveauNom('');
-        setNouveauDateDebut('');
-        setNouveauDateFin('');
-        setDupliquerDepuis('');
-        await fetchAll();
-        setMenuActif(newDoc.id);
+        if (!/^(ETE|HIVER)\d{2}$/.test(nom)) { alert('Nom attendu : ETE26, HIVER26…'); return; }
+        creatingRef.current = true;
+        setCreating(true);
+        try {
+            // Vérif côté Firestore (pas le cache local) pour ne jamais créer de doublon
+            const existing = await getDocs(query(collection(db, 'menus'), where('nom', '==', nom)));
+            if (!existing.empty) { alert(`Le menu ${nom} existe déjà.`); return; }
+            const saison = nom.startsWith('ETE') ? 'été' : 'hiver';
+            const annee = parseInt('20' + nom.replace('ETE', '').replace('HIVER', ''));
+            const sourceMenu = dupliquerDepuis ? menus.find(m => m.id === dupliquerDepuis) : null;
+            const categories = sourceMenu ? sourceMenu.categories.map(c => ({ nom: c.nom, recettes: c.recettes.map(r => ({ ...r })) })) : [];
+            const data = {
+                nom, saison, annee,
+                dateDebut: nouveauDateDebut,
+                dateFin: nouveauDateFin,
+                categories, actif: true,
+                createdAt: new Date().toISOString(),
+            } as Omit<MenuDoc, 'id'>;
+            const newDoc = await addDoc(collection(db, 'menus'), data);
+            invalidateCache('menus');
+            // Ajout local plutôt qu'un fetchAll complet (menus + recettes + caisseMap)
+            setMenus(prev => [{ id: newDoc.id, ...data }, ...prev]);
+            setMenuActif(newDoc.id);
+            setShowCreerMenu(false);
+            setNouveauNom('');
+            setNouveauDateDebut('');
+            setNouveauDateFin('');
+            setDupliquerDepuis('');
+        } catch (e: any) {
+            alert(`❌ Création impossible : ${e?.message || e}`);
+        } finally {
+            creatingRef.current = false;
+            setCreating(false);
+        }
     };
 
     const handleSauvegarderCategorie = async () => {
@@ -442,19 +461,23 @@
             <input className="border border-yellow-200 focus:border-yellow-400 focus:outline-none rounded-lg px-3 py-2 text-sm w-32"
                 placeholder="Ex: HIVER24" value={nouveauNom}
                 onChange={e => setNouveauNom(e.target.value.toUpperCase())} />
-            <input className="border border-yellow-200 focus:border-yellow-400 focus:outline-none rounded-lg px-3 py-2 text-sm w-36"
-                placeholder="Début (2024-11-01)" value={nouveauDateDebut}
+            <input type="date" title="Début" className="border border-yellow-200 focus:border-yellow-400 focus:outline-none rounded-lg px-3 py-2 text-sm w-36"
+                value={nouveauDateDebut}
                 onChange={e => setNouveauDateDebut(e.target.value)} />
-            <input className="border border-yellow-200 focus:border-yellow-400 focus:outline-none rounded-lg px-3 py-2 text-sm w-36"
-                placeholder="Fin (2025-04-30)" value={nouveauDateFin}
+            <input type="date" title="Fin" className="border border-yellow-200 focus:border-yellow-400 focus:outline-none rounded-lg px-3 py-2 text-sm w-36"
+                value={nouveauDateFin}
                 onChange={e => setNouveauDateFin(e.target.value)} />
             <select className="border border-yellow-200 focus:border-yellow-400 focus:outline-none rounded-lg px-3 py-2 text-sm"
                 value={dupliquerDepuis} onChange={e => setDupliquerDepuis(e.target.value)}>
                 <option value="">Dupliquer à partir de</option>
                 {menus.map(m => <option key={m.id} value={m.id}>Dupliquer {m.nom}</option>)}
             </select>
-            <button onClick={handleCreerMenu} className="bg-yellow-400 hover:bg-yellow-500 text-black font-semibold rounded-lg px-4 py-2 text-sm">Créer</button>
-            <button onClick={() => setShowCreerMenu(false)} className="text-sm text-gray-400 hover:text-gray-600">Annuler</button>
+            <button onClick={handleCreerMenu} disabled={creating}
+                className="bg-yellow-400 hover:bg-yellow-500 disabled:opacity-60 disabled:cursor-wait text-black font-semibold rounded-lg px-4 py-2 text-sm inline-flex items-center gap-2">
+                {creating && <span className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin" />}
+                {creating ? 'Création…' : 'Créer'}
+            </button>
+            <button onClick={() => setShowCreerMenu(false)} disabled={creating} className="text-sm text-gray-400 hover:text-gray-600">Annuler</button>
             </div>
         )}
 
