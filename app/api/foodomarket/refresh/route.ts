@@ -40,7 +40,12 @@ async function fetchProduct(slug: string) {
   };
 }
 
+// Lecture des prix Foodomarket en pause (fournisseur non retenu, oct. 2026).
+// Repasser à false pour réactiver.
+const PAUSED = true;
+
 export async function POST() {
+  if (PAUSED) return NextResponse.json({ ok: false, paused: true, error: 'en pause' });
   try {
     const ingSnap = await getDocs(collection(db, 'ingredients'));
     const pfSnap = await getDocs(collection(db, 'produitsFournisseurs'));

@@ -84,7 +84,12 @@ async function fetchRungisProduct(slug: string, cookie: string) {
   };
 }
 
+// Lecture des prix Rungis en pause (fournisseur non retenu, oct. 2026).
+// Repasser à false pour réactiver.
+const PAUSED = true;
+
 export async function POST() {
+  if (PAUSED) return NextResponse.json({ ok: false, paused: true, error: 'en pause' });
   try {
     const cookie = await loginRungis();
     if (!cookie) return NextResponse.json({ ok: false, error: 'Login Rungis échoué (creds manquantes ou invalides)' }, { status: 500 });
