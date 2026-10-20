@@ -209,6 +209,8 @@
     const handleSupprimerCategorie = async (menuId: string, idx: number) => {
         const menu = menus.find(m => m.id === menuId);
         if (!menu) return;
+        const cat = menu.categories[idx];
+        if (!confirm(`Supprimer la catégorie "${cat?.nom}" et ses ${cat?.recettes.length ?? 0} recettes de ${menu.nom} ?`)) return;
         const newCats = menu.categories.filter((_, i) => i !== idx);
         await updateDoc(doc(db, 'menus', menuId), { categories: newCats });
         invalidateCache('menus');
